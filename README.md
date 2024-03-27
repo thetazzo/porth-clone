@@ -7,7 +7,7 @@
 ## Quick Start
 
 ```{bash}
-$ ./porth.py sim
-$ ./porth.py cmp
+$ ./porth.py sim ./examples/test.porth
+$ ./porth.py cmp ./examples/test.porth
 $ ./output
 ```
