@@ -191,9 +191,9 @@ if __name__ == '__main__':
             exit(1);
         (program_path, argv) = uncons(argv);
         program = load_program_from_file(program_path);
-        compile_program(program, "output.asm");
-        call_cmd(["nasm", "-f", "elf64", "output.asm"]);
-        call_cmd(["ld", "-o", "output", "output.o"]);
+        compile_program(program, "./build/output.asm");
+        call_cmd(["nasm", "-f", "elf64", "./build/output.asm"]);
+        call_cmd(["ld", "-o", "output", "./build/output.o"]);
     else:
         print_usage();
         print("ERROR: unknown subcommand '%s'" % (subcommand));
