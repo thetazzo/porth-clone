@@ -21,6 +21,7 @@ OP_DUMP=iota();
 OP_IF=iota();
 OP_ELSE=iota();
 OP_END=iota();
+OP_DUP=iota();
 COUNT_OPS=iota();
 
 def push(x):
@@ -47,12 +48,15 @@ def elsee():
 def end():
     return (OP_END,);
 
+def dup():
+    return (OP_DUP,);
+
 # Does not compile it just simulates the program
 def simulate_program(program):
     stack = [];
     ip = 0;
     while ip < len(program):
-        assert COUNT_OPS == 8, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 9, "Exhaustive handling of operations in simulation"
         op = program[ip];
         if op[0] == OP_PUSH:
             stack.append(op[1]);
@@ -83,6 +87,11 @@ def simulate_program(program):
             assert len(op) >= 2, "'else' instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you simulate it!";
             ip = op[1];
         elif op[0] == OP_END:
+            ip += 1;
+        elif op[0] == OP_DUP:
+            a = stack.pop();
+            stack.append(a);
+            stack.append(a);
             ip += 1;
         elif op[0] == OP_DUMP:
             a = stack.pop();
@@ -127,7 +136,7 @@ def compile_program(program, out_file_path):
         out.write("global _start\n");
         out.write("_start:\n");
         for ip in range(len(program)):
-            assert COUNT_OPS == 8, "Exhaustive handling of operations in compilation"
+            assert COUNT_OPS == 9, "Exhaustive handling of operations in compilation"
             op = program[ip];
             if op[0] == OP_PUSH:
                 out.write(";;  -- push %d --\n" % op[1]);
@@ -167,6 +176,11 @@ def compile_program(program, out_file_path):
                 out.write("addr_%d:\n" % (ip + 1));
             elif op[0] == OP_END:
                 out.write("addr_%d:\n" % ip);
+            elif op[0] == OP_DUP:
+                out.write(";;  -- dup --\n");
+                out.write("    pop rax\n");
+                out.write("    push rax\n");
+                out.write("    push rax\n");
             elif op[0] == OP_DUMP:
                 out.write(";;  -- dump %d --\n");
                 out.write("    pop rdi\n");
@@ -179,7 +193,7 @@ def compile_program(program, out_file_path):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token;
-    assert COUNT_OPS == 8, "Exhaustive op handling in parse_token_as_op";
+    assert COUNT_OPS == 9, "Exhaustive op handling in parse_token_as_op";
     if word == '+':
         return plus();
     elif word == '-':
@@ -192,6 +206,8 @@ def parse_token_as_op(token):
         return elsee();
     elif word == 'end':
         return end();
+    elif word == 'dup':
+        return dup();
     elif word == '.':
         return dump();
     else: 
@@ -204,7 +220,7 @@ def parse_token_as_op(token):
 def crossreference_blocks(program):
     stack = [];
     for ip in range(len(program)):
-        assert COUNT_OPS == 8, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 9, "Exhaustive handling of ops in crossreference_blocks"
         op = program[ip]; 
         if op[0] == OP_IF:
             stack.append(ip);
@@ -233,6 +249,7 @@ def lex_line(line):
         yield (col, line[col:col_end]);
         col = find_col(line, col_end, lambda x: not x.isspace());
 
+# TODO: lexer does not support comments
 def lex_file(file_path):
     with open(file_path, 'r') as f:
         return [(file_path, row, col, token)
