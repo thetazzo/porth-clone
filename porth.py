@@ -23,6 +23,8 @@ OP_ELSE=iota();
 OP_END=iota();
 OP_DUP=iota();
 OP_GT=iota();
+OP_WHILE=iota();
+OP_DO=iota();
 COUNT_OPS=iota();
 
 def push(x):
@@ -55,12 +57,19 @@ def dup():
 def gt():
     return (OP_GT,);
 
+def whilee():
+    return (OP_WHILE,);
+
+def do():
+    return (OP_DO,);
+
+
 # Does not compile it just simulates the program
 def simulate_program(program):
     stack = [];
     ip = 0;
     while ip < len(program):
-        assert COUNT_OPS == 10, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 12, "Exhaustive handling of operations in simulation"
         op = program[ip];
         if op[0] == OP_PUSH:
             stack.append(op[1]);
@@ -83,15 +92,16 @@ def simulate_program(program):
         elif op[0] == OP_IF:
             a = stack.pop();
             if a == 0:
-                assert len(op) >= 2, "'if' instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you simulate it!";
+                assert len(op) >= 2, "`if` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you simulate it!";
                 ip = op[1];
             else:
                 ip += 1;
         elif op[0] == OP_ELSE:
-            assert len(op) >= 2, "'else' instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you simulate it!";
+            assert len(op) >= 2, "`else` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you simulate it!";
             ip = op[1];
         elif op[0] == OP_END:
-            ip += 1;
+            assert len(op) >= 2, "`end` instruction does not have a reference to the next instruction to jump to. Please call crossreference_blocks() on the program before you simulate it!";
+            ip = op[1];
         elif op[0] == OP_DUP:
             a = stack.pop();
             stack.append(a);
@@ -102,6 +112,15 @@ def simulate_program(program):
             a = stack.pop();
             stack.append(int(a > b));
             ip += 1;
+        elif op[0] == OP_WHILE:
+            ip += 1;
+        elif op[0] == OP_DO:
+            a = stack.pop();
+            if a == 0:
+                assert len(op) >= 2, "`end` instruction does not have a reference to the next instruction to jump to. Please call crossreference_blocks() on the program before you simulate it!";
+                ip = op[1];
+            else:
+                ip += 1;
         elif op[0] == OP_DUMP:
             a = stack.pop();
             print(a);
@@ -145,8 +164,9 @@ def compile_program(program, out_file_path):
         out.write("global _start\n");
         out.write("_start:\n");
         for ip in range(len(program)):
-            assert COUNT_OPS == 10, "Exhaustive handling of operations in compilation"
+            assert COUNT_OPS == 12, "Exhaustive handling of operations in compilation"
             op = program[ip];
+            out.write("addr_%d:\n" % ip);
             if op[0] == OP_PUSH:
                 out.write(";;  -- push %d --\n" % op[1]);
                 out.write("    push %d\n" % op[1]);
@@ -177,14 +197,16 @@ def compile_program(program, out_file_path):
                 out.write("    pop rax\n");
                 out.write("    test rax, rax\n");
                 assert len(op) >= 2, "`if` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you compile it!"
-                out.write("    je addr_%d\n" % op[1]);
+                out.write("    jz addr_%d\n" % op[1]);
             elif op[0] == OP_ELSE:
                 out.write(";;  -- else --\n");
                 assert len(op) >= 2, "`else` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you compile it!"
                 out.write("   jmp addr_%d\n" % op[1]);
-                out.write("addr_%d:\n" % (ip + 1));
             elif op[0] == OP_END:
-                out.write("addr_%d:\n" % ip);
+                assert len(op) >= 2, "`end` instruction does not have a reference to the next instruction to jump to. Please call crossreference_blocks() on the program before you compile it!";
+                out.write(";;  -- end --\n");
+                if ip + 1 != op[1]:
+                    out.write("   jmp addr_%d\n" % op[1]);
             elif op[0] == OP_DUP:
                 out.write(";;  -- dup --\n");
                 out.write("    pop rax\n");
@@ -200,19 +222,28 @@ def compile_program(program, out_file_path):
                 # move 1 to rcx when rax == rbx
                 out.write("    cmovg rcx, rdx\n");
                 out.write("    push rcx\n");
+            elif op[0] == OP_WHILE:
+                out.write(";;  -- while --\n");
+            elif op[0] == OP_DO:
+                out.write(";;  -- do --\n");
+                out.write("    pop rax\n");
+                out.write("    test rax, rax\n");
+                assert len(op) >= 2, "`do` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you compile it!"
+                out.write("    jz addr_%d\n" % op[1]);
             elif op[0] == OP_DUMP:
                 out.write(";;  -- dump %d --\n");
                 out.write("    pop rdi\n");
                 out.write("    call dump\n");
             else:
                 assert False, "unreachable";
+        out.write("addr_%d:\n" % len(program));
         out.write("    mov rax, SYS_EXIT\n");
         out.write("    mov rdi, 0\n");
         out.write("    syscall\n");
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token;
-    assert COUNT_OPS == 10, "Exhaustive op handling in parse_token_as_op";
+    assert COUNT_OPS == 12, "Exhaustive op handling in parse_token_as_op";
     if word == '+':
         return plus();
     elif word == '-':
@@ -229,6 +260,10 @@ def parse_token_as_op(token):
         return dup();
     elif word == '>':
         return gt();
+    elif word == 'while':
+        return whilee();
+    elif word == 'do':
+        return do();
     elif word == '.':
         return dump();
     else: 
@@ -241,7 +276,7 @@ def parse_token_as_op(token):
 def crossreference_blocks(program):
     stack = [];
     for ip in range(len(program)):
-        assert COUNT_OPS == 10, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 12, "Exhaustive handling of ops in crossreference_blocks"
         op = program[ip]; 
         if op[0] == OP_IF:
             stack.append(ip);
@@ -253,9 +288,20 @@ def crossreference_blocks(program):
         elif op[0] == OP_END:
             block_ip = stack.pop();
             if program[block_ip][0] == OP_IF or program[block_ip][0] == OP_ELSE:
-                program[block_ip] = (program[block_ip][0], ip)
+                program[block_ip] = (program[block_ip][0], ip);
+                program[ip] = (OP_END, ip + 1);
+            elif program[block_ip][0] == OP_DO:
+                assert len(program[block_ip]) >= 2;
+                program[ip] = (OP_END, program[block_ip][1]);
+                program[block_ip] = (OP_DO, ip + 1);
             else: 
-                assert False, "`end` can only close `if-else` blocks for now"
+                assert False, "`end` can only close `if`, `else` or `do` blocks for now"
+        elif op[0] == OP_WHILE:
+            stack.append(ip);
+        elif op[0] == OP_DO:
+            while_ip = stack.pop();
+            program[ip] = (OP_DO, while_ip);
+            stack.append(ip);
     return program;
 
 def find_col(line, start, predicate):
