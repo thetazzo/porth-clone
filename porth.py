@@ -2,6 +2,7 @@
 
 import sys;
 import subprocess;
+from os import path;
 
 iota_counter=0;
 
@@ -25,6 +26,7 @@ OP_DUP=iota();
 OP_GT=iota();
 OP_WHILE=iota();
 OP_DO=iota();
+#OP_MEM=iota();
 COUNT_OPS=iota();
 
 def push(x):
@@ -65,63 +67,63 @@ def do():
 
 
 # Does not compile it just simulates the program
-def simulate_program(program):
+def out_simulate_program(program):
     stack = [];
     ip = 0;
     while ip < len(program):
         assert COUNT_OPS == 12, "Exhaustive handling of operations in simulation"
         op = program[ip];
-        if op[0] == OP_PUSH:
-            stack.append(op[1]);
+        if op['type'] == OP_PUSH:
+            stack.append(op['value']);
             ip += 1;
-        elif op[0] == OP_PLUS:
+        elif op['type'] == OP_PLUS:
             a = stack.pop();
             b = stack.pop();
             stack.append(a + b);
             ip += 1;
-        elif op[0] == OP_MINUS:
+        elif op['type'] == OP_MINUS:
             a = stack.pop();
             b = stack.pop();
             stack.append(b - a);
             ip += 1;
-        elif op[0] == OP_EQUAL:
+        elif op['type'] == OP_EQUAL:
             a = stack.pop();
             b = stack.pop();
             stack.append(int(a == b));
             ip += 1;
-        elif op[0] == OP_IF:
+        elif op['type'] == OP_IF:
             a = stack.pop();
             if a == 0:
-                assert len(op) >= 2, "`if` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you simulate it!";
-                ip = op[1];
+                assert 'jmp' in op, "`if` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you simulate it!";
+                ip = op['jmp'];
             else:
                 ip += 1;
-        elif op[0] == OP_ELSE:
-            assert len(op) >= 2, "`else` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you simulate it!";
-            ip = op[1];
-        elif op[0] == OP_END:
-            assert len(op) >= 2, "`end` instruction does not have a reference to the next instruction to jump to. Please call crossreference_blocks() on the program before you simulate it!";
-            ip = op[1];
-        elif op[0] == OP_DUP:
+        elif op['type'] == OP_ELSE:
+            assert 'jmp' in op, "`else` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you simulate it!";
+            ip = op['jmp'];
+        elif op['type'] == OP_END:
+            assert 'jmp' in op, "`end` instruction does not have a reference to the next instruction to jump to. Please call crossreference_blocks() on the program before you simulate it!";
+            ip = op['jmp'];
+        elif op['type'] == OP_DUP:
             a = stack.pop();
             stack.append(a);
             stack.append(a);
             ip += 1;
-        elif op[0] == OP_GT:
+        elif op['type'] == OP_GT:
             b = stack.pop();
             a = stack.pop();
             stack.append(int(a > b));
             ip += 1;
-        elif op[0] == OP_WHILE:
+        elif op['type'] == OP_WHILE:
             ip += 1;
-        elif op[0] == OP_DO:
+        elif op['type'] == OP_DO:
             a = stack.pop();
             if a == 0:
-                assert len(op) >= 2, "`end` instruction does not have a reference to the next instruction to jump to. Please call crossreference_blocks() on the program before you simulate it!";
-                ip = op[1];
+                assert 'jmp' in op, "`do` instruction does not have a reference to the next instruction to jump to. Please call crossreference_blocks() on the program before you simulate it!";
+                ip = op['jmp'];
             else:
                 ip += 1;
-        elif op[0] == OP_DUMP:
+        elif op['type'] == OP_DUMP:
             a = stack.pop();
             print(a);
             ip += 1;
@@ -167,22 +169,22 @@ def compile_program(program, out_file_path):
             assert COUNT_OPS == 12, "Exhaustive handling of operations in compilation"
             op = program[ip];
             out.write("addr_%d:\n" % ip);
-            if op[0] == OP_PUSH:
-                out.write(";;  -- push %d --\n" % op[1]);
-                out.write("    push %d\n" % op[1]);
-            elif op[0] == OP_PLUS:
+            if op['type'] == OP_PUSH:
+                out.write(";;  -- push %d --\n" % op['value']);
+                out.write("    push %d\n" % op['value']);
+            elif op['type'] == OP_PLUS:
                 out.write(";;  -- plus --\n");
                 out.write("    pop rax\n");
                 out.write("    pop rbx\n");
                 out.write("    add rax, rbx\n");
                 out.write("    push rax\n");
-            elif op[0] == OP_MINUS:
+            elif op['type'] == OP_MINUS:
                 out.write(";;  -- minus --\n");
                 out.write("    pop rax\n");
                 out.write("    pop rbx\n");
                 out.write("    sub rbx, rax\n");
                 out.write("    push rbx\n");
-            elif op[0] == OP_EQUAL:
+            elif op['type'] == OP_EQUAL:
                 out.write(";;  --  equal --\n");
                 out.write("    mov rcx, 0\n");
                 out.write("    mov rdx, 1\n");
@@ -192,27 +194,27 @@ def compile_program(program, out_file_path):
                 # move 1 to rcx when rax == rbx
                 out.write("    cmove rcx, rdx\n");
                 out.write("    push rcx\n");
-            elif op[0] == OP_IF:
+            elif op['type'] == OP_IF:
                 out.write(";;  -- if --\n");
                 out.write("    pop rax\n");
                 out.write("    test rax, rax\n");
-                assert len(op) >= 2, "`if` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you compile it!"
-                out.write("    jz addr_%d\n" % op[1]);
-            elif op[0] == OP_ELSE:
+                assert 'jmp' in op, "`if` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you compile it!"
+                out.write("    jz addr_%d\n" % op['jmp']);
+            elif op['type'] == OP_ELSE:
                 out.write(";;  -- else --\n");
-                assert len(op) >= 2, "`else` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you compile it!"
-                out.write("   jmp addr_%d\n" % op[1]);
-            elif op[0] == OP_END:
-                assert len(op) >= 2, "`end` instruction does not have a reference to the next instruction to jump to. Please call crossreference_blocks() on the program before you compile it!";
+                assert 'jmp' in op, "`else` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you compile it!"
+                out.write("   jmp addr_%d\n" % op['jmp']);
+            elif op['type'] == OP_END:
+                assert 'jmp' in op, "`end` instruction does not have a reference to the next instruction to jump to. Please call crossreference_blocks() on the program before you compile it!";
                 out.write(";;  -- end --\n");
-                if ip + 1 != op[1]:
-                    out.write("   jmp addr_%d\n" % op[1]);
-            elif op[0] == OP_DUP:
+                if ip + 1 != op['jmp']:
+                    out.write("   jmp addr_%d\n" % op['jmp']);
+            elif op['type'] == OP_DUP:
                 out.write(";;  -- dup --\n");
                 out.write("    pop rax\n");
                 out.write("    push rax\n");
                 out.write("    push rax\n");
-            elif op[0] == OP_GT:
+            elif op['type'] == OP_GT:
                 out.write(";;  -- gt --\n");
                 out.write("    mov rcx, 0\n");
                 out.write("    mov rdx, 1\n");
@@ -222,20 +224,21 @@ def compile_program(program, out_file_path):
                 # move 1 to rcx when rax == rbx
                 out.write("    cmovg rcx, rdx\n");
                 out.write("    push rcx\n");
-            elif op[0] == OP_WHILE:
+            elif op['type'] == OP_WHILE:
                 out.write(";;  -- while --\n");
-            elif op[0] == OP_DO:
+            elif op['type'] == OP_DO:
                 out.write(";;  -- do --\n");
                 out.write("    pop rax\n");
                 out.write("    test rax, rax\n");
-                assert len(op) >= 2, "`do` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you compile it!"
-                out.write("    jz addr_%d\n" % op[1]);
-            elif op[0] == OP_DUMP:
+                assert 'jmp' in op, "`do` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you compile it!"
+                out.write("    jz addr_%d\n" % op['jmp']);
+            elif op['type'] == OP_DUMP:
                 out.write(";;  -- dump %d --\n");
                 out.write("    pop rdi\n");
                 out.write("    call dump\n");
             else:
                 assert False, "unreachable";
+
         out.write("addr_%d:\n" % len(program));
         out.write("    mov rax, SYS_EXIT\n");
         out.write("    mov rdi, 0\n");
@@ -243,32 +246,35 @@ def compile_program(program, out_file_path):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token;
+    loc = (file_path, row + 1, col + 1);
     assert COUNT_OPS == 12, "Exhaustive op handling in parse_token_as_op";
     if word == '+':
-        return plus();
+        return {'type': OP_PLUS, 'loc': loc};
     elif word == '-':
-        return minus();
+        return {'type': OP_MINUS, 'loc': loc};
     elif word == '=':
-        return equal();
+        return {'type': OP_EQUAL, 'loc': loc};
     elif word == 'if':
-        return iff();
+        return {'type': OP_IF, 'loc': loc};
     elif word == 'else':
-        return elsee();
+        return {'type': OP_ELSE, 'loc': loc};
     elif word == 'end':
-        return end();
+        return {'type': OP_END, 'loc': loc};
     elif word == 'dup':
-        return dup();
+        return {'type': OP_DUP, 'loc': loc};
     elif word == '>':
-        return gt();
+        return {'type': OP_GT, 'loc': loc};
     elif word == 'while':
-        return whilee();
+        return {'type': OP_WHILE, 'loc': loc};
     elif word == 'do':
-        return do();
+        return {'type': OP_DO, 'loc': loc};
     elif word == '.':
-        return dump();
+        return {'type': OP_DUMP, 'loc': loc};
+    elif word == 'mem':
+        return {'type': OP_MEM, 'loc': loc};
     else: 
         try:
-            return push(int(word));
+            return {'type': OP_PUSH, 'value': int(word), 'loc': loc};
         except ValueError as err:
             print("%s:%d:%d: %s" % (file_path, row, col, err));
             exit(1);
@@ -278,30 +284,38 @@ def crossreference_blocks(program):
     for ip in range(len(program)):
         assert COUNT_OPS == 12, "Exhaustive handling of ops in crossreference_blocks"
         op = program[ip]; 
-        if op[0] == OP_IF:
+        if op['type'] == OP_IF:
             stack.append(ip);
-        elif op[0] == OP_ELSE:
+        elif op['type'] == OP_ELSE:
             if_ip = stack.pop();
-            assert program[if_ip][0] == OP_IF, "`else` can only be used in `if` blocks"
-            program[if_ip] = (OP_IF, ip + 1);
+            if program[if_ip]['type'] != OP_IF:
+                print("%s:%d:%d:  Error `else` can only be used in `if`-blocks" % program[if_ip]['loc']);
+                exit(1);
+            program[if_ip]['jmp'] = ip + 1;
             stack.append(ip);
-        elif op[0] == OP_END:
+        elif op['type'] == OP_END:
             block_ip = stack.pop();
-            if program[block_ip][0] == OP_IF or program[block_ip][0] == OP_ELSE:
-                program[block_ip] = (program[block_ip][0], ip);
-                program[ip] = (OP_END, ip + 1);
-            elif program[block_ip][0] == OP_DO:
+            if program[block_ip]['type'] == OP_IF or program[block_ip]['type'] == OP_ELSE:
+                program[block_ip]['jmp'] = ip;
+                program[ip]['jmp'] = ip + 1;
+            elif program[block_ip]['type'] == OP_DO:
                 assert len(program[block_ip]) >= 2;
-                program[ip] = (OP_END, program[block_ip][1]);
-                program[block_ip] = (OP_DO, ip + 1);
+                program[ip]['jmp'] = program[block_ip]['jmp'];
+                program[block_ip]['jmp'] = ip + 1;
             else: 
-                assert False, "`end` can only close `if`, `else` or `do` blocks for now"
-        elif op[0] == OP_WHILE:
+                print("%s:%d:%d: ERROR: `end` can only close `if`, `else` or `do` blocks" % program[block_ip]['loc']);
+                exit(1);
+        elif op['type'] == OP_WHILE:
             stack.append(ip);
-        elif op[0] == OP_DO:
+        elif op['type'] == OP_DO:
             while_ip = stack.pop();
-            program[ip] = (OP_DO, while_ip);
+            program[ip]['jmp'] = while_ip;
             stack.append(ip);
+
+    if len(stack) > 0:
+        print('%s:%d:%d: ERROR: unclosed block' % program[stack.pop()]['loc'])
+        exit(1)
+
     return program;
 
 def find_col(line, start, predicate):
@@ -316,7 +330,6 @@ def lex_line(line):
         yield (col, line[col:col_end]);
         col = find_col(line, col_end, lambda x: not x.isspace());
 
-# TODO: lexer does not support comments
 def lex_file(file_path):
     with open(file_path, 'r') as f:
         return [(file_path, row, col, token)
@@ -329,53 +342,90 @@ def load_program_from_file(file_path):
 def print_usage(program):
     print("Usage: %s <SUBCOMMAND> [ARGS]" % (program));
     print("SUBCOMMAND:");
-    print("    sim <file> ... Simulate the program");
-    print("    com <file> ... Compile the ptogram");
-    print();
+    print("    sim <file>           ... Simulate the program");
+    print("    com [OPTIONS] <file> ... Compile the ptogram");
+    print("      OPTIONS:");
+    print("        -r               ... Run the program after successful compilation");
+    print("        -o <file|dir>    ... Customize the output path")
+    print("    help                 ... Print this help to stdout and exit with 0 code")
+
+
 
 def call_cmd(cmd):
     print("+", ' '.join(cmd));
     subprocess.call(cmd);
 
-def uncons(xs):
-    return (xs[0], xs[1:]);
-
 if __name__ == '__main__':
     argv = sys.argv;
     assert len(argv) >= 1;
-    (program_name, argv) = uncons(argv);
-    if len(argv) < 2:
-        print_usage(program_name);
+    compiler_name, *argv = argv;
+    if len(argv) < 1:
+        print_usage(compiler_name);
         print("ERROR: no subcommand provided");
         exit(1);
 
-    (subcommand, argv) = uncons(argv);
+    subcommand, *argv = argv;
 
-    if (subcommand == "sim"):
+    if subcommand == "sim":
         if len(argv) < 1:
-            print_usage(program_name);
+            print_usage(compiler_name);
             print("ERROR: No input file was provided for the simulation");
             exit(1);
-        (program_path, argv) = uncons(argv);
+        program_path, *argv = argv;
         program = load_program_from_file(program_path);
         simulate_program(program); 
-    elif (subcommand == "com"):
-        if len(argv) < 1:
-            print_usage(program_name);
-            print("ERROR: No input file was provided for the compilation");
+    elif subcommand == "com":
+        should_execute = False;
+        program_path = None;
+        output_path  = None;
+        while len(argv) > 0:
+            flag, *argv = argv;
+            if flag == '-r':
+                should_execute = True;
+            elif flag == '-o':
+                if len(argv) == 0:
+                    print_usage(compiler_name)
+                    print("ERROR: no argument is provided for parameter -o")
+                    exit(1)
+                output_path, *argv = argv
+            else:
+                program_path = flag;
+                break;
+
+        if program_path is None:
+            print_usage(compiler_name);
+            print("ERROR: no input file provided for compilation");
             exit(1);
-        (program_path, argv) = uncons(argv);
+
+        out_basename = None
+        out_basedir = None
+        if output_path is not None:
+            if path.isdir(output_path):
+                out_basename = path.basename(program_path)
+                porth_ext = '.porth'
+                if out_basename.endswith(porth_ext):
+                    out_basename = out_basename[:-len(porth_ext)]
+                out_basedir = path.dirname(output_path)
+            else:
+                out_basename = path.basename(output_path)
+                out_basedir = path.dirname(output_path)
+        else:
+            out_basename = path.basename(program_path)
+            porth_ext = '.porth'
+            if out_basename.endswith(porth_ext):
+                out_basename = out_basename[:-len(porth_ext)]
+            out_basedir = path.dirname(program_path)
+        out_basepath = path.join(out_basedir, out_basename)
+
+        print("[INFO] Generating %s" % (out_basepath + ".asm"))
         program = load_program_from_file(program_path);
+        compile_program(program, out_basepath + ".asm")
+        call_cmd(["nasm", "-felf64", out_basepath + ".asm"])
+        call_cmd(["ld", "-o", out_basepath, out_basepath + ".o"])
+        if should_execute:
+            call_cmd([out_basepath])
 
-        out_file_base = program_path.split('/')[-1].split('.porth')[0];
-        out_dir_name = program_path.split('/')[-2];
-
-        compile_program(program, "./build/" + out_file_base + ".asm");
-
-        call_cmd(["nasm", "-f", "elf64", "./build/" + out_file_base + ".asm"]);
-        call_cmd(["ld", "-o", out_dir_name+"/"+out_file_base, "./build/" + out_file_base + ".o"]);
-        print("Generated: "+out_dir_name+"/"+out_file_base);
     else:
-        print_usage(program_name);
+        print_usage(compiler_name);
         print("ERROR: unknown subcommand '%s'" % (subcommand));
         exit(1);
