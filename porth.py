@@ -357,6 +357,7 @@ if __name__ == '__main__':
             print("ERROR: No input file was provided for the simulation");
             exit(1);
         (program_path, argv) = uncons(argv);
+
         program = load_program_from_file(program_path);
         simulate_program(program); 
     elif (subcommand == "com"):
@@ -366,9 +367,13 @@ if __name__ == '__main__':
             exit(1);
         (program_path, argv) = uncons(argv);
         program = load_program_from_file(program_path);
-        compile_program(program, "./build/output.asm");
-        call_cmd(["nasm", "-f", "elf64", "./build/output.asm"]);
-        call_cmd(["ld", "-o", "output", "./build/output.o"]);
+
+        out_file_base = program_path.split('/')[-1].split('.porth')[0];
+
+        compile_program(program, "./build/" + out_file_base + ".asm");
+
+        call_cmd(["nasm", "-f", "elf64", "./build/" + out_file_base + ".asm"]);
+        call_cmd(["ld", "-o", out_file_base, "./build/" + out_file_base + ".o"]);
     else:
         print_usage(program_name);
         print("ERROR: unknown subcommand '%s'" % (subcommand));
