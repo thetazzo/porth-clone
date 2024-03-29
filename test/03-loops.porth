@@ -1,0 +1,5 @@
+10
+while dup 0 > do // hello semen
+    dup .
+    1 -
+end
