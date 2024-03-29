@@ -14,5 +14,62 @@ $ ./output
 
 ---
 
+## Documentation
+
+### Stack Manipulation
+
+* `<integer` - push integer onto the stack. Here the integer is anything that is parsable by [int](https://docs.python.org/3/library/functions.html#int) function
+```
+push(<integer>)
+```
+* `dup` - duplicate an element on top of the stack
+```
+a = pop()
+push(a)
+push(a)
+```
+* `.` - print the element on top of the stack to *stdout* and remove it form the stack
+```
+a = pop()
+print(a)
+```
+
+### Comparison
+* `=` - checks if the two elements on top of the stack are equal. Removes the elements from the stack and pushes `1` if they are equal or `0` if they are not
+```
+a = pop()
+b = pop()
+push(int(a == b))
+```
+* `>` - checks if the element below the top is greater than the top
+```
+a = pop()
+b = pop()
+push(int(a > b));
+```
+
+### Arithmetics
+* `+` - sums the two elements that are on the top of the stack
+```
+a = pop()
+b = pop()
+push(a + b)
+```
+* `-` - subtracts the top element of the stack from the element below
+```
+a = pop()
+b = pop()
+push(b - a)
+```
+
+### Control Flow
+* `if <then-branch> else <else-branch> end` - pops the element on top of the stack and if the element is not `0` the `<then-branch>` is executed, otherwise the `<else-branch>` executes
+* `while <condition> do <body> end` - keeps executing both `<condition>` and `body` until `<condition>` results in `0` on top of the stack. Checking the result of the `<condition>` removes it from the stack
+
+### Memory
+* `mem` - pushes the address of the beggining of the memory where you can read and write onto the stack
+
+---
+
 ## References
 * TSoding's Porth: [GitLab](https://gitlab.com/tsoding/porth) 
