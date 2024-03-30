@@ -44,6 +44,14 @@ b = pop();
 push(a);
 push(b);
 ```
+* `over` - copy the below element over the top element
+```
+a = pop()
+b = pop()
+push(b)
+push(a)
+push(b)
+```
 * `drop` - remove the top element on the stack
 ```
 pop()

@@ -23,6 +23,7 @@ OP_SHL=iota();
 OP_BOR=iota();
 OP_BAND=iota();
 OP_DUMP=iota();
+OP_OVER=iota();
 OP_IF=iota();
 OP_ELSE=iota();
 OP_END=iota();
@@ -50,7 +51,7 @@ def simulate_program(program, dump_memory_range=[0,0]):
     mem = bytearray(MEM_CAPACITY);
     ip = 0;
     while ip < len(program):
-        assert COUNT_OPS == 25, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 26, "Exhaustive handling of operations in simulation"
         op = program[ip];
         if op['type'] == OP_PUSH:
             stack.append(op['value']);
@@ -149,6 +150,13 @@ def simulate_program(program, dump_memory_range=[0,0]):
                 ip = op['jmp'];
             else:
                 ip += 1;
+        elif op['type'] == OP_OVER:
+            a = stack.pop();
+            b = stack.pop();
+            stack.append(b);
+            stack.append(a);
+            stack.append(b);
+            ip += 1;
         elif op['type'] == OP_DUMP:
             a = stack.pop();
             print(a);
@@ -229,7 +237,7 @@ def compile_program(program, out_file_path):
         out.write("global _start\n");
         out.write("_start:\n");
         for ip in range(len(program)):
-            assert COUNT_OPS == 25, "Exhaustive handling of operations in compilation"
+            assert COUNT_OPS == 26, "Exhaustive handling of operations in compilation"
             op = program[ip];
             out.write("addr_%d:\n" % ip);
             if op['type'] == OP_PUSH:
@@ -346,6 +354,13 @@ def compile_program(program, out_file_path):
                 out.write("    test rax, rax\n");
                 assert 'jmp' in op, "`do` instruction does not have a reference to the end of it's block. Please call crossreference_blocks() on the program before you compile it!"
                 out.write("    jz addr_%d\n" % op['jmp']);
+            elif op['type'] == OP_OVER:
+                out.write(";;  -- over --\n");
+                out.write("    pop rax\n");
+                out.write("    pop rbx\n");
+                out.write("    push rbx\n");
+                out.write("    push rax\n");
+                out.write("    push rbx\n");
             elif op['type'] == OP_DUMP:
                 out.write(";;  -- dump %d --\n");
                 out.write("    pop rdi\n");
@@ -389,7 +404,7 @@ def compile_program(program, out_file_path):
 def parse_token_as_op(token):
     (file_path, row, col, word) = token;
     loc = (file_path, row + 1, col + 1);
-    assert COUNT_OPS == 25, "Exhaustive op handling in parse_token_as_op";
+    assert COUNT_OPS == 26, "Exhaustive op handling in parse_token_as_op";
     if word == '+':
         return {'type': OP_PLUS, 'loc': loc};
     elif word == '-':
@@ -428,6 +443,8 @@ def parse_token_as_op(token):
         return {'type': OP_DO, 'loc': loc};
     elif word == 'dump':
         return {'type': OP_DUMP, 'loc': loc};
+    elif word == 'over':
+        return {'type': OP_OVER, 'loc': loc};
     elif word == 'mem':
         return {'type': OP_MEM, 'loc': loc};
     elif word == '.':
@@ -448,7 +465,7 @@ def parse_token_as_op(token):
 def crossreference_blocks(program):
     stack = [];
     for ip in range(len(program)):
-        assert COUNT_OPS == 25, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 26, "Exhaustive handling of ops in crossreference_blocks"
         op = program[ip]; 
         if op['type'] == OP_IF:
             stack.append(ip);
