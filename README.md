@@ -37,6 +37,10 @@ push(a)
 push(b)
 push(b)
 ```
+* `drop` - remove the top element on the stack
+```
+pop()
+```
 * `dump` - print the element on top of the stack to *stdout* and remove it form the stack
 ```
 a = pop()
