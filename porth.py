@@ -26,8 +26,10 @@ OP_DUP=iota();
 OP_GT=iota();
 OP_WHILE=iota();
 OP_DO=iota();
-#OP_MEM=iota();
+OP_MEM=iota();
 COUNT_OPS=iota();
+
+MEM_CAPACITY = 640_000;
 
 def push(x):
     return (OP_PUSH, x);
@@ -67,7 +69,7 @@ def do():
 
 
 # Does not compile it just simulates the program
-def out_simulate_program(program):
+def simulate_program(program):
     stack = [];
     ip = 0;
     while ip < len(program):
@@ -166,7 +168,7 @@ def compile_program(program, out_file_path):
         out.write("global _start\n");
         out.write("_start:\n");
         for ip in range(len(program)):
-            assert COUNT_OPS == 12, "Exhaustive handling of operations in compilation"
+            assert COUNT_OPS == 13, "Exhaustive handling of operations in compilation"
             op = program[ip];
             out.write("addr_%d:\n" % ip);
             if op['type'] == OP_PUSH:
@@ -236,6 +238,9 @@ def compile_program(program, out_file_path):
                 out.write(";;  -- dump %d --\n");
                 out.write("    pop rdi\n");
                 out.write("    call dump\n");
+            elif op['type'] == OP_MEM:
+                out.write(";;  -- mem --\n");
+                out.write("    push mem\n");
             else:
                 assert False, "unreachable";
 
@@ -243,11 +248,13 @@ def compile_program(program, out_file_path):
         out.write("    mov rax, SYS_EXIT\n");
         out.write("    mov rdi, 0\n");
         out.write("    syscall\n");
+        out.write("segment .bss\n");
+        out.write("mem: resb %d\n" % MEM_CAPACITY);
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token;
     loc = (file_path, row + 1, col + 1);
-    assert COUNT_OPS == 12, "Exhaustive op handling in parse_token_as_op";
+    assert COUNT_OPS == 13, "Exhaustive op handling in parse_token_as_op";
     if word == '+':
         return {'type': OP_PLUS, 'loc': loc};
     elif word == '-':
@@ -282,7 +289,7 @@ def parse_token_as_op(token):
 def crossreference_blocks(program):
     stack = [];
     for ip in range(len(program)):
-        assert COUNT_OPS == 12, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 13, "Exhaustive handling of ops in crossreference_blocks"
         op = program[ip]; 
         if op['type'] == OP_IF:
             stack.append(ip);
