@@ -31,6 +31,7 @@ OP_2DUP=iota();
 OP_DROP=iota();
 OP_SWAP=iota();
 OP_GT=iota();
+OP_LT=iota();
 OP_WHILE=iota();
 OP_DO=iota();
 OP_MEM=iota();
@@ -49,7 +50,7 @@ def simulate_program(program, dump_memory_range=[0,0]):
     mem = bytearray(MEM_CAPACITY);
     ip = 0;
     while ip < len(program):
-        assert COUNT_OPS == 24, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 25, "Exhaustive handling of operations in simulation"
         op = program[ip];
         if op['type'] == OP_PUSH:
             stack.append(op['value']);
@@ -128,6 +129,16 @@ def simulate_program(program, dump_memory_range=[0,0]):
             b = stack.pop();
             a = stack.pop();
             stack.append(int(a > b));
+            ip += 1;
+        elif op['type'] == OP_LT:
+            b = stack.pop();
+            a = stack.pop();
+            stack.append(int(a < b));
+            ip += 1;
+        elif op['type'] == OP_LT:
+            b = stack.pop();
+            a = stack.pop();
+            stack.append(int(a < b));
             ip += 1;
         elif op['type'] == OP_WHILE:
             ip += 1;
@@ -218,7 +229,7 @@ def compile_program(program, out_file_path):
         out.write("global _start\n");
         out.write("_start:\n");
         for ip in range(len(program)):
-            assert COUNT_OPS == 24, "Exhaustive handling of operations in compilation"
+            assert COUNT_OPS == 25, "Exhaustive handling of operations in compilation"
             op = program[ip];
             out.write("addr_%d:\n" % ip);
             if op['type'] == OP_PUSH:
@@ -317,6 +328,16 @@ def compile_program(program, out_file_path):
                 # move 1 to rcx when rax == rbx
                 out.write("    cmovg rcx, rdx\n");
                 out.write("    push rcx\n");
+            elif op['type'] == OP_LT:
+                out.write(";;  -- lt --\n");
+                out.write("    mov rcx, 0\n");
+                out.write("    mov rdx, 1\n");
+                out.write("    pop rbx\n");
+                out.write("    pop rax\n");
+                out.write("    cmp rax, rbx\n");
+                # move 1 to rcx when rax == rbx
+                out.write("    cmovl rcx, rdx\n");
+                out.write("    push rcx\n");
             elif op['type'] == OP_WHILE:
                 out.write(";;  -- while --\n");
             elif op['type'] == OP_DO:
@@ -368,7 +389,7 @@ def compile_program(program, out_file_path):
 def parse_token_as_op(token):
     (file_path, row, col, word) = token;
     loc = (file_path, row + 1, col + 1);
-    assert COUNT_OPS == 24, "Exhaustive op handling in parse_token_as_op";
+    assert COUNT_OPS == 25, "Exhaustive op handling in parse_token_as_op";
     if word == '+':
         return {'type': OP_PLUS, 'loc': loc};
     elif word == '-':
@@ -399,6 +420,8 @@ def parse_token_as_op(token):
         return {'type': OP_DROP, 'loc': loc};
     elif word == '>':
         return {'type': OP_GT, 'loc': loc};
+    elif word == '<':
+        return {'type': OP_LT, 'loc': loc};
     elif word == 'while':
         return {'type': OP_WHILE, 'loc': loc};
     elif word == 'do':
@@ -425,7 +448,7 @@ def parse_token_as_op(token):
 def crossreference_blocks(program):
     stack = [];
     for ip in range(len(program)):
-        assert COUNT_OPS == 24, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 25, "Exhaustive handling of ops in crossreference_blocks"
         op = program[ip]; 
         if op['type'] == OP_IF:
             stack.append(ip);

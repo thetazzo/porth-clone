@@ -6,3 +6,7 @@
 20 10 > dump
 // false
 69 420 > dump
+//true
+1 2 < dump
+// false
+420 69 < dump

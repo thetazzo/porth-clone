@@ -67,6 +67,12 @@ a = pop()
 b = pop()
 push(int(a > b));
 ```
+* `<` - checks if the element below the top is smaller than the top
+```
+a = pop()
+b = pop()
+push(int(a < b));
+```
 
 ### Arithmetics
 * `+` - sums the two elements that are on the top on the stack
