@@ -18,9 +18,9 @@ if __name__ == '__main__':
             if sim_output != com_output:
                 print("[ERROR]: Output discrepancy between simulation and compilation");
                 print("  Simulation output:");
-                print("    %s", sim_output);
+                print("    %s" % sim_output);
                 print("  Compilation output:");
-                print("    %s", com_output);
+                print("    %s" % com_output);
                 exit(1);
             else:
                 print("[INFO] %s OK" % entry.path);
