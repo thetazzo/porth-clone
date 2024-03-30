@@ -1,0 +1,8 @@
+// true
+2  2  = dump
+// false
+10 20 = dump
+// true
+20 10 > dump
+// false
+69 420 > dump

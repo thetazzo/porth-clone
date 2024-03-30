@@ -1,0 +1,30 @@
+// if block
+34 35 + 69 = if
+    420 dump
+    0 if 
+        42 dump
+    else 
+        18 dump
+    end
+else 
+    69 dump
+    1 if
+        88 dump
+    else 
+        60 dump
+    end
+end
+
+// while block
+
+// run from 10 to 0
+10 while dup 0 > do
+    dup dump
+    1 -
+end
+
+// run from 0 to 30
+30 0 while 2dup > do
+    dup dump
+    1 +
+end

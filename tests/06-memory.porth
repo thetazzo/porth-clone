@@ -1,3 +1,4 @@
+// load Hello World into memory and then print it
 mem dup 72  .
 1 + dup 101 .
 1 + dup 108 .
