@@ -71,11 +71,13 @@ def do():
 
 
 # Does not compile it just simulates the program
-def simulate_program(program):
+# - dump_memory_range: {[integer, integer]}{[0, 0]} - prints as many bytes of memory as specified [lower_bound, upper_bound] 
+def simulate_program(program, dump_memory_range=[0,0]):
     stack = [];
+    mem = bytearray(MEM_CAPACITY);
     ip = 0;
     while ip < len(program):
-        assert COUNT_OPS == 13, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 15, "Exhaustive handling of operations in simulation"
         op = program[ip];
         if op['type'] == OP_PUSH:
             stack.append(op['value']);
@@ -132,9 +134,23 @@ def simulate_program(program):
             print(a);
             ip += 1;
         elif op['type'] == OP_MEM:
-            assert False, "not implemented";
+            stack.append(0);
+            ip += 1;
+        elif op['type'] == OP_LOAD:
+            addr = stack.pop();
+            byte = mem[addr];
+            stack.append(byte);
+            ip += 1;
+        elif op['type'] == OP_STORE:
+            value = stack.pop();
+            addr = stack.pop();
+            mem[addr] = value & 0xFF;
+            ip += 1;
         else:
             assert False, "unreachable";
+
+        if dump_memory_range[1] > 0:
+            print(mem[dump_memory_range[0]:dump_memory_range[1]]);
 
 # Does not simulte it just compiles
 def compile_program(program, out_file_path):
@@ -399,7 +415,7 @@ if __name__ == '__main__':
             exit(1);
         program_path, *argv = argv;
         program = load_program_from_file(program_path);
-        simulate_program(program); 
+        simulate_program(program, [0, 10]); 
     elif subcommand == "com":
         should_execute = False;
         program_path = None;
