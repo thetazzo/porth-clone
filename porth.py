@@ -258,7 +258,7 @@ def compile_program(program, out_file_path):
                 out.write("    push rbx\n");
             elif op['type'] == OP_DROP:
                 out.write(";;  -- drop --\n");
-                out.write(";;  -- drop --\n");
+                out.write("    pop rax\n");
             elif op['type'] == OP_GT:
                 out.write(";;  -- gt --\n");
                 out.write("    mov rcx, 0\n");
