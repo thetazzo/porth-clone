@@ -73,7 +73,7 @@ def simulate_program(program):
     stack = [];
     ip = 0;
     while ip < len(program):
-        assert COUNT_OPS == 12, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 13, "Exhaustive handling of operations in simulation"
         op = program[ip];
         if op['type'] == OP_PUSH:
             stack.append(op['value']);
@@ -129,6 +129,8 @@ def simulate_program(program):
             a = stack.pop();
             print(a);
             ip += 1;
+        elif op['type'] == OP_MEM:
+            assert False, "not implemented";
         else:
             assert False, "unreachable";
 
@@ -275,7 +277,7 @@ def parse_token_as_op(token):
         return {'type': OP_WHILE, 'loc': loc};
     elif word == 'do':
         return {'type': OP_DO, 'loc': loc};
-    elif word == '.':
+    elif word == 'dump':
         return {'type': OP_DUMP, 'loc': loc};
     elif word == 'mem':
         return {'type': OP_MEM, 'loc': loc};
