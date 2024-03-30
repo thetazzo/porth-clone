@@ -33,43 +33,6 @@ COUNT_OPS=iota();
 
 MEM_CAPACITY = 640_000;
 
-def push(x):
-    return (OP_PUSH, x);
-
-def plus():
-    return (OP_PLUS,);
-
-def minus():
-    return (OP_MINUS,);
-
-def equal():
-    return (OP_EQUAL,);
-
-def dump():
-    return (OP_DUMP,);
-
-def iff():
-    return (OP_IF,);
-
-def elsee():
-    return (OP_ELSE,);
-
-def end():
-    return (OP_END,);
-
-def dup():
-    return (OP_DUP,);
-
-def gt():
-    return (OP_GT,);
-
-def whilee():
-    return (OP_WHILE,);
-
-def do():
-    return (OP_DO,);
-
-
 # Does not compile it just simulates the program
 # - dump_memory_range: {[integer, integer]}{[0, 0]} - prints as many bytes of memory as specified [lower_bound, upper_bound] 
 def simulate_program(program, dump_memory_range=[0,0]):
@@ -415,7 +378,7 @@ if __name__ == '__main__':
             exit(1);
         program_path, *argv = argv;
         program = load_program_from_file(program_path);
-        simulate_program(program, [0, 10]); 
+        simulate_program(program); 
     elif subcommand == "com":
         should_execute = False;
         program_path = None;
