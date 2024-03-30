@@ -28,7 +28,7 @@ a = pop()
 push(a)
 push(a)
 ```
-* `.` - print the element on top of the stack to *stdout* and remove it form the stack
+* `dump` - print the element on top of the stack to *stdout* and remove it form the stack
 ```
 a = pop()
 print(a)
@@ -68,6 +68,18 @@ push(b - a)
 
 ### Memory
 * `mem` - pushes the address of the beggining of the memory where you can read and write onto the stack
+* `.` - store the given byte at the given address 
+```
+byte = pop()
+addr = pop()
+store(addr, byte)
+```
+* `,` - load a byte from the given address 
+```
+addr = pop()
+byte = load(addr)
+push(byte)
+```
 
 ---
 
