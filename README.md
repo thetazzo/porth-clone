@@ -28,7 +28,7 @@ a = pop()
 push(a)
 push(a)
 ```
-* `2dup` - duplicate top two elements of the stack 
+* `2dup` - duplicate top two elements on the stack 
 ```
 a = pop()
 b = pop()
@@ -36,6 +36,13 @@ push(a)
 push(a)
 push(b)
 push(b)
+```
+* `swap` - swaps top 2 elements on the stack
+```
+a = pop();
+b = pop();
+push(a);
+push(b);
 ```
 * `drop` - remove the top element on the stack
 ```
@@ -62,13 +69,13 @@ push(int(a > b));
 ```
 
 ### Arithmetics
-* `+` - sums the two elements that are on the top of the stack
+* `+` - sums the two elements that are on the top on the stack
 ```
 a = pop()
 b = pop()
 push(a + b)
 ```
-* `-` - subtracts the top element of the stack from the element below
+* `-` - subtracts the top element on the stack from the element below
 ```
 a = pop()
 b = pop()
