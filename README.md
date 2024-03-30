@@ -28,6 +28,15 @@ a = pop()
 push(a)
 push(a)
 ```
+* `2dup` - duplicate top two elements of the stack 
+```
+a = pop()
+b = pop()
+push(a)
+push(a)
+push(b)
+push(b)
+```
 * `dump` - print the element on top of the stack to *stdout* and remove it form the stack
 ```
 a = pop()

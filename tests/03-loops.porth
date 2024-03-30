@@ -1,5 +1,11 @@
-10
-while dup 0 > do // hello semen
+// while loop form 10 to 0
+10 while dup 0 > do // hello semen
     dup dump
     1 -
+end
+
+// while loop form 0 to 30
+30 0 while 2dup > do
+    dup dump
+    1 +
 end
