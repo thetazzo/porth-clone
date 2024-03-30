@@ -18,6 +18,10 @@ OP_PUSH=iota();
 OP_PLUS=iota();
 OP_MINUS=iota();
 OP_EQUAL=iota();
+OP_SHR=iota();
+OP_SHL=iota();
+OP_BOR=iota();
+OP_BAND=iota();
 OP_DUMP=iota();
 OP_IF=iota();
 OP_ELSE=iota();
@@ -45,7 +49,7 @@ def simulate_program(program, dump_memory_range=[0,0]):
     mem = bytearray(MEM_CAPACITY);
     ip = 0;
     while ip < len(program):
-        assert COUNT_OPS == 20, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 24, "Exhaustive handling of operations in simulation"
         op = program[ip];
         if op['type'] == OP_PUSH:
             stack.append(op['value']);
@@ -64,6 +68,26 @@ def simulate_program(program, dump_memory_range=[0,0]):
             a = stack.pop();
             b = stack.pop();
             stack.append(int(a == b));
+            ip += 1;
+        elif op['type'] == OP_SHR:
+            a = stack.pop();
+            b = stack.pop();
+            stack.append(int(b >> a));
+            ip += 1;
+        elif op['type'] == OP_SHL:
+            a = stack.pop();
+            b = stack.pop();
+            stack.append(int(b << a));
+            ip += 1;
+        elif op['type'] == OP_BOR:
+            a = stack.pop();
+            b = stack.pop();
+            stack.append(int(b | a));
+            ip += 1;
+        elif op['type'] == OP_BAND:
+            a = stack.pop();
+            b = stack.pop();
+            stack.append(int(b & a));
             ip += 1;
         elif op['type'] == OP_IF:
             a = stack.pop();
@@ -194,7 +218,7 @@ def compile_program(program, out_file_path):
         out.write("global _start\n");
         out.write("_start:\n");
         for ip in range(len(program)):
-            assert COUNT_OPS == 20, "Exhaustive handling of operations in compilation"
+            assert COUNT_OPS == 24, "Exhaustive handling of operations in compilation"
             op = program[ip];
             out.write("addr_%d:\n" % ip);
             if op['type'] == OP_PUSH:
@@ -222,6 +246,30 @@ def compile_program(program, out_file_path):
                 # move 1 to rcx when rax == rbx
                 out.write("    cmove rcx, rdx\n");
                 out.write("    push rcx\n");
+            elif op['type'] == OP_SHR:
+                out.write(";;  -- shr --\n");
+                out.write("    pop rcx\n");
+                out.write("    pop rbx\n");
+                out.write("    shr rbx, cl\n");
+                out.write("    push rbx\n");
+            elif op['type'] == OP_SHL:
+                out.write(";;  -- shl --\n");
+                out.write("    pop rcx\n");
+                out.write("    pop rbx\n");
+                out.write("    shl rbx, cl\n");
+                out.write("    push rbx\n");
+            elif op['type'] == OP_BOR:
+                out.write(";;  -- bor --\n");
+                out.write("    pop rax\n");
+                out.write("    pop rbx\n");
+                out.write("    or rbx, rax\n");
+                out.write("    push rbx\n");
+            elif op['type'] == OP_BAND:
+                out.write(";;  -- banband-\n");
+                out.write("    pop rax\n");
+                out.write("    pop rbx\n");
+                out.write("    and rbx, rax\n");
+                out.write("    push rbx\n");
             elif op['type'] == OP_IF:
                 out.write(";;  -- if --\n");
                 out.write("    pop rax\n");
@@ -320,13 +368,21 @@ def compile_program(program, out_file_path):
 def parse_token_as_op(token):
     (file_path, row, col, word) = token;
     loc = (file_path, row + 1, col + 1);
-    assert COUNT_OPS == 20, "Exhaustive op handling in parse_token_as_op";
+    assert COUNT_OPS == 24, "Exhaustive op handling in parse_token_as_op";
     if word == '+':
         return {'type': OP_PLUS, 'loc': loc};
     elif word == '-':
         return {'type': OP_MINUS, 'loc': loc};
     elif word == '=':
         return {'type': OP_EQUAL, 'loc': loc};
+    elif word == 'shr':
+        return {'type': OP_SHR, 'loc': loc};
+    elif word == 'shl':
+        return {'type': OP_SHL, 'loc': loc};
+    elif word == 'bor':
+        return {'type': OP_BOR, 'loc': loc};
+    elif word == 'band':
+        return {'type': OP_BAND, 'loc': loc};
     elif word == 'if':
         return {'type': OP_IF, 'loc': loc};
     elif word == 'else':
@@ -369,7 +425,7 @@ def parse_token_as_op(token):
 def crossreference_blocks(program):
     stack = [];
     for ip in range(len(program)):
-        assert COUNT_OPS == 20, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 24, "Exhaustive handling of ops in crossreference_blocks"
         op = program[ip]; 
         if op['type'] == OP_IF:
             stack.append(ip);
