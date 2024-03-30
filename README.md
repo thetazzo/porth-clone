@@ -6,10 +6,20 @@
 
 ## Quick Start
 
-```{bash}
+```console
 $ ./porth.py sim ./examples/test.porth
 $ ./porth.py cmp ./examples/test.porth
 $ ./output
+```
+
+---
+
+### Rule 110
+* Proving the language is turing complete or whatever
+```console
+$ ./porth.py sim ./examples/rule-110.porth
+$ ./porth.py com ./examples/rule-110.porth
+$ ./examples/rule-110
 ```
 
 ---
