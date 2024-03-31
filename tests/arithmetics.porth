@@ -1,4 +1,12 @@
 // plus +
 34 35 + print
+"----------------------\n" 1 1 syscall3
 // minus -
 500 80 - print
+"----------------------\n" 1 1 syscall3
+// multiply
+42 10 * print
+"----------------------\n" 1 1 syscall3
+// modulo
+69 420 mod print
+104 100 mod print

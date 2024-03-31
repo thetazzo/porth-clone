@@ -149,11 +149,23 @@ a = pop()
 b = pop()
 push(a + b)
 ```
-* `-` - subtracts the top element on the stack from the element below
+* `-` - subtracts the top element on the stack from the element below the top
 ```
 a = pop()
 b = pop()
 push(b - a)
+```
+* `*` - multiplies the top element on the stack with the one below the top
+```
+a = pop()
+b = pop()
+push(a * b)
+```
+* `mod`
+```
+a = pop()
+b = pop()
+push(b & a)
 ```
 
 #### Bitwise operations
