@@ -4,12 +4,42 @@
 * Developed for education purposes
 * It is supposed to be a stack-based language which is a clone of Forth
 
-## Quick Start
+### Compilation
+
+Compilation generates assembly code, compiles it with [nasm](https://www.nasm.us/), and then links it with [GNU ld](https://www.gnu.org/software/binutils/). So make sure you have both available in your `$PATH`.
 
 ```console
-$ ./porth.py sim ./examples/test.porth
-$ ./porth.py cmp ./examples/test.porth
-$ ./output
+$ cat program.porth
+34 35 + print
+$ ./porth.py com program.porth
+[INFO] Generating ./program.asm
+[CMD] nasm -felf64 ./program.asm
+[CMD] ld -o ./program ./program.o
+$ ./program
+69
+```
+
+### Testing
+
+Test cases are located in [./tests/](./tests/) folder. The `*.txt` files are the expected outputs of the corresponding programs.
+
+Run [./test.py](./test.py) script to execute the programs and assert their outputs:
+
+```console
+$ ./test.py
+```
+
+To updated expected output files run the `record` subcommand:
+
+```console
+$ ./test.py record
+```
+
+The [./examples/](./examples/) contains programs that are ment for showcasing the language rather then testing it, but we still can them for testing just like the stuff in [./tests/](./tests/):
+
+```console
+$ ./test.py -f ./examples/
+$ ./test.py -f ./examples/ record
 ```
 
 ---
