@@ -56,12 +56,24 @@ $ ./examples/rule-110
 
 ## Documentation
 
-### Stack Manipulation
-
-* `<integer` - push integer onto the stack. Here the integer is anything that is parsable by [int](https://docs.python.org/3/library/functions.html#int) function
+### Data types
+* `<integer>` - push integer onto the stack. Here the integer is anything that is parsable by [int](https://docs.python.org/3/library/functions.html#int) function
 ```
 push(<integer>)
 ```
+* `<string>` - push size and address of the string literal onto the stack. A string literal is a sequence of characters enclosed with `"`
+```
+size = len(<string>)
+push(n)
+ptr = static_memory_alloc(n)
+copy(ptr, <string>)
+push(ptr)
+```
+
+### Built-in Words
+
+#### Stack Manipulation
+
 * `dup` - duplicate an element on top of the stack
 ```
 a = pop()
@@ -102,7 +114,7 @@ a = pop()
 print(a)
 ```
 
-### Comparison
+#### Comparison
 * `=` - checks if the two elements on top of the stack are equal. Removes the elements from the stack and pushes `1` if they are equal or `0` if they are not
 ```
 a = pop()
@@ -122,7 +134,7 @@ b = pop()
 push(int(a < b));
 ```
 
-### Arithmetics
+#### Arithmetics
 * `+` - sums the two elements that are on the top on the stack
 ```
 a = pop()
@@ -136,7 +148,7 @@ b = pop()
 push(b - a)
 ```
 
-### Bitwise operations
+#### Bitwise operations
 * `shr` - 
 ```
 a = pop()
@@ -162,11 +174,11 @@ b = pop()
 push(b & a)
 ```
 
-### Control Flow
+#### Control Flow
 * `if <then-branch> else <else-branch> end` - pops the element on top of the stack and if the element is not `0` the `<then-branch>` is executed, otherwise the `<else-branch>` executes
 * `while <condition> do <body> end` - keeps executing both `<condition>` and `body` until `<condition>` results in `0` on top of the stack. Checking the result of the `<condition>` removes it from the stack
 
-### Memory
+#### Memory
 * `mem` - pushes the address of the beggining of the memory where you can read and write onto the stack
 * `.` - store the given byte at the given address 
 ```
@@ -181,7 +193,7 @@ byte = load(addr)
 push(byte)
 ```
 
-### System
+#### System
 * `syscall1` - perform a syscall with 1 argument
 ```
 syscall_number = pop()
@@ -197,6 +209,15 @@ for i in range(3):
     arg = pop()
     <move arg to i-th register according to the call convention>
 <perform the syscall>
+```
+
+### Macros
+
+* Define a new word `write` that expands into a sequence of tokens `1 1 syscall3` during the compilation
+```
+macro write 
+    1 1 syscall3
+end
 ```
 
 ---
