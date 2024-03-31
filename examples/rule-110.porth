@@ -3,6 +3,8 @@ macro write_stdout
     1 1 syscall3 drop
 end
 
+macro 'x' 69 end
+
 macro N 100 end
 
 mem N 2 - + 1 .
@@ -10,9 +12,9 @@ mem N 2 - + 1 .
 0 while dup N 2 - < do
     0 while dup N < do
         dup mem + , if
-            dup mem + N + 42 .
+            dup mem + N + '*' .
         else
-            dup mem + N + 32 .
+            dup mem + N + ' ' .
         end
 
         1 +
