@@ -8,6 +8,7 @@
 import sys;
 import subprocess;
 from os import path;
+import shlex
 
 iota_counter=0;
 
@@ -19,7 +20,8 @@ def iota(reset=False):
     iota_counter += 1;
     return result;
 
-OP_PUSH=iota();
+OP_PUSH_INT=iota(True);
+OP_PUSH_STR=iota();
 OP_PLUS=iota();
 OP_MINUS=iota();
 OP_EQUAL=iota();
@@ -49,21 +51,35 @@ COUNT_OPS=iota();
 
 TOKEN_WORD=iota(True);
 TOKEN_INT=iota();
+TOKEN_STR=iota();
 COUNT_TOKENS=iota();
 
+STR_CAPACITY = 640_000;
 MEM_CAPACITY = 640_000;
 
 # Does not compile it just simulates the program
 # - dump_memory_range: {[integer, integer]}{[0, 0]} - prints as many bytes of memory as specified [lower_bound, upper_bound] 
 def simulate_program(program, dump_memory_range=[0,0]):
     stack = [];
-    mem = bytearray(MEM_CAPACITY);
+    mem = bytearray(STR_CAPACITY+MEM_CAPACITY);
+    str_size = 0;
     ip = 0;
     while ip < len(program):
-        assert COUNT_OPS == 26, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 27, "Exhaustive handling of operations in simulation"
         op = program[ip];
-        if op['type'] == OP_PUSH:
+        if op['type'] == OP_PUSH_INT:
             stack.append(op['value']);
+            ip += 1;
+        elif op['type'] == OP_PUSH_STR:
+            bs = bytes(op['value'], 'utf-8');
+            n = len(bs); 
+            stack.append(len(op['value']));
+            if 'addr' not in op:
+                op['addr'] = str_size;
+                mem[str_size:str_size+n] = bs;
+                str_size += n;
+                assert str_size <= STR_CAPACITY, "String buffer overflow";
+            stack.append(op['addr']);
             ip += 1;
         elif op['type'] == OP_PLUS:
             a = stack.pop();
@@ -171,7 +187,7 @@ def simulate_program(program, dump_memory_range=[0,0]):
             print(a);
             ip += 1;
         elif op['type'] == OP_MEM:
-            stack.append(0);
+            stack.append(STR_CAPACITY);
             ip += 1;
         elif op['type'] == OP_LOAD:
             addr = stack.pop();
@@ -212,6 +228,7 @@ def simulate_program(program, dump_memory_range=[0,0]):
 
 # Does not simulte it just compiles
 def compile_program(program, out_file_path):
+    strs = [];
     with open(out_file_path, "w") as out:
         out.write("dump:\n");
         out.write("    mov     r8, -3689348814741910323\n");
@@ -246,12 +263,18 @@ def compile_program(program, out_file_path):
         out.write("global _start\n");
         out.write("_start:\n");
         for ip in range(len(program)):
-            assert COUNT_OPS == 26, "Exhaustive handling of operations in compilation"
+            assert COUNT_OPS == 27, "Exhaustive handling of operations in compilation"
             op = program[ip];
             out.write("addr_%d:\n" % ip);
-            if op['type'] == OP_PUSH:
-                out.write(";;  -- push %d --\n" % op['value']);
+            if op['type'] == OP_PUSH_INT:
+                out.write(";;  -- push int %d --\n" % op['value']);
                 out.write("    push %d\n" % op['value']);
+            elif op['type'] == OP_PUSH_STR:
+                out.write(";;  -- push str --\n");
+                out.write("    mov rax, %d\n" % len(op['value']));
+                out.write("    push rax\n");
+                out.write("    push str_%d\n" % len(strs));
+                strs.append(op['value']);
             elif op['type'] == OP_PLUS:
                 out.write(";;  -- plus --\n");
                 out.write("    pop rax\n");
@@ -407,10 +430,15 @@ def compile_program(program, out_file_path):
         out.write("    mov rax, SYS_EXIT\n");
         out.write("    mov rdi, 0\n");
         out.write("    syscall\n");
+        # A segement for strings 
+        out.write("segment .data\n");
+        for index, s in enumerate(strs):
+            out.write("str_%d: db %s\n" % (index, ','.join(map(hex, list(bytes(s, 'utf-8'))))));
+        # A segement for memory
         out.write("segment .bss\n");
         out.write("mem: resb %d\n" % MEM_CAPACITY);
 
-assert COUNT_OPS == 26, "Exhaustive BUIL definition. Keep in mind that not all new ops need to be defined here only those who introduce new bulitin words!"
+assert COUNT_OPS == 27, "Exhaustive BUIL definition. Keep in mind that not all new ops need to be defined here only those who introduce new bulitin words!"
 BUILTIN_WORDS = {
     '+': OP_PLUS,
     '-': OP_MINUS,
@@ -440,7 +468,7 @@ BUILTIN_WORDS = {
 };
 
 def parse_token_as_op(token):
-    assert COUNT_TOKENS == 2, "Exhaustive token handling in parse_token_as_op";
+    assert COUNT_TOKENS == 3, "Exhaustive token handling in parse_token_as_op";
     if token['type'] == TOKEN_WORD:
         if token['value'] in BUILTIN_WORDS:
             return {'type': BUILTIN_WORDS[token['value']], 'loc': token['loc']};
@@ -448,14 +476,16 @@ def parse_token_as_op(token):
             print("%s:%d:%d: unknown word `%s`" % (token['loc'] + (token['value'], )));
             exit(1);
     elif token['type'] == TOKEN_INT:
-        return {'type': OP_PUSH, 'value': token['value'], 'loc': token['loc']};
+        return {'type': OP_PUSH_INT, 'value': token['value'], 'loc': token['loc']};
+    elif token['type'] == TOKEN_STR:
+        return {'type': OP_PUSH_STR, 'value': token['value'], 'loc': token['loc']};
     else:
         assert False, "unreachable";
 
 def crossreference_blocks(program):
     stack = [];
     for ip in range(len(program)):
-        assert COUNT_OPS == 26, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 27, "Exhaustive handling of ops in crossreference_blocks"
         op = program[ip]; 
         if op['type'] == OP_IF:
             stack.append(ip);
@@ -496,18 +526,28 @@ def find_col(line, start, predicate):
         start += 1;
     return start;
 
-def lex_word(text_of_token):
-    try:
-        return (TOKEN_INT, int(text_of_token));
-    except ValueError:
-        return (TOKEN_WORD, text_of_token);
-
+# TODO: lexer does not support multiline string literals
 def lex_line(line):
     col = find_col(line, 0, lambda x: not x.isspace());
     while col < len(line):
-        col_end = find_col(line, col, lambda x: x.isspace());
-        yield (col, lex_word(line[col:col_end]));
-        col = find_col(line, col_end, lambda x: not x.isspace());
+        col_end = None;
+        if line[col] == '"':
+            col_end = find_col(line, col+1, lambda x: x == '"');
+            # TODO: report unclosed string literals as proper compiler errors instead of python assertions
+            assert line[col_end] == '"';
+            # TODO: converted text_of_token to bytes and back just to unescape things is kind of sus
+            # Maybe let's try opening the file with "rb" in lex_file()
+            text_of_token = bytes(line[col+1:col_end], 'utf-8').decode('unicode_escape');
+            yield (col, (TOKEN_STR, text_of_token));
+            col = find_col(line, col_end+1, lambda x: not x.isspace());
+        else:
+            col_end = find_col(line, col, lambda x: x.isspace());
+            text_of_token=line[col:col_end];
+            try:
+                yield (col, (TOKEN_INT, int(text_of_token)));
+            except ValueError:
+                yield (col, (TOKEN_WORD, text_of_token));
+            col = find_col(line, col_end, lambda x: not x.isspace());
 
 def lex_file(file_path):
     with open(file_path, 'r') as f:
@@ -529,8 +569,8 @@ def print_usage(program):
     print("    help                 ... Print this help to stdout and exit with 0 code")
 
 def call_cmd(cmd):
-    print("+", ' '.join(cmd));
-    subprocess.call(cmd);
+    print("[CMD] %s" % " ".join(map(shlex.quote, cmd)))
+    return subprocess.call(cmd)
 
 if __name__ == '__main__':
     argv = sys.argv;
