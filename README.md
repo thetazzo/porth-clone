@@ -77,6 +77,11 @@ ptr = static_memory_alloc(n)
 copy(ptr, <string>)
 push(ptr)
 ```
+* `<character>` - push a character as an integer onto the stack. For instance `'*'` would push `42` onto the stack since that is the character ascii code
+```
+value = ord(<character>)
+push(value)
+```
 
 ### Built-in Words
 
