@@ -1,2 +1,4 @@
+include "std.porth"
 
-"Hello, World\n" 1 1 syscall3
+"Hello, World!\n" write
+"69420" write
