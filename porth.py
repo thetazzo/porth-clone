@@ -733,11 +733,13 @@ def compile_tokens_to_program(tokens: List[Token]) -> Program:
                 print("%s:%d:%d: ERROR: expected path to the include file to be %s but found %s" % (op.loc + (token_name(TokenType.STR), token_name(token.typ))))
                 exit(1)
             # TODO: safety mechanisem for recursive include
+            # TODO: search path mechanism for includes
             try:
                 rtokens += reversed(lex_file(token.value))
             except FileNotFoundError:
                 print("%s:%d:%d: ERROR: file `%s` not found" % (token.loc + (token.value,)))
                 exit(1)
+        # TODO: capability to define macros from command line
         elif op.typ == OpType.MACRO:
             if len(rtokens) == 0:
                 print("%s:%d:%d: ERROR: expected macro name but found nothing" % op.loc)
