@@ -1,4 +1,4 @@
 // plus +
-34 35 + dump
+34 35 + print
 // minus -
-500 80 - dump
+500 80 - print

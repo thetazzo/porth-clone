@@ -8,7 +8,7 @@ mem + 10 .
 
 // push int
 420 69 42 100 69420
-dump dump dump dump dump
+print print print print print
 
 31 mem 1 1 syscall3
 
@@ -19,31 +19,31 @@ dump dump dump dump dump
 
 // dup
 69 dup
-dump dump
+print print
 420 dup
-dump dump
+print print
 
 31 mem 1 1 syscall3
 
 // 2dup
 69 420 2dup
-dump dump dump dump
+print print print print
 
 31 mem 1 1 syscall3
 
 // swap
 69 420 2dup
-dump dump 
+print print 
 swap
-dump dump
+print print
 
 31 mem 1 1 syscall3
 
 // drop
 13 69 103 420 42
-drop dump drop dump
+drop print drop print
 
 31 mem 1 1 syscall3
 
 // over
-69 420 over dump
+69 420 over print
