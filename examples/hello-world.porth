@@ -1,3 +1,4 @@
-macro print_to_screen 1 1 syscall3 end 
+include "std.porth"
 
-"Hello, World\n" print_to_screen
+"Hello, World!\n" write
+"69420" write

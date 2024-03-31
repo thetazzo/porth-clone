@@ -4,6 +4,14 @@
 * Developed for education purposes
 * It is supposed to be a stack-based language which is a clone of Forth
 
+### Example
+
+```pascal
+include "std.porth"
+
+"Hello World!\n" write
+```
+
 ### Compilation
 
 Compilation generates assembly code, compiles it with [nasm](https://www.nasm.us/), and then links it with [GNU ld](https://www.gnu.org/software/binutils/). So make sure you have both available in your `$PATH`.
@@ -218,6 +226,12 @@ for i in range(3):
 macro write 
     1 1 syscall3
 end
+```
+
+### Include
+* Include tokes form anothe `.porth` file by using the `include <file_path>`, where `<file_path>` is a string literal of the relative path to the included file
+```
+include "std.porth"
 ```
 
 ---
