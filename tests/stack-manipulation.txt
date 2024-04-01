@@ -1,11 +1,35 @@
 :i argc 0
 :b stdin 0
 
-:i returncode 1
-:b stdout 0
+:i returncode 0
+:b stdout 270
+69420
+100
+42
+69
+420
+------------------------------
+hello world
+------------------------------
+69
+69
+420
+420
+------------------------------
+420
+69
+420
+69
+------------------------------
+420
+69
+69
+420
+------------------------------
+420
+69
+------------------------------
+69
 
-:b stderr 132
-  File "/home/tilc/dev/tayol/projects/porth-clone/./porth.py", line 922
-    print("  OPTIONS:")
-IndentationError: unexpected indent
+:b stderr 0
 
