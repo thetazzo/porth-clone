@@ -1,0 +1,14 @@
+include "std.porth"
+
+// Find the largest prime factor of 600851475143
+
+macro Number 600851475143 end
+
+Number 2 while over 1 > do
+    2dup mod 0 = if
+        swap over / swap
+    else 
+        1 +
+    end
+end
+print
