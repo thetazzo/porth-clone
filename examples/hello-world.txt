@@ -1,2 +1,9 @@
+:i argc 0
+:b stdin 0
+
+:i returncode 0
+:b stdout 19
 Hello, World!
 69420
+:b stderr 0
+
