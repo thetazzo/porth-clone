@@ -101,7 +101,7 @@ STR_CAPACITY = 640_000
 MEM_CAPACITY = 640_000
 
 def simulate_little_endian_linux(program: Program):
-    stack = []
+    stack: List[int] = []
     mem = bytearray(STR_CAPACITY + MEM_CAPACITY)
     str_offsets = {}
     str_size = 0
@@ -110,9 +110,11 @@ def simulate_little_endian_linux(program: Program):
         assert len(OpType) == 8, "Exhaustive op handling in simulate_little_endian_linux: %d" % len(OpType)
         op = program[ip]
         if op.typ == OpType.PUSH_INT:
+            assert isinstance(op.value, int), "There is a bug in the lexer (probably)"
             stack.append(op.value)
             ip += 1
         elif op.typ == OpType.PUSH_STR:
+            assert isinstance(op.value, str), "There is a bug in the lexer (probably)"
             bs = bytes(op.value, 'utf-8')
             n = len(bs)
             stack.append(n)
@@ -265,7 +267,7 @@ def simulate_little_endian_linux(program: Program):
                 mem[addr] = value & 0xFF
                 ip += 1
             elif op.value == Intrinsic.SYSCALL0:
-                syscall_number = stack.pop()
+                syscall_number= stack.pop()
                 if syscall_number == 39:
                     stack.append(os.getpid())
                 else:
@@ -290,10 +292,10 @@ def simulate_little_endian_linux(program: Program):
                     elif fd == 2:
                         print(s, end='', file=sys.stderr)
                     else:
-                        assert False, "unknown file descriptor %d" % fd
+                        assert False, "unknown file descriptor"
                     stack.append(count)
                 else:
-                    assert False, "unknown syscall number %d" % syscall_number
+                    assert False, "unknown syscall number '%d" % syscall_number 
                 ip += 1
             elif op.value == Intrinsic.SYSCALL4:
                 assert False, "not implemented"
@@ -310,7 +312,7 @@ def simulate_little_endian_linux(program: Program):
         print(mem[:20])
 
 def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
-    strs = []
+    strs: List[str] = []
     with open(out_file_path, "w") as out:
         out.write("BITS 64\n")
         out.write("segment .text\n")
@@ -354,11 +356,13 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
             assert len(OpType) == 8, "Exhaustive ops handling in generate_nasm_linux_x86_64: %d" % len(OpType)
             out.write("addr_%d:\n" % ip)
             if op.typ == OpType.PUSH_INT:
-                out.write(";;  -- push int %d --\n" % op.value)
+                out.write(";;  -- push int --\n")
+                assert isinstance(op.value, int), "There is a bug in the lexer (probably)"
                 out.write("    mov rax, %d\n" % op.value)
                 out.write("    push rax\n")
             elif op.typ == OpType.PUSH_STR:
                 out.write(";;  -- push str --\n")
+                assert isinstance(op.value, str)
                 out.write("    mov rax, %d\n" % len(op.value))
                 out.write("    push rax\n")
                 out.write("    push str_%d\n" % len(strs))
@@ -685,9 +689,11 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> 
         assert len(TokenType) == 5, "Exhaustive token handling in compile_tokens_to_program: %d" % len(TokenType)
         if token.typ == TokenType.WORD:
             if token.value in INTRINSIC_NAMES:
+                assert isinstance(token.value, str)
                 program.append(Op(typ=OpType.INTRINSIC, loc=token.loc, value=INTRINSIC_NAMES[token.value]))
                 ip += 1
             elif token.value in macros:
+                assert isinstance(token.value, str)
                 rtokens += reversed(macros[token.value].tokens)
                 continue
             else:
@@ -716,7 +722,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> 
                 program.append(Op(typ=OpType.ELSE, loc=token.loc))
                 if_ip = stack.pop()
                 if program[if_ip].typ != OpType.IF:
-                    print('%s:%d:%d: ERROR: `else` can only be used in `if`-blocks' % program[if_ip]['loc'])
+                    print('%s:%d:%d: ERROR: `else` can only be used in `if`-blocks' % program[if_ip].loc)
                     exit(1)
                 program[if_ip].jmp = ip + 1
                 stack.append(ip)
@@ -769,7 +775,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> 
                 # TODO: capability to define macros from command line
             elif token.value == Keyword.MACRO:
                 if len(rtokens) == 0:
-                    print("%s:%d:%d: ERROR: expected macro name but found nothing" % op.loc)
+                    print("%s:%d:%d: ERROR: expected macro name but found nothing" % token.loc)
                     exit(1)
                 token = rtokens.pop()
     
@@ -807,12 +813,12 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> 
 
 
     if len(stack) > 0:
-        print('%s:%d:%d: ERROR: unclosed block' % program[stack.pop()]['loc'])
+        print('%s:%d:%d: ERROR: unclosed block' % program[stack.pop()].loc)
         exit(1)
 
     return program
 
-def find_col(line: int, start: int, predicate: Callable[[str], bool]) -> int:
+def find_col(line: str, start: int, predicate: Callable[[str], bool]) -> int:
     while start < len(line) and not predicate(line[start]):
         start += 1
     return start
@@ -923,6 +929,8 @@ if __name__ == '__main__' and '__file__' in globals():
         exit(1)
     subcommand, *argv = argv
 
+    program_path: Optional[str] = None
+
     if subcommand == "sim":
         if len(argv) < 1:
             print_usage(compiler_name)
@@ -933,7 +941,6 @@ if __name__ == '__main__' and '__file__' in globals():
         simulate_little_endian_linux(program)
     elif subcommand == "com":
         run = False
-        program_path = None
         output_path = None
         while len(argv) > 0:
             arg, *argv = argv
