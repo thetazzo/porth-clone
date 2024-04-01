@@ -1,0 +1,15 @@
+
+// include "std.porth"
+
+// Just testing some comments
+
+// 45 3 * print
+
+// 0 while dup 10 < do
+//     dup print
+//     1 +
+// end
+
+// Ohh yeah
+
+// "Hello Semen!\n" stdout write
