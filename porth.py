@@ -26,7 +26,7 @@ class Intrinsic(Enum):
     PLUS=auto()
     MINUS=auto()
     MUL=auto()
-    MOD=auto()
+    DIVMOD=auto()
     EQ=auto()
     GT=auto()
     LT=auto()
@@ -162,9 +162,10 @@ def simulate_little_endian_linux(program: Program):
                 b = stack.pop()
                 stack.append(a * b)
                 ip += 1
-            elif op.value == Intrinsic.MOD:
+            elif op.value == Intrinsic.DIVMOD:
                 a = stack.pop()
                 b = stack.pop()
+                stack.append(b // a)
                 stack.append(b % a)
                 ip += 1
             elif op.value == Intrinsic.EQ:
@@ -405,13 +406,14 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop rbx\n")
                     out.write("    mul rbx\n")
                     out.write("    push rax\n")
-                elif op.value == Intrinsic.MOD:
-                    out.write(";;  -- mod --\n")
+                elif op.value == Intrinsic.DIVMOD:
+                    out.write(";;  -- divmod --\n")
                     out.write("    xor rdx, rdx\n")
                     out.write("    pop rbx\n")
                     out.write("    pop rax\n")
                     out.write("    div rbx\n")
-                    out.write("    push rdx\n");
+                    out.write("    push rax\n")
+                    out.write("    push rdx\n")
                 elif op.value == Intrinsic.SHR:
                     out.write(";;  -- shr --\n")
                     out.write("    pop rcx\n")
@@ -624,7 +626,7 @@ INTRINSIC_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
     '*': Intrinsic.MUL,
-    'mod': Intrinsic.MOD,
+    'divmod': Intrinsic.DIVMOD,
     'print': Intrinsic.PRINT,
     '=': Intrinsic.EQ,
     '>': Intrinsic.GT,

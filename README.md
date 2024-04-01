@@ -166,11 +166,12 @@ a = pop()
 b = pop()
 push(a * b)
 ```
-* `mod`
+* `divmod`
 ```
 a = pop()
 b = pop()
-push(b & a)
+push(b // a)
+push(b % a)
 ```
 
 #### Bitwise operations

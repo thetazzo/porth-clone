@@ -1,3 +1,5 @@
+include "std.porth"
+
 // plus +
 34 35 + print
 "----------------------\n" 1 1 syscall3
