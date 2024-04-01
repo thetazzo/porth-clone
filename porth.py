@@ -26,7 +26,7 @@ class Intrinsic(Enum):
     PLUS=auto()
     MINUS=auto()
     MUL=auto()
-    MOD=auto()
+    DIVMOD=auto()
     EQ=auto()
     GT=auto()
     LT=auto()
@@ -162,9 +162,10 @@ def simulate_little_endian_linux(program: Program):
                 b = stack.pop()
                 stack.append(a * b)
                 ip += 1
-            elif op.value == Intrinsic.MOD:
+            elif op.value == Intrinsic.DIVMOD:
                 a = stack.pop()
                 b = stack.pop()
+                stack.append(b // a)
                 stack.append(b % a)
                 ip += 1
             elif op.value == Intrinsic.EQ:
@@ -405,13 +406,14 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop rbx\n")
                     out.write("    mul rbx\n")
                     out.write("    push rax\n")
-                elif op.value == Intrinsic.MOD:
-                    out.write(";;  -- mod --\n")
+                elif op.value == Intrinsic.DIVMOD:
+                    out.write(";;  -- divmod --\n")
                     out.write("    xor rdx, rdx\n")
                     out.write("    pop rbx\n")
                     out.write("    pop rax\n")
                     out.write("    div rbx\n")
-                    out.write("    push rdx\n");
+                    out.write("    push rax\n")
+                    out.write("    push rdx\n")
                 elif op.value == Intrinsic.SHR:
                     out.write(";;  -- shr --\n")
                     out.write("    pop rcx\n")
@@ -624,7 +626,7 @@ INTRINSIC_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
     '*': Intrinsic.MUL,
-    'mod': Intrinsic.MOD,
+    'divmod': Intrinsic.DIVMOD,
     'print': Intrinsic.PRINT,
     '=': Intrinsic.EQ,
     '>': Intrinsic.GT,
@@ -671,7 +673,7 @@ def token_name(typ: TokenType) -> str:
     else:
         assert False, "unreachable"
 
-def compile_tokens_to_program(tokens: List[Token]) -> Program:
+def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> Program:
     stack = []
     program: List[Op] = []
     rtokens = list(reversed(tokens))
@@ -752,13 +754,18 @@ def compile_tokens_to_program(tokens: List[Token]) -> Program:
                     print("%s:%d:%d: ERROR: expected path to the include file to be %s but found %s" % (token.loc + (token_name(TokenType.STR), token_name(token.typ))))
                     exit(1)
                 # TODO: safety mechanisem for recursive include
-                # TODO: search path mechanism for includes
-                try:
-                    assert isinstance(token.value, str), "This is a bug in the lexer (probably)"
-                    rtokens += reversed(lex_file(token.value))
-                except FileNotFoundError:
-                    print("%s:%d:%d: ERROR: file `%s` not found" % (token.loc + (token.value,)))
-                    exit(1)
+                file_included = False
+                for include_path in include_paths:
+                    try:
+                        assert isinstance(token.value, str), "This is a bug in the lexer (probably)"
+                        rtokens += reversed(lex_file(path.join(include_path, token.value)))
+                        file_included = True
+                        break
+                    except FileNotFoundError:
+                        continue
+                    if not file_included:
+                        print("%s:%d:%d: ERROR: file `%s` not found" % (token.loc + (token.value,)))
+                        exit(1)
                 # TODO: capability to define macros from command line
             elif token.value == Keyword.MACRO:
                 if len(rtokens) == 0:
@@ -863,17 +870,18 @@ def lex_file(file_path: str) -> List[Token]:
                 for (row, line) in enumerate(f.readlines())
                 for token in lex_line(file_path, row, line.split('//')[0])]
 
-def compile_file_to_program(file_path: str) -> Program:
-    return compile_tokens_to_program(lex_file(file_path))
+def compile_file_to_program(file_path: str, include_paths: List[str]) -> Program:
+    return compile_tokens_to_program(lex_file(file_path), include_paths)
 
 def cmd_call_echoed(cmd: List[str]):
     print("[CMD] %s" % " ".join(map(shlex.quote, cmd)))
     return subprocess.call(cmd)
 
-def usage(compiler_name: str):
+def print_usage(compiler_name: str):
     print("Usage: %s [OPTIONS] <SUBCOMMAND> [ARGS]" % compiler_name)
     print("  OPTIONS:")
-    print("    -debug                Enable debug mode.")
+    print("    -debug                Enable debug mode")
+    print("    -I <path>             Add path to include search list")
     print("  SUBCOMMAND:")
     print("    sim <file>            Simulate the program")
     print("    com [OPTIONS] <file>  Compile the program")
@@ -889,10 +897,20 @@ if __name__ == '__main__' and '__file__' in globals():
     assert len(argv) >= 1
     compiler_name, *argv = argv
 
+    include_paths = [".", "./std/"]
+
     while len(argv) > 0:
         if argv[0] == '-debug':
             debug = True
             argv = argv[1:]
+        elif argv[0] == "-I":
+            argv = argv[1:]
+            if len(argv) == 0:
+                print_usage(compiler_name)
+                print("[ERROR]: no path provided for `-I` flag");
+                exit(1)
+            include_path, *argv = argv
+            include_paths.append(include_path)
         else:
             break
 
@@ -900,18 +918,18 @@ if __name__ == '__main__' and '__file__' in globals():
         print("[INFO] Debug mode is enabled")
 
     if len(argv) < 1:
-        usage(compiler_name)
+        print_usage(compiler_name)
         print("[ERROR] no subcommand is provided")
         exit(1)
     subcommand, *argv = argv
 
     if subcommand == "sim":
         if len(argv) < 1:
-            usage(compiler_name)
+            print_usage(compiler_name)
             print("[ERROR] no input file is provided for the simulation")
             exit(1)
         program_path, *argv = argv
-        program = compile_file_to_program(program_path)
+        program = compile_file_to_program(program_path, include_paths)
         simulate_little_endian_linux(program)
     elif subcommand == "com":
         run = False
@@ -923,7 +941,7 @@ if __name__ == '__main__' and '__file__' in globals():
                 run = True
             elif arg == '-o':
                 if len(argv) == 0:
-                    usage(compiler_name)
+                    print_usage(compiler_name)
                     print("[ERROR] no argument is provided for parameter -o")
                     exit(1)
                 output_path, *argv = argv
@@ -932,7 +950,7 @@ if __name__ == '__main__' and '__file__' in globals():
                 break
 
         if program_path is None:
-            usage(compiler_name)
+            print_usage(compiler_name)
             print("[ERROR] no input file is provided for the compilation")
             exit(1)
 
@@ -957,17 +975,17 @@ if __name__ == '__main__' and '__file__' in globals():
         basepath = path.join(basedir, basename)
 
         print("[INFO] Generating %s" % (basepath + ".asm"))
-        program = compile_file_to_program(program_path)
+        program = compile_file_to_program(program_path, include_paths)
         generate_nasm_linux_x86_64(program, basepath + ".asm")
         cmd_call_echoed(["nasm", "-felf64", basepath + ".asm"])
         cmd_call_echoed(["ld", "-o", basepath, basepath + ".o"])
         if run:
             exit(cmd_call_echoed([basepath] + argv))
     elif subcommand == "help":
-        usage(compiler_name)
+        print_usage(compiler_name)
         exit(0)
     else:
-        usage(compiler_name)
+        print_usage(compiler_name)
         print("[ERROR] unknown subcommand %s" % (subcommand))
         exit(1)
 

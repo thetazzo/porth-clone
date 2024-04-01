@@ -1,0 +1,13 @@
+include "std.porth"
+
+// Summing even numbers from the Fibonacci sequence
+
+macro acc mem end
+
+1 2 while over 4000000 < do
+    over 2 mod 0 = if
+        over acc load64 + acc swap store64
+    end
+    swap over +
+end
+acc load64 print

@@ -1,7 +1,4 @@
-
-macro write_stdout
-    1 1 syscall3 drop
-end
+include "std.porth"
 
 macro N 100 end
 
@@ -18,7 +15,8 @@ mem N 2 - + 1 .
         1 +
     end
     mem + N + 10 .
-    N 1 + mem N + write_stdout
+    N 1 + mem N + stdout write
+    drop
 
     // pattern
     mem     , 1 shl
