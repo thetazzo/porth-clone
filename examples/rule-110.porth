@@ -3,8 +3,6 @@ macro write_stdout
     1 1 syscall3 drop
 end
 
-macro 'x' 69 end
-
 macro N 100 end
 
 mem N 2 - + 1 .
