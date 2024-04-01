@@ -6,8 +6,9 @@ import subprocess
 import shlex
 from os import path
 from typing import *
-from enum import Enum, auto
+from enum import IntEnum, Enum, auto
 from dataclasses import dataclass
+#import time
 
 debug=False
 
@@ -22,7 +23,7 @@ class Keyword(Enum):
     MACRO=auto()
     INCLUDE=auto()
 
-class Intrinsic(Enum):
+class Intrinsic(IntEnum):
     PLUS=auto()
     MINUS=auto()
     MUL=auto()
@@ -55,7 +56,7 @@ class Intrinsic(Enum):
     SYSCALL5=auto()
     SYSCALL6=auto()
 
-class OpType(Enum):
+class OpType(IntEnum):
     PUSH_INT=auto()
     PUSH_STR=auto()
     INTRINSIC=auto()
@@ -106,7 +107,12 @@ def simulate_little_endian_linux(program: Program):
     str_offsets = {}
     str_size = 0
     ip = 0
+    #op_count: List[int] = [0]*len(OpType)
+    #op_time: List[float] = [0.0]*len(OpType)
+    #intr_count: List[int] = [0]*len(Intrinsic)
+    #intr_time: List[float] = [0.0]*len(Intrinsic)
     while ip < len(program):
+        #start = time.time()
         assert len(OpType) == 8, "Exhaustive op handling in simulate_little_endian_linux: %d" % len(OpType)
         op = program[ip]
         if op.typ == OpType.PUSH_INT:
@@ -305,9 +311,18 @@ def simulate_little_endian_linux(program: Program):
                 assert False, "not implemented"
             else:
                 assert False, "unreachable"
+            #intr_count[op.value - 1] += 1
+            #intr_time[op.value - 1] += time.time() - start
         else:
             assert False, "unreachable"
+        #op_count[op.typ-1] += 1
+        #op_time[op.typ- 1] += time.time() - start
     if debug:
+        #for op_typ in OpType:
+        #    print(" %s -> %d times (%f secs)" % (op_typ.name, op_count[op_typ-1], op_time[op_typ-1]))
+        #    if op_typ == OpType.INTRINSIC:
+        #        for intr_typ in Intrinsic:
+        #            print("    %s -> %d times (%f secs)" % (intr_typ.name, intr_count[intr_typ-1], intr_time[intr_typ-1]))
         print("[INFO] Memory dump")
         print(mem[:20])
 
