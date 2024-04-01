@@ -16,22 +16,22 @@ jobs:
         id: cache-pypy
         uses: actions/cache@v2
         with:
-          path: pypy3.7-v7.3.5-linux64
+          path: pypy3.10-v7.3.15-linux64
           key: ${{ runner.os }}-pypy
       - name: install pypy from the official website
         if: steps.cache-pypy.outputs.cache-hit != 'true'
         run: |
-          wget https://downloads.python.org/pypy/pypy3.7-v7.3.5-linux64.tar.bz2
-          tar fvx pypy3.7-v7.3.5-linux64.tar.bz2
+          wget https://downloads.python.org/pypy/pypy3.10-v7.3.15-linux64.tar.bz2
+          tar fvx pypy3.10-v7.3.15-linux64.tar.bz2
       - name: print version of pythons
         run: |
           python3 --version
-          ./pypy3.7-v7.3.5-linux64/bin/pypy3 --version
+          ./pypy3.10-v7.3.15-linux64/bin/pypy3 --version
       - name: run tests
         run: |
           mypy ./porth.py
           mypy ./test.py
-          ./pypy3.7-v7.3.5-linux64/bin/pypy3 ./test.py
-          ./pypy3.7-v7.3.5-linux64/bin/pypy3 ./test.py -f ./examples/
-          ./pypy3.7-v7.3.5-linux64/bin/pypy3 ./test.py -f ./euler/
+          ./pypy3.10-v7.3.15-linux64/bin/pypy3 ./test.py
+          ./pypy3.10-v7.3.15-linux64/bin/pypy3 ./test.py -f ./examples/
+          ./pypy3.10-v7.3.15-linux64/bin/pypy3 ./test.py -f ./euler/
 
