@@ -787,7 +787,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                     exit(1)
                 token = rtokens.pop()
                 if token.typ != TokenType.STR:
-                    print("%s:%d:%d: ERROR: expected path to the include file to be %s but found %s" % (token.loc + (human(TokenType.STR), human(token.typ))), file=sys.stderr)
+                    print("%s:%d:%d: ERROR: expected path to the include file to be %s but found %s" % (token.loc + (token_name(TokenType.STR), token_name(token.typ))), file=sys.stderr)
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
                 file_included = False
@@ -975,7 +975,7 @@ if __name__ == '__main__' and '__file__' in globals():
         elif argv[0] == '-I':
             argv = argv[1:]
             if len(argv) == 0:
-                usage(compiler_name)
+                print_usage(compiler_name)
                 print("[ERROR] no path is provided for `-I` flag", file=sys.stderr)
                 exit(1)
             include_path, *argv = argv
@@ -983,7 +983,7 @@ if __name__ == '__main__' and '__file__' in globals():
         elif argv[0] == '-E':
             argv = argv[1:]
             if len(argv) == 0:
-                usage(compiler_name)
+                print_usage(compiler_name)
                 print("[ERROR] no value is provided for `-E` flag", file=sys.stderr)
                 exit(1)
             arg, *argv = argv
@@ -995,7 +995,7 @@ if __name__ == '__main__' and '__file__' in globals():
         print("[INFO] Debug mode is enabled")
 
     if len(argv) < 1:
-        usage(compiler_name)
+        print_usage(compiler_name)
         print("[ERROR] no subcommand is provided", file=sys.stderr)
         exit(1)
     subcommand, *argv = argv
@@ -1004,7 +1004,7 @@ if __name__ == '__main__' and '__file__' in globals():
 
     if subcommand == "sim":
         if len(argv) < 1:
-            usage(compiler_name)
+            print_usage(compiler_name)
             print("[ERROR] no input file is provided for the simulation", file=sys.stderr)
             exit(1)
         program_path, *argv = argv
@@ -1022,7 +1022,7 @@ if __name__ == '__main__' and '__file__' in globals():
                 silent = True
             elif arg == '-o':
                 if len(argv) == 0:
-                    usage(compiler_name)
+                    print_usage(compiler_name)
                     print("[ERROR] no argument is provided for parameter -o", file=sys.stderr)
                     exit(1)
                 output_path, *argv = argv
@@ -1031,7 +1031,7 @@ if __name__ == '__main__' and '__file__' in globals():
                 break
 
         if program_path is None:
-            usage(compiler_name)
+            print_usage(compiler_name)
             print("[ERROR] no input file is provided for the compilation", file=sys.stderr)
             exit(1)
 
@@ -1069,10 +1069,10 @@ if __name__ == '__main__' and '__file__' in globals():
         if run:
             exit(cmd_call_echoed([basepath] + argv, silent))
     elif subcommand == "help":
-        usage(compiler_name)
+        print_usage(compiler_name)
         exit(0)
     else:
-        usage(compiler_name)
+        print_usage(compiler_name)
         print("[ERROR] unknown subcommand %s" % (subcommand), file=sys.stderr)
         exit(1)
 
