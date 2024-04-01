@@ -1,0 +1,7 @@
+include "std.porth"
+
+macro foo
+    foo
+end
+
+"Dead recursive macros should not cause any problems" stdout write

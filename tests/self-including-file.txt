@@ -1,0 +1,9 @@
+:i argc 0
+:b stdin 0
+
+:i returncode 1
+:b stdout 0
+
+:b stderr 114
+././tests/self-including-file.porth:1:9: ERROR: the include exceeded the expansion limit (it expanded 1000 times)
+
