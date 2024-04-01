@@ -1,4 +1,12 @@
+:i argc 0
+:b stdin 0
+
+:i returncode 0
+:b stdout 8
 8
 4
 3
 0
+
+:b stderr 0
+

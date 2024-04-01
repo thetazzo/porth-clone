@@ -1,3 +1,8 @@
+:i argc 0
+:b stdin 0
+
+:i returncode 0
+:b stdout 270
 69420
 100
 42
@@ -25,3 +30,6 @@ hello world
 69
 ------------------------------
 69
+
+:b stderr 0
+

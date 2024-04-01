@@ -1,0 +1,6 @@
+
+macro bar
+    bar
+end
+
+bar

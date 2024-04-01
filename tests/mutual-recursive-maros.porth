@@ -1,0 +1,10 @@
+
+macro foo 
+    bar
+end
+
+macro bar
+    foo
+end
+
+foo

@@ -8,11 +8,14 @@ from os import path
 from typing import *
 from enum import IntEnum, Enum, auto
 from dataclasses import dataclass
+from copy import copy
 #import time
 
 debug=False
 
 Loc=Tuple[str, int, int]
+
+DEFAULT_EXPANSION_LIMIT=1000
 
 class Keyword(Enum):
     IF=auto()
@@ -97,9 +100,12 @@ class Token:
     typ: TokenType
     loc: Loc
     value: Union[int, str, Keyword]
+    expanded: int = 0
 
 STR_CAPACITY = 640_000
 MEM_CAPACITY = 640_000
+
+DEFAULT_EXPANSION_LIMIT
 
 def simulate_little_endian_linux(program: Program):
     stack: List[int] = []
@@ -692,7 +698,13 @@ def token_name(typ: TokenType) -> str:
     else:
         assert False, "unreachable"
 
-def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> Program:
+def expand_macro(macro: Macro, expanded: int) -> List[Token]:
+    result = list(map(copy, macro.tokens))
+    for token in result:
+        token.expanded = expanded
+    return result
+
+def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], expansion_limit: int) -> Program:
     stack = []
     program: List[Op] = []
     rtokens = list(reversed(tokens))
@@ -708,11 +720,14 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> 
                 program.append(Op(typ=OpType.INTRINSIC, loc=token.loc, value=INTRINSIC_NAMES[token.value]))
                 ip += 1
             elif token.value in macros:
+                if token.expanded >= expansion_limit:
+                    print("%s:%d:%d: ERROR: the macro exceeded the expansion limit (it expanded %d times)" % (token.loc + (token.expanded, )), file=sys.stderr)
+                    exit(1)
                 assert isinstance(token.value, str)
-                rtokens += reversed(macros[token.value].tokens)
+                rtokens += reversed(expand_macro(macros[token.value], token.expanded+1))
                 continue
             else:
-                print("%s:%d:%d: unknown word `%s`" % (token.loc + (token.value, )))
+                print("%s:%d:%d: ERROR: unknown word `%s`" % (token.loc + (token.value, )), file=sys.stderr)
                 exit(1)
         elif token.typ == TokenType.INT:
             assert isinstance(token.value, int), "This is a lexer bug (probably)"
@@ -737,7 +752,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> 
                 program.append(Op(typ=OpType.ELSE, loc=token.loc))
                 if_ip = stack.pop()
                 if program[if_ip].typ != OpType.IF:
-                    print('%s:%d:%d: ERROR: `else` can only be used in `if`-blocks' % program[if_ip].loc)
+                    print('%s:%d:%d: ERROR: `else` can only be used in `if`-blocks' % program[if_ip].loc, file=sys.stderr)
                     exit(1)
                 program[if_ip].jmp = ip + 1
                 stack.append(ip)
@@ -753,7 +768,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> 
                     program[ip].jmp = program[block_ip].jmp
                     program[block_ip].jmp = ip + 1
                 else:
-                    print('%s:%d:%d: ERROR: `end` can only close `if`, `else` or `do` blocks for now' % program[block_ip].loc)
+                    print('%s:%d:%d: ERROR: `end` can only close `if`, `else` or `do` blocks for now' % program[block_ip].loc, file=sys.stderr)
                     exit(1)
                 ip += 1
             elif token.value == Keyword.WHILE:
@@ -768,42 +783,43 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> 
                 ip += 1
             elif token.value == Keyword.INCLUDE:
                 if len(rtokens) == 0:
-                    print("%s:%d:%d: ERROR: expected path to the include file but found nothing" % token.loc)
+                    print("%s:%d:%d: ERROR: expected path to the include file but found nothing" % token.loc, file=sys.stderr)
                     exit(1)
                 token = rtokens.pop()
                 if token.typ != TokenType.STR:
-                    print("%s:%d:%d: ERROR: expected path to the include file to be %s but found %s" % (token.loc + (token_name(TokenType.STR), token_name(token.typ))))
+                    print("%s:%d:%d: ERROR: expected path to the include file to be %s but found %s" % (token.loc + (token_name(TokenType.STR), token_name(token.typ))), file=sys.stderr)
                     exit(1)
-                # TODO: safety mechanisem for recursive include
+                assert isinstance(token.value, str), "This is probably a bug in the lexer"
                 file_included = False
                 for include_path in include_paths:
                     try:
-                        assert isinstance(token.value, str), "This is a bug in the lexer (probably)"
-                        rtokens += reversed(lex_file(path.join(include_path, token.value)))
+                        if token.expanded >= expansion_limit:
+                            print("%s:%d:%d: ERROR: the include exceeded the expansion limit (it expanded %d times)" % (token.loc + (token.expanded, )), file=sys.stderr)
+                            exit(1)
+                        rtokens += reversed(lex_file(path.join(include_path, token.value), token.expanded + 1))
                         file_included = True
                         break
                     except FileNotFoundError:
                         continue
-                    if not file_included:
-                        print("%s:%d:%d: ERROR: file `%s` not found" % (token.loc + (token.value,)))
-                        exit(1)
-                # TODO: capability to define macros from command line
+                if not file_included:
+                    print("%s:%d:%d: ERROR: file `%s` not found" % (token.loc + (token.value, )), file=sys.stderr)
+                    exit(1)
             elif token.value == Keyword.MACRO:
                 if len(rtokens) == 0:
-                    print("%s:%d:%d: ERROR: expected macro name but found nothing" % token.loc)
+                    print("%s:%d:%d: ERROR: expected macro name but found nothing" % token.loc, file=sys.stderr)
                     exit(1)
                 token = rtokens.pop()
     
                 if token.typ != TokenType.WORD:
-                    print("%s:%d:%d: ERROR: expected macro name to be %s but found %s" % (token.loc + (token_name(TokenType.WORD), token_name(token.typ))))
+                    print("%s:%d:%d: ERROR: expected macro name to be %s but found %s" % (token.loc + (token_name(TokenType.WORD), token_name(token.typ))), file=sys.stderr)
                     exit(1)
                 assert isinstance(token.value, str), "This is a bug in the lexer (probably)"
                 if token.value in macros:
-                    print("%s:%d:%d: ERROR: redefinition of already existing macro `%s`" % (token.loc + (token.value,)))
+                    print("%s:%d:%d: ERROR: redefinition of already existing macro `%s`" % (token.loc + (token.value,)), file=sys.stderr)
                     print("%s:%d:%d: NOTE: the first definition is located here" % (macros[token.value].loc))
                     exit(1)
                 if token.value in INTRINSIC_NAMES:
-                    print("%s:%d:%d: ERROR: redefinition of a intrinsic word `%s`" % (token.loc + (token.value,)))
+                    print("%s:%d:%d: ERROR: redefinition of a intrinsic word `%s`" % (token.loc + (token.value,)), file=sys.stderr)
                     exit(1)
     
                 macro = Macro(token.loc, [])
@@ -819,7 +835,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> 
                         macro.tokens.append(token)
     
                 if token.typ != TokenType.KEYWORD and token.value != Keyword.END:
-                    print("%s:%d:%d: ERROR: expected `end` at the end of the macro definition but got `%s`" % (token.loc + (token.value,)))
+                    print("%s:%d:%d: ERROR: expected `end` at the end of the macro definition but got `%s`" % (token.loc + (token.value,)), file=sys.stderr)
                     exit(1)
             else:
                 assert False, "unreachable"
@@ -828,7 +844,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str]) -> 
 
 
     if len(stack) > 0:
-        print('%s:%d:%d: ERROR: unclosed block' % program[stack.pop()].loc)
+        print('%s:%d:%d: ERROR: unclosed block' % program[stack.pop()].loc, file=sys.stderr)
         exit(1)
 
     return program
@@ -843,95 +859,135 @@ def unescape_string(s: str) -> str:
     # to do this weird round trip
     return s.encode('utf-8').decode('unicode_escape').encode('latin-1').decode('utf-8')
 
-# TODO: lexer does not support new lines inside of the string literals
-# TODO: lexer does not support quotes inside of the string literals
-# TODO: lexer does not support // inside of string literals
-def lex_line(file_path: str, row: int, line: str) -> Generator[Token, None, None]:
-    col = find_col(line, 0, lambda x: not x.isspace())
-    assert len(TokenType) == 5, "Exhaustive handlign of TokenTypes in lex_line(): %d" % len(TokenType)
-    while col < len(line):
-        loc = (file_path, row + 1, col + 1)
-        col_end = None
-        # Handle lexing of string literals
-        if line[col] == '"':
-            col_end = find_col(line, col+1, lambda x: x == '"')
-            if col_end >= len(line) or line[col_end] != '"':
-                print("%s:%d:%d: ERROR: unclosed string literal" % loc)
-                exit(1)
-            text_of_token = line[col+1:col_end]
-            yield Token(TokenType.STR, loc, unescape_string(text_of_token))
-            col = find_col(line, col_end+1, lambda x: not x.isspace())
-        # Handle lexing of character literals
-        elif line[col] == "'":
-            col_end = find_col(line, col+1, lambda x: x == "'")
-            if col_end >= len(line) or line[col_end] != "'":
-                print("%s:%d:%d: ERROR: unclosed character literal" % loc)
-                exit(1)
-            char_bytes = unescape_string(line[col+1:col_end]).encode('utf-8')
-            if len(char_bytes) != 1:
-                print("%s:%d:%d: ERROR: only one byte is allowed inside of a character literal" % loc)
-                exit(1)
-            yield Token(TokenType.CHAR, loc, char_bytes[0])
-            col = find_col(line, col_end+1, lambda x: not x.isspace())
-        else:
-            col_end = find_col(line, col, lambda x: x.isspace())
-            text_of_token = line[col:col_end]
-            try:
-                yield Token(TokenType.INT, loc, int(text_of_token))
-            except ValueError:
-                if text_of_token in KEYWORD_NAMES:
-                    yield Token(TokenType.KEYWORD, loc, KEYWORD_NAMES[text_of_token])
-                else:
-                    yield Token(TokenType.WORD, loc, text_of_token)
-            col = find_col(line, col_end, lambda x: not x.isspace())
+def find_string_literal_end(line: str, start: int) -> int:
+    prev = line[start]
+    while start < len(line):
+        curr = line[start]
+        if curr == '"' and prev != '\\':
+            break
+        prev = curr
+        start += 1
+    return start
 
-def lex_file(file_path: str) -> List[Token]:
+
+def lex_lines(file_path: str, lines: List[str]) -> Generator[Token, None, None]:
+    assert len(TokenType) == 5, 'Exhaustive handling of token types in lex_lines'
+    row = 0
+    str_literal_buf = ""
+    while row < len(lines):
+        line = lines[row]
+        col = find_col(line, 0, lambda x: not x.isspace())
+        col_end = 0
+        while col < len(line):
+            loc = (file_path, row + 1, col + 1)
+            if line[col] == '"':
+                while row < len(lines):
+                    start = col
+                    if str_literal_buf == "":
+                        start += 1
+                    else:
+                        line = lines[row]
+                    col_end = find_string_literal_end(line, start)
+                    if col_end >= len(line) or line[col_end] != '"':
+                        str_literal_buf += line[start:]
+                        row +=1
+                        col = 0
+                    else:
+                        str_literal_buf += line[start:col_end]
+                        break
+                if row >= len(lines):
+                    print("%s:%d:%d: ERROR: unclosed string literal" % loc, file=sys.stderr)
+                    exit(1)
+                text_of_token = str_literal_buf
+                str_literal_buf = ""
+                yield Token(TokenType.STR, loc, unescape_string(text_of_token))
+                col = find_col(line, col_end+1, lambda x: not x.isspace())
+            elif line[col] == "'":
+                col_end = find_col(line, col+1, lambda x: x == "'")
+                if col_end >= len(line) or line[col_end] != "'":
+                    print("%s:%d:%d: ERROR: unclosed character literal" % loc, file=sys.stderr)
+                    exit(1)
+                char_bytes = unescape_string(line[col+1:col_end]).encode('utf-8')
+                if len(char_bytes) != 1:
+                    print("%s:%d:%d: ERROR: only a single byte is allowed inside of a character literal" % loc, file=sys.stderr)
+                    exit(1)
+                yield Token(TokenType.CHAR, loc, char_bytes[0])
+                col = find_col(line, col_end+1, lambda x: not x.isspace())
+            else:
+                col_end = find_col(line, col, lambda x: x.isspace())
+                text_of_token = line[col:col_end]
+
+                try:
+                    yield Token(TokenType.INT, loc, int(text_of_token))
+                except ValueError:
+                    if text_of_token in KEYWORD_NAMES:
+                        yield Token(TokenType.KEYWORD, loc, KEYWORD_NAMES[text_of_token])
+                    else:
+                        if text_of_token.startswith("//"):
+                            break
+                        yield Token(TokenType.WORD, loc, text_of_token)
+                col = find_col(line, col_end, lambda x: not x.isspace())
+        row += 1
+
+def lex_file(file_path: str, expanded: int = 0) -> List[Token]:
     with open(file_path, "r", encoding='utf-8') as f:
-        return [token
-                for (row, line) in enumerate(f.readlines())
-                for token in lex_line(file_path, row, line.split('//')[0])]
+        result = [token for token in lex_lines(file_path, f.readlines())]
+        for token in result:
+            token.expanded = expanded
+        return result
 
-def compile_file_to_program(file_path: str, include_paths: List[str]) -> Program:
-    return compile_tokens_to_program(lex_file(file_path), include_paths)
+def compile_file_to_program(file_path: str, include_paths: List[str], expansion_limit: int) -> Program:
+    return compile_tokens_to_program(lex_file(file_path), include_paths, expansion_limit)
 
-def cmd_call_echoed(cmd: List[str]):
-    print("[CMD] %s" % " ".join(map(shlex.quote, cmd)))
+def cmd_call_echoed(cmd: List[str], silent: bool=False) -> int:
+    if not silent:
+        print("[CMD] %s" % " ".join(map(shlex.quote, cmd)))
     return subprocess.call(cmd)
 
 def print_usage(compiler_name: str):
     print("Usage: %s [OPTIONS] <SUBCOMMAND> [ARGS]" % compiler_name)
-    print("  OPTIONS:")
-    print("    -debug                Enable debug mode")
-    print("    -I <path>             Add path to include search list")
+    print("  options:")
+    print("    -debug                Enable debug mode.")
+    print("    -I <path>             Add the path to the include search list")
+    print("    -E <expansion-limit>  Macro and include expansion limit. (Default %d)" % DEFAULT_EXPANSION_LIMIT)
     print("  SUBCOMMAND:")
     print("    sim <file>            Simulate the program")
     print("    com [OPTIONS] <file>  Compile the program")
     print("      OPTIONS:")
     print("        -r                  Run the program after successful compilation")
     print("        -o <file|dir>       Customize the output path")
+    print("        -s                  Silent mode. Don't print any info about compilation phases.")
     print("    help                  Print this help to stdout and exit with 0 code")
 
-# TODO: there is no way to access command line arguments
 
 if __name__ == '__main__' and '__file__' in globals():
     argv = sys.argv
     assert len(argv) >= 1
     compiler_name, *argv = argv
 
-    include_paths = [".", "./std/"]
+    include_paths = ['.', './std/']
+    expansion_limit = DEFAULT_EXPANSION_LIMIT
 
     while len(argv) > 0:
         if argv[0] == '-debug':
-            debug = True
             argv = argv[1:]
-        elif argv[0] == "-I":
+            debug = True
+        elif argv[0] == '-I':
             argv = argv[1:]
             if len(argv) == 0:
                 print_usage(compiler_name)
-                print("[ERROR]: no path provided for `-I` flag");
+                print("[ERROR] no path is provided for `-I` flag", file=sys.stderr)
                 exit(1)
             include_path, *argv = argv
             include_paths.append(include_path)
+        elif argv[0] == '-E':
+            argv = argv[1:]
+            if len(argv) == 0:
+                print_usage(compiler_name)
+                print("[ERROR] no value is provided for `-E` flag", file=sys.stderr)
+                exit(1)
+            arg, *argv = argv
+            expansion_limit = int(arg)
         else:
             break
 
@@ -940,7 +996,7 @@ if __name__ == '__main__' and '__file__' in globals():
 
     if len(argv) < 1:
         print_usage(compiler_name)
-        print("[ERROR] no subcommand is provided")
+        print("[ERROR] no subcommand is provided", file=sys.stderr)
         exit(1)
     subcommand, *argv = argv
 
@@ -949,22 +1005,25 @@ if __name__ == '__main__' and '__file__' in globals():
     if subcommand == "sim":
         if len(argv) < 1:
             print_usage(compiler_name)
-            print("[ERROR] no input file is provided for the simulation")
+            print("[ERROR] no input file is provided for the simulation", file=sys.stderr)
             exit(1)
         program_path, *argv = argv
-        program = compile_file_to_program(program_path, include_paths)
+        program = compile_file_to_program(program_path, include_paths, expansion_limit);
         simulate_little_endian_linux(program)
     elif subcommand == "com":
+        silent = False
         run = False
         output_path = None
         while len(argv) > 0:
             arg, *argv = argv
             if arg == '-r':
                 run = True
+            elif arg == '-s':
+                silent = True
             elif arg == '-o':
                 if len(argv) == 0:
                     print_usage(compiler_name)
-                    print("[ERROR] no argument is provided for parameter -o")
+                    print("[ERROR] no argument is provided for parameter -o", file=sys.stderr)
                     exit(1)
                 output_path, *argv = argv
             else:
@@ -973,7 +1032,7 @@ if __name__ == '__main__' and '__file__' in globals():
 
         if program_path is None:
             print_usage(compiler_name)
-            print("[ERROR] no input file is provided for the compilation")
+            print("[ERROR] no input file is provided for the compilation", file=sys.stderr)
             exit(1)
 
         basename = None
@@ -994,20 +1053,26 @@ if __name__ == '__main__' and '__file__' in globals():
             if basename.endswith(porth_ext):
                 basename = basename[:-len(porth_ext)]
             basedir = path.dirname(program_path)
+
+        # if basedir is empty we should "fix" the path appending the current working directory.
+        # So we avoid `com -r` to run command from $PATH.
+        if basedir == "":
+            basedir = os.getcwd()
         basepath = path.join(basedir, basename)
 
-        print("[INFO] Generating %s" % (basepath + ".asm"))
-        program = compile_file_to_program(program_path, include_paths)
+        if not silent:
+            print("[INFO] Generating %s" % (basepath + ".asm"))
+        program = compile_file_to_program(program_path, include_paths, expansion_limit);
         generate_nasm_linux_x86_64(program, basepath + ".asm")
-        cmd_call_echoed(["nasm", "-felf64", basepath + ".asm"])
-        cmd_call_echoed(["ld", "-o", basepath, basepath + ".o"])
+        cmd_call_echoed(["nasm", "-felf64", basepath + ".asm"], silent)
+        cmd_call_echoed(["ld", "-o", basepath, basepath + ".o"], silent)
         if run:
-            exit(cmd_call_echoed([basepath] + argv))
+            exit(cmd_call_echoed([basepath] + argv, silent))
     elif subcommand == "help":
         print_usage(compiler_name)
         exit(0)
     else:
         print_usage(compiler_name)
-        print("[ERROR] unknown subcommand %s" % (subcommand))
+        print("[ERROR] unknown subcommand %s" % (subcommand), file=sys.stderr)
         exit(1)
 
