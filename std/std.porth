@@ -1,4 +1,17 @@
-macro write 1 1 syscall3 end
+// Standard streams
+macro stdin  0 end
+macro stdout 1 end
+macro stderr 2 end
+
+// Syscalls
+macro SYS_read  0  end 
+macro SYS_write 1  end 
+macro SYS_open  2  end 
+macro SYS_exit  60 end
+
+macro write SYS_write syscall3 end
+macro read  SYS_read  syscall3 end
+macro exit  SYS_exit  syscall1 end
 
 macro / divmod drop end
 macro % divmod swap drop end
