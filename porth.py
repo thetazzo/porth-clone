@@ -947,16 +947,16 @@ def cmd_call_echoed(cmd: List[str], silent: bool=False) -> int:
 def print_usage(compiler_name: str):
     print("Usage: %s [OPTIONS] <SUBCOMMAND> [ARGS]" % compiler_name)
     print("  options:")
-    print("    -debug                Enable debug mode.")
+    print("    -debug                Enable debug mode")
     print("    -I <path>             Add the path to the include search list")
-    print("    -E <expansion-limit>  Macro and include expansion limit. (Default %d)" % DEFAULT_EXPANSION_LIMIT)
+    print("    -E <expansion-limit>  Macro and include expansion limit (Default %d)" % DEFAULT_EXPANSION_LIMIT)
     print("  SUBCOMMAND:")
     print("    sim <file>            Simulate the program")
     print("    com [OPTIONS] <file>  Compile the program")
     print("      OPTIONS:")
     print("        -r                  Run the program after successful compilation")
     print("        -o <file|dir>       Customize the output path")
-    print("        -s                  Silent mode. Don't print any info about compilation phases.")
+    print("        -s                  Silent mode ~ Don't print any info about compilation phases")
     print("    help                  Print this help to stdout and exit with 0 code")
 
 
