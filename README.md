@@ -206,16 +206,28 @@ push(b & a)
 
 #### Memory
 * `mem` - pushes the address of the beggining of the memory where you can read and write onto the stack
-* `.` - store the given byte at the given address 
+* `.` - store the given byte at the given address on the stack
 ```
 byte = pop()
 addr = pop()
 store(addr, byte)
 ```
-* `,` - load a byte from the given address 
+* `,` - load a byte from the given address on the stack
 ```
 addr = pop()
 byte = load(addr)
+push(byte)
+```
+* `.64` - store an 8-byte word at the given address on the stack
+```
+word = pop()
+addr = pop()
+store(addr, byte)
+```
+* `,64` - load an 8-byte word from the given address on the stack
+```
+word = pop()
+byte = load(word)
 push(byte)
 ```
 

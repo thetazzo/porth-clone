@@ -48,9 +48,10 @@ class Intrinsic(IntEnum):
     DROP=auto()
     OVER=auto()
     MEM=auto()
-    # TODO: implement typing for load/store operations
     LOAD=auto()
+    LOAD64=auto()
     STORE=auto()
+    STORE64=auto()
     SYSCALL0=auto()
     SYSCALL1=auto()
     SYSCALL2=auto()
@@ -160,7 +161,7 @@ def simulate_little_endian_linux(program: Program):
             else:
                 ip += 1
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 30, "Exhaustive handling of intrinsic n simulate_little_endian_linux: %d" % len(Intrinsic)
+            assert len(Intrinsic) == 32, "Exhaustive handling of intrinsic n simulate_little_endian_linux: %d" % len(Intrinsic)
             if op.value == Intrinsic.PLUS:
                 a = stack.pop()
                 b = stack.pop()
@@ -277,6 +278,20 @@ def simulate_little_endian_linux(program: Program):
                 value = stack.pop()
                 addr = stack.pop()
                 mem[addr] = value & 0xFF
+                ip += 1
+            elif op.value == Intrinsic.LOAD64:
+                addr = stack.pop()
+                _bytes = bytearray(8)
+                for offset in range(0,8):
+                    _bytes[offset] = mem[addr + offset]
+                stack.append(int.from_bytes(_bytes, byteorder="little"))
+                ip += 1
+            elif op.value == Intrinsic.STORE64:
+                value64 = stack.pop().to_bytes(length=8, byteorder="little")
+                addr64 = stack.pop()
+                for byte in value64:
+                    mem[addr64] = byte
+                    addr64 += 1
                 ip += 1
             elif op.value == Intrinsic.SYSCALL0:
                 syscall_number= stack.pop()
@@ -412,7 +427,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 assert op.jmp is not None
                 out.write("    jz addr_%d\n" % op.jmp)
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 30, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
+                assert len(Intrinsic) == 32, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
                 if op.value == Intrinsic.PLUS:
                     out.write(";;  -- plus --\n")
                     out.write("    pop rax\n")
@@ -564,6 +579,17 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop rbx\n");
                     out.write("    pop rax\n");
                     out.write("    mov [rax], bl\n");
+                elif op.value == Intrinsic.LOAD64:
+                    out.write(";;  -- load64 --\n")
+                    out.write("    pop rax\n")
+                    out.write("    xor rbx, rbx\n")
+                    out.write("    mov rbx, [rax]\n")
+                    out.write("    push rbx\n")
+                elif op.value == Intrinsic.STORE64:
+                    out.write(";;  -- store64 --\n")
+                    out.write("    pop rbx\n");
+                    out.write("    pop rax\n");
+                    out.write("    mov [rax], rbx\n");
                 elif op.value == Intrinsic.SYSCALL0:
                     out.write(";;  -- syscall0 --\n")
                     out.write("    pop rax\n")
@@ -646,7 +672,7 @@ KEYWORD_NAMES= {
     'include': Keyword.INCLUDE,
 }
 
-assert len(Intrinsic) == 30, "Exhaustive INTRINSIC_NAMES definition.: %d" % len(Intrinsic)
+assert len(Intrinsic) == 32, "Exhaustive INTRINSIC_NAMES definition.: %d" % len(Intrinsic)
 INTRINSIC_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
@@ -670,7 +696,9 @@ INTRINSIC_NAMES = {
     'over': Intrinsic.OVER,
     'mem': Intrinsic.MEM,
     '.': Intrinsic.STORE,
+    '.64': Intrinsic.STORE64,
     ',': Intrinsic.LOAD,
+    ',64': Intrinsic.LOAD64,
     'syscall0': Intrinsic.SYSCALL0,
     'syscall1': Intrinsic.SYSCALL1,
     'syscall2': Intrinsic.SYSCALL2,
