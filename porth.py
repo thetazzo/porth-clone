@@ -117,12 +117,12 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
 
     stack.append(0)
     for arg in reversed(argv):
-        value = arg.encode('utf-8')
-        n = len(value)
-        mem[str_size:str_size+n] = value
+        arg_value = arg.encode('utf-8')
+        n = len(arg_value)
+        mem[str_size:str_size+n] = arg_value
         mem[str_size+n] = 0
         stack.append(str_size)
-        str_size += n+1
+        str_size += n + 1
         assert str_size <= STR_CAPACITY, "String buffer overflow"
     stack.append(len(argv))
 
