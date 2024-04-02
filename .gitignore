@@ -9,3 +9,20 @@ __pycache__/
 porth
 *.swp
 
+euler/problem-01
+euler/problem-02
+euler/problem-03
+euler/problem-04
+euler/problem-05
+examples/hello-world
+examples/rule-110
+examples/seq420
+tests/arithmetics
+tests/bitwise-operations
+tests/comments
+tests/comparison
+tests/control-flow
+tests/dead-recursive-macro
+tests/memory
+tests/stack-manipulation
+tests/system
