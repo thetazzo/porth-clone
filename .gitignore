@@ -26,3 +26,4 @@ tests/dead-recursive-macro
 tests/memory
 tests/stack-manipulation
 tests/system
+tests/argv
