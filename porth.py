@@ -826,13 +826,17 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                 macro_name = token.value
                 macros[macro_name] = macro
     
-                # TODO: Support nested blocks within macros definition
+                nesting_depth = 0
                 while len(rtokens) > 0:
                     token = rtokens.pop()
-                    if token.typ == TokenType.KEYWORD and token.value == Keyword.END: 
+                    if token.typ == TokenType.KEYWORD and token.value == Keyword.END and nesting_depth == 0: 
                         break
                     else:
                         macro.tokens.append(token)
+                        if token.value in [Keyword.IF, Keyword.WHILE, Keyword.MACRO]:
+                            nesting_depth += 1
+                        elif token.value == Keyword.END:
+                            nesting_depth -= 1
     
                 if token.typ != TokenType.KEYWORD and token.value != Keyword.END:
                     print("%s:%d:%d: ERROR: expected `end` at the end of the macro definition but got `%s`" % (token.loc + (token.value,)), file=sys.stderr)
