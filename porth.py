@@ -103,8 +103,6 @@ STR_CAPACITY = 640_000
 MEM_CAPACITY = 640_000
 ARGV_CAPACITY = 640_000
 
-DEFAULT_EXPANSION_LIMIT
-
 def simulate_little_endian_linux(program: Program, argv: List[str]):
     stack: List[int] = []
     mem = bytearray(NULL_POINTER_PADDING + STR_CAPACITY + ARGV_CAPACITY + MEM_CAPACITY)
@@ -124,7 +122,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
         2: sys.stderr.buffer,
     }
 
-    for arg in reversed(argv):
+    for arg in argv:
         arg_value = arg.encode('utf-8')
         n = len(arg_value)
 
@@ -135,17 +133,12 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
         assert str_size <= STR_CAPACITY, "String buffer overflow"
         
         argv_ptr = argv_buf_ptr+argc*8 
-        mem[argv_ptr:argv_ptr+8] = arg_ptr.to_bytes(length=9, byteorder="little")
+        mem[argv_ptr:argv_ptr+8] = arg_ptr.to_bytes(8, byteorder="little")
         argc += 1
         assert argc*8 <= ARGV_CAPACITY, "Argv buffer overflow"
 
     ip = 0
-    #op_count: List[int] = [0]*len(OpType)
-    #op_time: List[float] = [0.0]*len(OpType)
-    #intr_count: List[int] = [0]*len(Intrinsic)
-    #intr_time: List[float] = [0.0]*len(Intrinsic)
     while ip < len(program):
-        #start = time.time()
         assert len(OpType) == 8, "Exhaustive op handling in simulate_little_endian_linux: %d" % len(OpType)
         op = program[ip]
         if op.typ == OpType.PUSH_INT:
@@ -302,9 +295,9 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 stack.append(byte)
                 ip += 1
             elif op.operand == Intrinsic.STORE:
-                value = stack.pop()
-                addr = stack.pop()
-                mem[addr] = value & 0xFF
+                store_value = stack.pop()
+                store_addr = stack.pop()
+                mem[store_addr] = store_value & 0xFF
                 ip += 1
             elif op.operand == Intrinsic.LOAD64:
                 addr = stack.pop()
@@ -324,7 +317,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 stack.append(argc)
                 ip += 1
             elif op.operand == Intrinsic.ARGV:
-                stack.append(argv_ptr)
+                stack.append(argv_buf_ptr)
                 ip += 1
             elif op.operand == Intrinsic.SYSCALL0:
                 syscall_number= stack.pop()
@@ -426,6 +419,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
         out.write("    ret\n")
         out.write("global _start\n")
         out.write("_start:\n")
+        out.write("    mov [args_ptr], rsp\n")
         for ip in range(len(program)):
             op = program[ip]
             assert len(OpType) == 8, "Exhaustive ops handling in generate_nasm_linux_x86_64: %d" % len(OpType)
@@ -632,9 +626,15 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop rax\n");
                     out.write("    mov [rax], rbx\n");
                 elif op.operand == Intrinsic.ARGC:
-                    assert False, "not implemented"
+                    out.write(";;  -- argc --\n")
+                    out.write("    mov rax, [args_ptr]\n")
+                    out.write("    mov rax, [rax]\n")
+                    out.write("    push rax\n")
                 elif op.operand == Intrinsic.ARGV:
-                    assert False, "not implemented"
+                    out.write(";;  -- argv --\n")
+                    out.write("    mov rax, [args_ptr]\n")
+                    out.write("    add rax, 8\n")
+                    out.write("    push rax\n") 
                 elif op.operand == Intrinsic.SYSCALL0:
                     out.write(";;  -- syscall0 --\n")
                     out.write("    pop rax\n")
@@ -700,11 +700,14 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
         out.write("    mov rax, 60\n")
         out.write("    mov rdi, 0\n")
         out.write("    syscall\n")
-        out.write("segment .data\n")
+        out.write(";;  -- allocated data --\n")
+        out.write("segment .data\n")               # segment for staticaly allocated elements
         for index, s in enumerate(strs):
             out.write("str_%d: db %s\n" % (index, ','.join(map(hex, list(bytes(s, 'utf-8'))))))
-        out.write("segment .bss\n")
-        out.write("mem: resb %d\n" % MEM_CAPACITY)
+        out.write(";;  -- not yet allocated data --\n")
+        out.write("segment .bss\n")                # segment of statically allocated declared variables that have no value assigned to them yet
+        out.write("args_ptr: resq 1\n")            # reserve space for arguments(argv)
+        out.write("mem: resb %d\n" % MEM_CAPACITY) # reserve space for program memory
 
 assert len(Keyword) == 7, "Exhaustive KEYWORD_NAMES definition: %d" % len(Keyword) 
 KEYWORD_NAMES= {
