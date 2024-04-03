@@ -128,14 +128,14 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
         arg_value = arg.encode('utf-8')
         n = len(arg_value)
 
-        str_buf_end = str_buf_ptr + str_size
-        mem[str_buf_end:str_buf_end+n] = arg_value
-        mem[str_buf_end+n] = 0
+        arg_ptr = str_buf_ptr + str_size
+        mem[arg_ptr:arg_ptr+n] = arg_value
+        mem[arg_ptr+n] = 0
         str_size += n + 1
         assert str_size <= STR_CAPACITY, "String buffer overflow"
         
         argv_ptr = argv_buf_ptr+argc*8 
-        mem[argv_ptr:argv_ptr+8] = argv_ptr.to_bytes(length=8, byteorder="little")
+        mem[argv_ptr:argv_ptr+8] = arg_ptr.to_bytes(length=9, byteorder="little")
         argc += 1
         assert argc*8 <= ARGV_CAPACITY, "Argv buffer overflow"
 
@@ -321,9 +321,11 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                     addr64 += 1
                 ip += 1
             elif op.operand == Intrinsic.ARGC:
-                assert False, "not implemented"
+                stack.append(argc)
+                ip += 1
             elif op.operand == Intrinsic.ARGV:
-                assert False, "not implemented"
+                stack.append(argv_ptr)
+                ip += 1
             elif op.operand == Intrinsic.SYSCALL0:
                 syscall_number= stack.pop()
                 if syscall_number == 39:
