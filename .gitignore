@@ -17,6 +17,7 @@ euler/problem-05
 examples/hello-world
 examples/rule-110
 examples/seq420
+examples/name
 tests/arithmetics
 tests/bitwise-operations
 tests/comments
