@@ -71,20 +71,13 @@ class OpType(IntEnum):
     WHILE=auto()
     DO=auto()
 
+OpAddr=int
+
 @dataclass
 class Op:
     typ: OpType
     loc: Loc
-    # Exists only for OpType.PUSH_INT, OpType.PUSH_STR. Contains the value
-    # that needs to be pushed onto the stack.
-    value: Optional[Union[int, str, Intrinsic]] = None
-    # Exists only for block Ops like `if`, `else`, `while`,
-    # etc. Contains an index of an Op within the Program that the
-    # execution has to jump to depending on the circumstantces. In
-    # case of `if` it's the place of else branch, in case of `else`
-    # it's the end of the construction, etc.
-    # TODO: merge value and jmp
-    jmp: Optional[int] = None
+    operand: Optional[Union[int, str, Intrinsic, OpAddr]] = None
 
 Program=List[Op]
 
@@ -115,6 +108,12 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
     str_offsets = {}
     str_size = NULL_POINTER_PADDING
 
+    fds: Dict[int, BinaryIO] = {
+        0: sys.stdin.buffer,
+        1: sys.stdout.buffer,
+        2: sys.stderr.buffer,
+    }
+
     stack.append(0)
     for arg in reversed(argv):
         arg_value = arg.encode('utf-8')
@@ -136,12 +135,12 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
         assert len(OpType) == 8, "Exhaustive op handling in simulate_little_endian_linux: %d" % len(OpType)
         op = program[ip]
         if op.typ == OpType.PUSH_INT:
-            assert isinstance(op.value, int), "There is a bug in the lexer (probably)"
-            stack.append(op.value)
+            assert isinstance(op.operand, int), "There is a bug in the lexer (probably)"
+            stack.append(op.operand)
             ip += 1
         elif op.typ == OpType.PUSH_STR:
-            assert isinstance(op.value, str), "There is a bug in the lexer (probably)"
-            bs = bytes(op.value, 'utf-8')
+            assert isinstance(op.operand, str), "There is a bug in the lexer (probably)"
+            bs = op.operand.encode('utf-8')
             n = len(bs)
             stack.append(n)
             if ip not in str_offsets:
@@ -154,108 +153,108 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
         elif op.typ == OpType.IF:
             a = stack.pop()
             if a == 0:
-                assert op.jmp is not None
-                ip = op.jmp
+                assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+                ip = op.operand 
             else:
                 ip += 1
         elif op.typ == OpType.ELSE:
-            assert op.jmp is not None
-            ip = op.jmp
+            assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+            ip = op.operand
         elif op.typ == OpType.END:
-            assert op.jmp is not None
-            ip = op.jmp
+            assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+            ip = op.operand
         elif op.typ == OpType.WHILE:
             ip += 1
         elif op.typ == OpType.DO:
             a = stack.pop()
             if a == 0:
-                assert op.jmp is not None
-                ip = op.jmp
+                assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+                ip = op.operand
             else:
                 ip += 1
         elif op.typ == OpType.INTRINSIC:
             assert len(Intrinsic) == 32, "Exhaustive handling of intrinsic n simulate_little_endian_linux: %d" % len(Intrinsic)
-            if op.value == Intrinsic.PLUS:
+            if op.operand == Intrinsic.PLUS:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(a + b)
                 ip += 1
-            elif op.value == Intrinsic.MINUS:
+            elif op.operand == Intrinsic.MINUS:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(b - a)
                 ip += 1
-            elif op.value == Intrinsic.MUL:
+            elif op.operand == Intrinsic.MUL:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(a * b)
                 ip += 1
-            elif op.value == Intrinsic.DIVMOD:
+            elif op.operand == Intrinsic.DIVMOD:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(b // a)
                 stack.append(b % a)
                 ip += 1
-            elif op.value == Intrinsic.EQ:
+            elif op.operand == Intrinsic.EQ:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(a == b))
                 ip += 1
-            elif op.value == Intrinsic.GT:
+            elif op.operand == Intrinsic.GT:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(b > a))
                 ip += 1
-            elif op.value == Intrinsic.LT:
+            elif op.operand == Intrinsic.LT:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(b < a))
                 ip += 1
-            elif op.value == Intrinsic.GE:
+            elif op.operand == Intrinsic.GE:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(b >= a))
                 ip += 1
-            elif op.value == Intrinsic.LE:
+            elif op.operand == Intrinsic.LE:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(b <= a))
                 ip += 1
-            elif op.value == Intrinsic.NE:
+            elif op.operand == Intrinsic.NE:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(b != a))
                 ip += 1
-            elif op.value == Intrinsic.SHR:
+            elif op.operand == Intrinsic.SHR:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(b >> a))
                 ip += 1
-            elif op.value == Intrinsic.SHL:
+            elif op.operand == Intrinsic.SHL:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(b << a))
                 ip += 1
-            elif op.value == Intrinsic.BOR:
+            elif op.operand == Intrinsic.BOR:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(a | b))
                 ip += 1
-            elif op.value == Intrinsic.BAND:
+            elif op.operand == Intrinsic.BAND:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(a & b))
                 ip += 1
-            elif op.value == Intrinsic.PRINT:
+            elif op.operand == Intrinsic.PRINT:
                 a = stack.pop()
                 print(a)
                 ip += 1
-            elif op.value == Intrinsic.DUP:
+            elif op.operand == Intrinsic.DUP:
                 a = stack.pop()
                 stack.append(a)
                 stack.append(a)
                 ip += 1
-            elif op.value == Intrinsic.DUP2:
+            elif op.operand == Intrinsic.DUP2:
                 b = stack.pop()
                 a = stack.pop()
                 stack.append(a)
@@ -263,90 +262,96 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 stack.append(a)
                 stack.append(b)
                 ip += 1
-            elif op.value == Intrinsic.SWAP:
+            elif op.operand == Intrinsic.SWAP:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(a)
                 stack.append(b)
                 ip += 1
-            elif op.value == Intrinsic.DROP:
+            elif op.operand == Intrinsic.DROP:
                 stack.pop()
                 ip += 1
-            elif op.value == Intrinsic.OVER:
+            elif op.operand == Intrinsic.OVER:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(b)
                 stack.append(a)
                 stack.append(b)
                 ip += 1
-            elif op.value == Intrinsic.MEM:
+            elif op.operand == Intrinsic.MEM:
                 stack.append(STR_CAPACITY)
                 ip += 1
-            elif op.value == Intrinsic.LOAD:
+            elif op.operand == Intrinsic.LOAD:
                 addr = stack.pop()
                 byte = mem[addr]
                 stack.append(byte)
                 ip += 1
-            elif op.value == Intrinsic.STORE:
+            elif op.operand == Intrinsic.STORE:
                 value = stack.pop()
                 addr = stack.pop()
                 mem[addr] = value & 0xFF
                 ip += 1
-            elif op.value == Intrinsic.LOAD64:
+            elif op.operand == Intrinsic.LOAD64:
                 addr = stack.pop()
                 _bytes = bytearray(8)
                 for offset in range(0,8):
                     _bytes[offset] = mem[addr + offset]
                 stack.append(int.from_bytes(_bytes, byteorder="little"))
                 ip += 1
-            elif op.value == Intrinsic.STORE64:
+            elif op.operand == Intrinsic.STORE64:
                 value64 = stack.pop().to_bytes(length=8, byteorder="little")
                 addr64 = stack.pop()
                 for byte in value64:
                     mem[addr64] = byte
                     addr64 += 1
                 ip += 1
-            elif op.value == Intrinsic.SYSCALL0:
+            elif op.operand == Intrinsic.SYSCALL0:
                 syscall_number= stack.pop()
                 if syscall_number == 39:
                     stack.append(os.getpid())
                 else:
                     assert False, "unknown syscall number %d" % syscall_number
                 ip += 1
-            elif op.value == Intrinsic.SYSCALL1:
+            elif op.operand == Intrinsic.SYSCALL1:
                 assert False, "not implemented"
-            elif op.value == Intrinsic.SYSCALL2:
+            elif op.operand == Intrinsic.SYSCALL2:
                 assert False, "not implemented"
-            elif op.value == Intrinsic.SYSCALL3:
+            elif op.operand == Intrinsic.SYSCALL3:
                 syscall_number = stack.pop()
                 arg1 = stack.pop()
                 arg2 = stack.pop()
                 arg3 = stack.pop()
-                if syscall_number == 1:
+                if syscall_number == 0: # SYS_read
                     fd = arg1
                     buf = arg2
                     count = arg3
-                    s = mem[buf:buf+count].decode('utf-8')
-                    if fd == 1:
-                        print(s, end='')
-                    elif fd == 2:
-                        print(s, end='', file=sys.stderr)
-                    else:
-                        assert False, "unknown file descriptor"
+                    # NOTE: trying to behave like a POSIX tty in canonical mode by making the data available
+                    # on each newline
+                    # https://en.wikipedia.org/wiki/POSIX_terminal_interface#Canonical_mode_processing
+                    # TODO: maybe this behavior should be customizable
+                    data = fds[fd].readline(count)
+                    mem[buf:buf+len(data)] = data
+                    stack.append(len(data))
+                elif syscall_number == 1: # SYS_write
+                    fd = arg1
+                    buf = arg2
+                    count = arg3
+                    fds[fd].write(mem[buf:buf+count])
+                    fds[fd].flush()
                     stack.append(count)
                 else:
-                    assert False, "unknown syscall number '%d" % syscall_number 
+                    assert False, "unknown syscall number %d" % syscall_number
                 ip += 1
-            elif op.value == Intrinsic.SYSCALL4:
+            elif op.operand == Intrinsic.SYSCALL4:
                 assert False, "not implemented"
-            elif op.value == Intrinsic.SYSCALL5:
+            elif op.operand == Intrinsic.SYSCALL5:
                 assert False, "not implemented"
-            elif op.value == Intrinsic.SYSCALL6:
+            elif op.operand == Intrinsic.SYSCALL6:
                 assert False, "not implemented"
             else:
                 assert False, "unreachable"
-            #intr_count[op.value - 1] += 1
-            #intr_time[op.value - 1] += time.time() - start
+            #intr_count[op.operand - 1] += 1
+            #intr_time[op.operand - 1] += time.time() - start
         else:
             assert False, "unreachable"
         #op_count[op.typ-1] += 1
@@ -406,60 +411,62 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
             out.write("addr_%d:\n" % ip)
             if op.typ == OpType.PUSH_INT:
                 out.write(";;  -- push int --\n")
-                assert isinstance(op.value, int), "There is a bug in the lexer (probably)"
-                out.write("    mov rax, %d\n" % op.value)
+                assert isinstance(op.operand, int), "There is a bug in the compilation step (probably)"
+                out.write("    mov rax, %d\n" % op.operand)
                 out.write("    push rax\n")
             elif op.typ == OpType.PUSH_STR:
+                assert isinstance(op.operand, str), "There is a bug in the compilation step (probably)"
+                value = op.operand.encode('utf-8')
+                n = len(value)
                 out.write(";;  -- push str --\n")
-                assert isinstance(op.value, str)
-                out.write("    mov rax, %d\n" % len(op.value))
+                out.write("    mov rax, %d\n" % n)
                 out.write("    push rax\n")
                 out.write("    push str_%d\n" % len(strs))
-                strs.append(op.value)
+                strs.append(op.operand)
             elif op.typ == OpType.IF:
                 out.write(";;  -- if --\n")
                 out.write("    pop rax\n")
                 out.write("    test rax, rax\n")
-                assert op.jmp is not None
-                out.write("    jz addr_%d\n" % op.jmp)
+                assert isinstance(op.operand, int), "There is a bug in the compilation step (probably)"
+                out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.ELSE:
                 out.write(";;  -- else --\n")
-                assert op.jmp is not None
-                out.write("    jmp addr_%d\n" % op.jmp)
+                assert isinstance(op.operand, int), "There is a bug in the compilation step (probably)"
+                out.write("    jmp addr_%d\n" % op.operand)
             elif op.typ == OpType.END:
-                assert op.jmp is not None
+                assert isinstance(op.operand, int), "There is a bug in the compilation step (probably)"
                 out.write(";;  -- end --\n")
-                if ip + 1 != op.jmp:
-                    out.write("    jmp addr_%d\n" % op.jmp)
+                if ip + 1 != op.operand:
+                    out.write("    jmp addr_%d\n" % op.operand)
             elif op.typ == OpType.WHILE:
                 out.write(";;  -- while --\n")
             elif op.typ == OpType.DO:
                 out.write(";;  -- do --\n")
                 out.write("    pop rax\n")
                 out.write("    test rax, rax\n")
-                assert op.jmp is not None
-                out.write("    jz addr_%d\n" % op.jmp)
+                assert isinstance(op.operand, int), "There is a bug in the compilation step (probably)"
+                out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.INTRINSIC:
                 assert len(Intrinsic) == 32, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
-                if op.value == Intrinsic.PLUS:
+                if op.operand == Intrinsic.PLUS:
                     out.write(";;  -- plus --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rbx\n")
                     out.write("    add rax, rbx\n")
                     out.write("    push rax\n")
-                elif op.value == Intrinsic.MINUS:
+                elif op.operand == Intrinsic.MINUS:
                     out.write(";;  -- minus --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rbx\n")
                     out.write("    sub rbx, rax\n")
                     out.write("    push rbx\n")
-                elif op.value == Intrinsic.MUL:
+                elif op.operand == Intrinsic.MUL:
                     out.write(";;  -- mul --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rbx\n")
                     out.write("    mul rbx\n")
                     out.write("    push rax\n")
-                elif op.value == Intrinsic.DIVMOD:
+                elif op.operand == Intrinsic.DIVMOD:
                     out.write(";;  -- divmod --\n")
                     out.write("    xor rdx, rdx\n")
                     out.write("    pop rbx\n")
@@ -467,35 +474,35 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    div rbx\n")
                     out.write("    push rax\n")
                     out.write("    push rdx\n")
-                elif op.value == Intrinsic.SHR:
+                elif op.operand == Intrinsic.SHR:
                     out.write(";;  -- shr --\n")
                     out.write("    pop rcx\n")
                     out.write("    pop rbx\n")
                     out.write("    shr rbx, cl\n")
                     out.write("    push rbx\n")
-                elif op.value == Intrinsic.SHL:
+                elif op.operand == Intrinsic.SHL:
                     out.write(";;  -- shl --\n")
                     out.write("    pop rcx\n")
                     out.write("    pop rbx\n")
                     out.write("    shl rbx, cl\n")
                     out.write("    push rbx\n")
-                elif op.value == Intrinsic.BOR:
+                elif op.operand == Intrinsic.BOR:
                     out.write(";;  -- bor --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rbx\n")
                     out.write("    or rbx, rax\n")
                     out.write("    push rbx\n")
-                elif op.value == Intrinsic.BAND:
+                elif op.operand == Intrinsic.BAND:
                     out.write(";;  -- band --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rbx\n")
                     out.write("    and rbx, rax\n")
                     out.write("    push rbx\n")
-                elif op.value == Intrinsic.PRINT:
+                elif op.operand == Intrinsic.PRINT:
                     out.write(";;  -- print --\n")
                     out.write("    pop rdi\n")
                     out.write("    call print\n")
-                elif op.value == Intrinsic.EQ:
+                elif op.operand == Intrinsic.EQ:
                     out.write(";;  -- equal -- \n")
                     out.write("    mov rcx, 0\n");
                     out.write("    mov rdx, 1\n");
@@ -504,7 +511,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    cmp rax, rbx\n");
                     out.write("    cmove rcx, rdx\n");
                     out.write("    push rcx\n")
-                elif op.value == Intrinsic.GT:
+                elif op.operand == Intrinsic.GT:
                     out.write(";;  -- gt --\n")
                     out.write("    mov rcx, 0\n");
                     out.write("    mov rdx, 1\n");
@@ -513,7 +520,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    cmp rax, rbx\n");
                     out.write("    cmovg rcx, rdx\n");
                     out.write("    push rcx\n")
-                elif op.value == Intrinsic.LT:
+                elif op.operand == Intrinsic.LT:
                     out.write(";;  -- gt --\n")
                     out.write("    mov rcx, 0\n");
                     out.write("    mov rdx, 1\n");
@@ -522,7 +529,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    cmp rax, rbx\n");
                     out.write("    cmovl rcx, rdx\n");
                     out.write("    push rcx\n")
-                elif op.value == Intrinsic.GE:
+                elif op.operand == Intrinsic.GE:
                     out.write(";;  -- gt --\n")
                     out.write("    mov rcx, 0\n");
                     out.write("    mov rdx, 1\n");
@@ -531,7 +538,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    cmp rax, rbx\n");
                     out.write("    cmovge rcx, rdx\n");
                     out.write("    push rcx\n")
-                elif op.value == Intrinsic.LE:
+                elif op.operand == Intrinsic.LE:
                     out.write(";;  -- gt --\n")
                     out.write("    mov rcx, 0\n");
                     out.write("    mov rdx, 1\n");
@@ -540,7 +547,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    cmp rax, rbx\n");
                     out.write("    cmovle rcx, rdx\n");
                     out.write("    push rcx\n")
-                elif op.value == Intrinsic.NE:
+                elif op.operand == Intrinsic.NE:
                     out.write(";;  -- ne --\n")
                     out.write("    mov rcx, 0\n")
                     out.write("    mov rdx, 1\n")
@@ -549,12 +556,12 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    cmp rax, rbx\n")
                     out.write("    cmovne rcx, rdx\n")
                     out.write("    push rcx\n")
-                elif op.value == Intrinsic.DUP:
+                elif op.operand == Intrinsic.DUP:
                     out.write(";;  -- dup -- \n")
                     out.write("    pop rax\n")
                     out.write("    push rax\n")
                     out.write("    push rax\n")
-                elif op.value == Intrinsic.DUP2:
+                elif op.operand == Intrinsic.DUP2:
                     out.write(";;  -- 2dup -- \n")
                     out.write("    pop rbx\n")
                     out.write("    pop rax\n")
@@ -562,66 +569,66 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    push rbx\n")
                     out.write("    push rax\n")
                     out.write("    push rbx\n")
-                elif op.value == Intrinsic.SWAP:
+                elif op.operand == Intrinsic.SWAP:
                     out.write(";;  -- swap --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rbx\n")
                     out.write("    push rax\n")
                     out.write("    push rbx\n")
-                elif op.value == Intrinsic.DROP:
+                elif op.operand == Intrinsic.DROP:
                     out.write(";;  -- drop --\n")
                     out.write("    pop rax\n")
-                elif op.value == Intrinsic.OVER:
+                elif op.operand == Intrinsic.OVER:
                     out.write(";;  -- over --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rbx\n")
                     out.write("    push rbx\n")
                     out.write("    push rax\n")
                     out.write("    push rbx\n")
-                elif op.value == Intrinsic.MEM:
+                elif op.operand == Intrinsic.MEM:
                     out.write(";;  -- mem --\n")
                     out.write("    push mem\n")
-                elif op.value == Intrinsic.LOAD:
+                elif op.operand == Intrinsic.LOAD:
                     out.write(";;  -- load --\n")
                     out.write("    pop rax\n")
                     out.write("    xor rbx, rbx\n")
                     out.write("    mov bl, [rax]\n")
                     out.write("    push rbx\n")
-                elif op.value == Intrinsic.STORE:
+                elif op.operand == Intrinsic.STORE:
                     out.write(";;  -- store --\n")
                     out.write("    pop rbx\n");
                     out.write("    pop rax\n");
                     out.write("    mov [rax], bl\n");
-                elif op.value == Intrinsic.LOAD64:
+                elif op.operand == Intrinsic.LOAD64:
                     out.write(";;  -- load64 --\n")
                     out.write("    pop rax\n")
                     out.write("    xor rbx, rbx\n")
                     out.write("    mov rbx, [rax]\n")
                     out.write("    push rbx\n")
-                elif op.value == Intrinsic.STORE64:
+                elif op.operand == Intrinsic.STORE64:
                     out.write(";;  -- store64 --\n")
                     out.write("    pop rbx\n");
                     out.write("    pop rax\n");
                     out.write("    mov [rax], rbx\n");
-                elif op.value == Intrinsic.SYSCALL0:
+                elif op.operand == Intrinsic.SYSCALL0:
                     out.write(";;  -- syscall0 --\n")
                     out.write("    pop rax\n")
                     out.write("    syscall\n")
                     out.write("    push rax\n")
-                elif op.value == Intrinsic.SYSCALL1:
+                elif op.operand == Intrinsic.SYSCALL1:
                     out.write(";;  -- syscall1 --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rdi\n")
                     out.write("    syscall\n")
                     out.write("    push rax\n")
-                elif op.value == Intrinsic.SYSCALL2:
+                elif op.operand == Intrinsic.SYSCALL2:
                     out.write(";;  -- syscall2 -- \n")
                     out.write("    pop rax\n");
                     out.write("    pop rdi\n");
                     out.write("    pop rsi\n");
                     out.write("    syscall\n");
                     out.write("    push rax\n")
-                elif op.value == Intrinsic.SYSCALL3:
+                elif op.operand == Intrinsic.SYSCALL3:
                     out.write(";;  -- syscall3 --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rdi\n")
@@ -629,7 +636,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop rdx\n")
                     out.write("    syscall\n")
                     out.write("    push rax\n")
-                elif op.value == Intrinsic.SYSCALL4:
+                elif op.operand == Intrinsic.SYSCALL4:
                     out.write(";;  -- syscall4 --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rdi\n")
@@ -638,7 +645,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop r10\n")
                     out.write("    syscall\n")
                     out.write("    push rax\n")
-                elif op.value == Intrinsic.SYSCALL5:
+                elif op.operand == Intrinsic.SYSCALL5:
                     out.write(";;  -- syscall5 --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rdi\n")
@@ -648,7 +655,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop r8\n")
                     out.write("    syscall\n")
                     out.write("    push rax\n")
-                elif op.value == Intrinsic.SYSCALL6:
+                elif op.operand == Intrinsic.SYSCALL6:
                     out.write(";;  -- syscall6 --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rdi\n")
@@ -758,7 +765,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
         if token.typ == TokenType.WORD:
             if token.value in INTRINSIC_NAMES:
                 assert isinstance(token.value, str)
-                program.append(Op(typ=OpType.INTRINSIC, loc=token.loc, value=INTRINSIC_NAMES[token.value]))
+                program.append(Op(typ=OpType.INTRINSIC, loc=token.loc, operand=INTRINSIC_NAMES[token.value]))
                 ip += 1
             elif token.value in macros:
                 if token.expanded >= expansion_limit:
@@ -772,15 +779,15 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                 exit(1)
         elif token.typ == TokenType.INT:
             assert isinstance(token.value, int), "This is a lexer bug (probably)"
-            program.append(Op(typ=OpType.PUSH_INT, value=token.value, loc=token.loc))
+            program.append(Op(typ=OpType.PUSH_INT, operand=token.value, loc=token.loc))
             ip += 1
         elif token.typ == TokenType.STR:
             assert isinstance(token.value, str), "This is a lexer bug (probably)"
-            program.append(Op(typ=OpType.PUSH_STR, value=token.value, loc=token.loc))
+            program.append(Op(typ=OpType.PUSH_STR, operand=token.value, loc=token.loc))
             ip += 1
         elif token.typ == TokenType.CHAR:
             assert isinstance(token.value, int), "This is a lexer bug (probably)"
-            program.append(Op(typ=OpType.PUSH_INT, value=token.value, loc=token.loc))
+            program.append(Op(typ=OpType.PUSH_INT, operand=token.value, loc=token.loc))
             ip += 1
         elif token.typ == TokenType.KEYWORD:
             assert len(Keyword) == 7, "Exhaustive keywords handling in compile_file_to_program(): %d" % len(Keyword)
@@ -795,19 +802,19 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                 if program[if_ip].typ != OpType.IF:
                     print('%s:%d:%d: ERROR: `else` can only be used in `if`-blocks' % program[if_ip].loc, file=sys.stderr)
                     exit(1)
-                program[if_ip].jmp = ip + 1
+                program[if_ip].operand = ip + 1
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.END:
                 program.append(Op(typ=OpType.END, loc=token.loc))
                 block_ip = stack.pop()
                 if program[block_ip].typ == OpType.IF or program[block_ip].typ == OpType.ELSE:
-                    program[block_ip].jmp = ip
-                    program[ip].jmp = ip + 1
+                    program[block_ip].operand = ip
+                    program[ip].operand = ip + 1
                 elif program[block_ip].typ == OpType.DO:
-                    assert program[block_ip].jmp is not None
-                    program[ip].jmp = program[block_ip].jmp
-                    program[block_ip].jmp = ip + 1
+                    assert program[block_ip].operand is not None
+                    program[ip].operand = program[block_ip].operand
+                    program[block_ip].operand = ip + 1
                 else:
                     print('%s:%d:%d: ERROR: `end` can only close `if`, `else` or `do` blocks for now' % program[block_ip].loc, file=sys.stderr)
                     exit(1)
@@ -819,7 +826,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
             elif token.value == Keyword.DO:
                 program.append(Op(typ=OpType.DO, loc=token.loc))
                 while_ip = stack.pop()
-                program[ip].jmp = while_ip
+                program[ip].operand = while_ip
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.INCLUDE:
