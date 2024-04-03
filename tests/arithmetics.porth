@@ -1,14 +1,26 @@
 include "std.porth"
 
-// plus +
+"Addition:\n" stdout write
 34 35 + print
-"----------------------\n" 1 1 syscall3
-// minus -
+
+"------------------------------\n" stdout write
+
+"Subtraction:\n" stdout write
 500 80 - print
-"----------------------\n" 1 1 syscall3
-// multiply
-42 10 * print
-"----------------------\n" 1 1 syscall3
-// modulo
-69 420 mod print
+
+"------------------------------\n" stdout write
+
+"Divison:\n" stdout write
+69000 1000 / print
+
+"------------------------------\n" stdout write
+
+"Modulo:\n" stdout write
+5 100 mod print
 104 100 mod print
+
+"------------------------------\n" stdout write
+
+"Multiplication:\n" stdout write
+42 10 * print
+
