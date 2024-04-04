@@ -1,16 +1,22 @@
-// load Hello World into memory and then print it
-mem dup 72  .
-1 + dup 101 .
-1 + dup 108 .
-1 + dup 108 .
-1 + dup 111 .
-1 + dup 44  .
-1 + dup 32  .
-1 + dup 87  .
-1 + dup 111 .
-1 + dup 114 .
-1 + dup 108 .
-1 + dup 100 .
-1 + dup 10  .
-1 +
-mem - mem 1 1 syscall3
+include "std.porth"
+
+// write "abc" into the memory
+mem 0 + 97 .
+mem 1 + 98 .
+mem 2 + 99 .
+mem 3 + 10 .
+
+// print "abc" to stdout
+4 mem stdout write print
+
+// increament each character by 1 making it "bcd"
+mem 0 + dup , 1 + .
+mem 1 + dup , 1 + .
+mem 2 + dup , 1 + .
+
+// print "bcd" to stdout
+4 mem stdout write print
+
+// print UINT64_MAX (Largest 64 bit word)
+mem 18446744073709551615 .64 
+mem ,64 print
