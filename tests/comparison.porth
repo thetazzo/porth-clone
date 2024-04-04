@@ -1,12 +1,38 @@
-// true
-2  2  = print
-// false
-10 20 = print
-// true
-20 10 > print
-// false
-69 420 > print
-//true
-1 2 < print
-// false
-420 69 < print
+include "std.porth"
+
+// Equals
+69 420  = print
+69 69   = print
+
+"------------------------------\n" stdout write drop
+
+// Greater than
+420 69  > print
+69 420  > print
+
+"------------------------------\n" stdout write drop
+
+// Less than
+420 69  < print
+69 420  < print
+
+"------------------------------\n" stdout write drop
+
+// Greater or Equals
+420 69 >= print
+69 420 >= print
+69 69  >= print
+
+"------------------------------\n" stdout write drop
+
+// Less or Equals
+420 69 <= print
+69 420 <= print
+69 69  <= print
+
+"------------------------------\n" stdout write drop
+
+// Not Equals
+69 69  != print
+420 69 != print
+
