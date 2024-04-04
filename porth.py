@@ -439,26 +439,33 @@ def type_check_program(program: Program):
             if a_typ != DataType.BOOL:
                 compiler_error_(op.token, "invalid agrument for the IF-block condition. Expected BOOL.")
                 exit(1)
-            block_stack.append((copy(stack), op.typ))
+            block_stack.append((stack.copy(), op.typ))
         elif op.typ == OpType.END:
             assert len(OpType) == 8, "Exhaustive op types: %d" % len(OpType)
             expected_stack, block_typ = block_stack.pop()
+            expected_types=list(map(lambda x: x[0], expected_stack))
+            actual_types=list(map(lambda x: x[0], stack))
             if block_typ == OpType.IF:
-                expected_types=list(map(lambda x: x[0], expected_stack))
-                actual_types=list(map(lambda x: x[0], stack))
                 if  expected_types != actual_types:
                     compiler_error_(op.token, "else-less if block is not allowed to alter the types of the arguments on the data stack.")
                     compiler_note_(op.token, "Expected types: %s" % expected_types)
                     compiler_note_(op.token, "Actual types: %s" % actual_types)
                     exit(1)
             elif block_typ == OpType.ELSE:
-                assert False, "`else` not implemented"
+                if  expected_types != actual_types:
+                    compiler_error_(op.token, "both branches of the if block must produce the same types of the arguments on the data stack.")
+                    compiler_note_(op.token, "Expected types: %s" % expected_types)
+                    compiler_note_(op.token, "Actual types: %s" % actual_types)
+                    exit(1)
             elif block_typ == OpType.DO:
                 assert False, "`do` not implemented"
             else:
                 assert False, "unreachable"
         elif op.typ == OpType.ELSE:
-            assert False, "not implemented"
+            stack_snapshot, block_typ = block_stack.pop()
+            assert block_typ == OpType.IF, "I smell a bug somwhere"
+            block_stack.append((stack.copy(), op.typ))
+            stack = stack_snapshot
         elif op.typ == OpType.WHILE:
             # while is used only as a refrence for the while do loop jumps
             pass;
