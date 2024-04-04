@@ -12,6 +12,7 @@ from copy import copy
 #import time
 
 debug=False
+typ_check = False
 
 Loc=Tuple[str, int, int]
 
@@ -66,7 +67,6 @@ class OpType(IntEnum):
     PUSH_INT=auto()
     PUSH_STR=auto()
     INTRINSIC=auto()
-
     IF=auto()
     END=auto()
     ELSE=auto()
@@ -378,6 +378,301 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
         #            print("    %s -> %d times (%f secs)" % (intr_typ.name, intr_count[intr_typ-1], intr_time[intr_typ-1]))
         print("[INFO] Memory dump")
         print(mem[:20])
+
+class DataType(IntEnum):
+    INT=auto()
+    BOOL=auto() # tha boolean monster
+    PTR=auto()
+
+def print_missing_intrinsic_args(op: Op):
+    assert isinstance(op.operand, Intrinsic)
+    print("%s:%d:%d: ERROR: not enough arguments for the `%s` intrinsic" % (op.loc + (INTRINSIC_HUMAN_NAMES[op.operand],)), file=sys.stderr)
+
+def print_invalid_intrinsic_arg2(op: Op, a_typ: DataType, b_typ: DataType):
+    assert isinstance(op.operand, Intrinsic)
+    print("%s:%d:%d: ERROR: invalid argument type for `%s` intrinsic %s %s" % (op.loc + (INTRINSIC_HUMAN_NAMES[op.operand], a_typ, b_typ)), file=sys.stderr) 
+
+def type_check_program(program: Program):
+    stack: List[Tuple[DataType, Loc]] = []
+    for ip in range(len(program)):
+        op = program[ip]
+        assert len(OpType) == 8, "Exhaustive ops handling in type_check_program: %d" % len(OpType)
+        # TODO: introcude intrinsic_human that converts intrinsic int to a human readable string
+        assert len(DataType) == 3, "Exhaustive type handling in type_check_program: %d" % len(DataType)
+        if op.typ == OpType.PUSH_INT:
+            stack.append((DataType.INT, op.loc))
+        elif op.typ == OpType.PUSH_STR:
+            stack.append((DataType.INT, op.loc))
+            stack.append((DataType.PTR, op.loc))
+        elif op.typ == OpType.IF:
+            assert False, "not implemented"
+        elif op.typ == OpType.END:
+            assert False, "not implemented"
+        elif op.typ == OpType.ELSE:
+            assert False, "not implemented"
+        elif op.typ == OpType.WHILE:
+            # while is used only as a refrence for the while do loop jumps
+            pass;
+        elif op.typ == OpType.DO:
+            if len(stack) < 1:
+                print_missing_intrinsic_args(op)
+                exit(1)
+            a_typ, a_loc = stack.pop()
+            if a_typ != DataType.BOOL:
+                print("%s:%d:%d: ERROR: DO operation expects BOOL argument" % op.loc, file=sys.stderr)
+                exit(1)
+        elif op.typ == OpType.INTRINSIC:
+            if op.operand == Intrinsic.PLUS:
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                b_typ, b_loc = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.INT, op.loc))
+                elif a_typ == DataType.INT and b_typ == DataType.PTR:
+                    stack.append((DataType.PTR, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.INT:
+                    stack.append((DataType.PTR, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
+            elif op.operand == Intrinsic.MINUS:
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                b_typ, b_loc = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.INT, op.loc))
+                elif a_typ == DataType.INT and b_typ == DataType.PTR:
+                    stack.append((DataType.PTR, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.INT:
+                    stack.append((DataType.PTR, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
+            elif op.operand == Intrinsic.MUL:
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                b_typ, b_loc = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.INT, op.loc))
+                elif a_typ == DataType.INT and b_typ == DataType.PTR:
+                    stack.append((DataType.PTR, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.INT:
+                    stack.append((DataType.PTR, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
+            elif op.operand == Intrinsic.DIVMOD:
+                # TODO: remove PTR support why would i MOD the PTR?
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                b_typ, b_loc = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.INT, op.loc))
+                elif a_typ == DataType.INT and b_typ == DataType.PTR:
+                    stack.append((DataType.PTR, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.INT:
+                    stack.append((DataType.PTR, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.EQ:
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                b_typ, b_loc = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.BOOL, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
+                    stack.append((DataType.BOOL, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
+            elif op.operand == Intrinsic.GT:
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                b_typ, b_loc = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.BOOL, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
+                    stack.append((DataType.BOOL, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
+            elif op.operand == Intrinsic.LT:
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                b_typ, b_loc = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.BOOL, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
+                    stack.append((DataType.BOOL, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
+            elif op.operand == Intrinsic.GE:
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                b_typ, b_loc = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.BOOL, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
+                    stack.append((DataType.BOOL, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
+            elif op.operand == Intrinsic.LE:
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                b_typ, b_loc = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.BOOL, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
+                    stack.append((DataType.BOOL, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
+            elif op.operand == Intrinsic.NE:
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                b_typ, b_loc = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.BOOL, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
+                    stack.append((DataType.BOOL, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
+            elif op.operand == Intrinsic.SHR:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.SHL:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.BOR:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.BAND:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.PRINT:
+                if len(stack) < 1:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                stack.pop()
+            elif op.operand == Intrinsic.DUP:
+                if len(stack) < 1:
+                    print_missing_intrinsic_args(op)
+                a = stack.pop()
+                stack.append(a)
+                stack.append(a)
+            elif op.operand == Intrinsic.DUP2:
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(b)
+                stack.append(b)
+                stack.append(a)
+                stack.append(a)
+            elif op.operand == Intrinsic.SWAP:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.DROP:
+                if len(stack) < 1:
+                    print("%s:%d:%d: ERROR: Not enough arguments for the DROP intrinsic" % op.loc, file=sys.stderr)
+                    exit(1)
+                stack.pop()
+            elif op.operand == Intrinsic.OVER:
+                if len(stack) < 2:
+                    print("%s:%d:%d: ERROR: Not enough arguments for the OVER intrinsic" % op.loc, file=sys.stderr)
+                    exit(1)
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(b)
+                stack.append(a)
+                stack.append(b)
+            elif op.operand == Intrinsic.MEM:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.LOAD:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.LOAD64:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.STORE:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.STORE64:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.ARGC:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.ARGV:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.SYSCALL0:
+                if len(stack) > 0:
+                    print("%s:%d:%d: ERROR: Too many arguments for the SYSCALL0 intrinsic" % op.loc, file=sys.stderr)
+                    exit(1)
+                stack.append((DataType.INT, op.loc))
+            elif op.operand == Intrinsic.SYSCALL1:
+                if len(stack) < 2:
+                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL1 intrinsic" % op.loc, file=sys.stderr)
+                    exit(1)
+                for i in range(2):
+                    stack.pop()
+            elif op.operand == Intrinsic.SYSCALL2:
+                if len(stack) < 3:
+                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL2 intrinsic" % op.loc, file=sys.stderr)
+                    exit(1)
+                for i in range(3):
+                    stack.pop()
+            elif op.operand == Intrinsic.SYSCALL3:
+                if len(stack) < 4:
+                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL3 intrinsic" % op.loc, file=sys.stderr)
+                    exit(1)
+                for i in range(4):
+                    stack.pop()
+                stack.append((DataType.INT, op.loc))
+            elif op.operand == Intrinsic.SYSCALL4:
+                if len(stack) < 5:
+                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL4 intrinsic" % op.loc, file=sys.stderr)
+                    exit(1)
+                for i in range(5):
+                    stack.pop()
+                stack.append((DataType.INT, op.loc))
+            elif op.operand == Intrinsic.SYSCALL5:
+                if len(stack) < 6:
+                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL5 intrinsic" % op.loc, file=sys.stderr)
+                    exit(1)
+                for i in range(6):
+                    stack.pop()
+                stack.append((DataType.INT, op.loc))
+            elif op.operand == Intrinsic.SYSCALL6:
+                if len(stack) < 7:
+                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL5 intrinsic" % op.loc, file=sys.stderr)
+                    exit(1)
+                for i in range(6):
+                    stack.pop()
+                stack.append((DataType.INT, op.loc))
+            else:
+                assert False, "unreachable"
+        else:
+            assert False, "unreachable"
+    if len(stack) != 0:
+        print("%s:%d:%d: ERROR: unhandled data left on the stack" % stack.pop()[1], file=sys.stderr) 
+        exit(1)
 
 def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
     strs: List[str] = []
@@ -758,6 +1053,44 @@ INTRINSIC_NAMES = {
     'syscall6': Intrinsic.SYSCALL6,
 }
 
+assert len(Intrinsic) == 34, "Exhaustive INTRINSIC_NAMES definition.: %d" % len(Intrinsic)
+INTRINSIC_HUMAN_NAMES = {
+    Intrinsic.PLUS: '+',
+    Intrinsic.MINUS: '-',
+    Intrinsic.MUL: '*',
+    Intrinsic.DIVMOD: 'divmod',
+    Intrinsic.PRINT: 'print',
+    Intrinsic.EQ: '=',
+    Intrinsic.GT: '>',
+    Intrinsic.LT: '<',
+    Intrinsic.GE: '>=',
+    Intrinsic.LE: '<=',
+    Intrinsic.NE: '!=',
+    Intrinsic.SHR: 'shr',
+    Intrinsic.SHL: 'shl',
+    Intrinsic.BOR: 'bor',
+    Intrinsic.BAND: 'band',
+    Intrinsic.DUP: 'dup',
+    Intrinsic.DUP2: '2dup',
+    Intrinsic.SWAP: 'swap',
+    Intrinsic.DROP: 'drop',
+    Intrinsic.OVER: 'over',
+    Intrinsic.MEM: 'mem',
+    Intrinsic.STORE: '.',
+    Intrinsic.STORE64: '.64',
+    Intrinsic.LOAD: ',',
+    Intrinsic.LOAD64: ',64',
+    Intrinsic.ARGC: 'argc',
+    Intrinsic.ARGV: 'argv',
+    Intrinsic.SYSCALL0: 'syscall0',
+    Intrinsic.SYSCALL1: 'syscall1',
+    Intrinsic.SYSCALL2: 'syscall2',
+    Intrinsic.SYSCALL3: 'syscall3',
+    Intrinsic.SYSCALL4: 'syscall4',
+    Intrinsic.SYSCALL5: 'syscall5',
+    Intrinsic.SYSCALL6: 'syscall6',
+}
+
 @dataclass
 class Macro:
     loc: Loc
@@ -1041,7 +1374,6 @@ def print_usage(compiler_name: str):
     print("        -s                  Silent mode ~ Don't print any info about compilation phases")
     print("    help                  Print this help to stdout and exit with 0 code")
 
-
 if __name__ == '__main__' and '__file__' in globals():
     argv = sys.argv
     assert len(argv) >= 1
@@ -1051,9 +1383,12 @@ if __name__ == '__main__' and '__file__' in globals():
     expansion_limit = DEFAULT_EXPANSION_LIMIT
 
     while len(argv) > 0:
-        if argv[0] == '-debug':
+        if argv[0] == '--debug':
             argv = argv[1:]
             debug = True
+        elif argv[0] == '--check':
+            argv = argv[1:]
+            typ_check = True
         elif argv[0] == '-I':
             argv = argv[1:]
             if len(argv) == 0:
@@ -1075,6 +1410,7 @@ if __name__ == '__main__' and '__file__' in globals():
 
     if debug:
         print("[INFO] Debug mode is enabled")
+        print("[INFO] Type checking enabled")
 
     if len(argv) < 1:
         print_usage(compiler_name)
@@ -1091,6 +1427,8 @@ if __name__ == '__main__' and '__file__' in globals():
             exit(1)
         program_path, *argv = argv
         program = compile_file_to_program(program_path, include_paths, expansion_limit);
+        if typ_check:
+            type_check_program(program)
         simulate_little_endian_linux(program, [program_path]+argv)
     elif subcommand == "com":
         silent = False
@@ -1145,6 +1483,9 @@ if __name__ == '__main__' and '__file__' in globals():
         if not silent:
             print("[INFO] Generating %s" % (basepath + ".asm"))
         program = compile_file_to_program(program_path, include_paths, expansion_limit);
+        if typ_check:
+            print("[INFO] Running the type checker")
+            type_check_program(program)
         generate_nasm_linux_x86_64(program, basepath + ".asm")
         cmd_call_echoed(["nasm", "-felf64", basepath + ".asm"], silent)
         cmd_call_echoed(["ld", "-o", basepath, basepath + ".o"], silent)
