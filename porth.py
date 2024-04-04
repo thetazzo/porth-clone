@@ -640,13 +640,51 @@ def type_check_program(program: Program):
             elif op.operand == Intrinsic.MEM:
                 stack.append((DataType.PTR, op.loc))
             elif op.operand == Intrinsic.LOAD:
-                assert False, "not implemented"
+                if len(stack) < 1:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                
+                if a_typ == DataType.PTR:
+                    stack.append((DataType.INT, op.loc))
+                else:
+                    print("%s:%d:%d: ERROR: Invalid argument type for LOAD intrinsic. Expected PTR." % op.loc, file=sys.stderr)
+                    exit(1)
             elif op.operand == Intrinsic.LOAD64:
-                assert False, "not implemented"
+                if len(stack) < 1:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop()
+                
+                if a_typ == DataType.PTR:
+                    stack.append((DataType.INT, op.loc))
+                else:
+                    print("%s:%d:%d: ERROR: Invalid argument type for LOAD64 intrinsic. Expected PTR." % op.loc, file=sys.stderr)
+                    exit(1)
             elif op.operand == Intrinsic.STORE:
-                assert False, "not implemented"
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop() 
+                b_typ, b_loc = stack.pop() 
+
+                if a_typ == DataType.INT and b_typ == DataType.PTR:
+                    pass
+                else:
+                    print("%s:%d:%d: ERROR: Invalid argument type for STORE intrinsic. Expected INT, PTR" % op.loc, file=sys.stderr)
+                    exit(1)
             elif op.operand == Intrinsic.STORE64:
-                assert False, "not implemented"
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_loc = stack.pop() 
+                b_typ, b_loc = stack.pop() 
+
+                if a_typ == DataType.INT and b_typ == DataType.PTR:
+                    pass
+                else:
+                    print("%s:%d:%d: ERROR: Invalid argument type for STORE64 intrinsic. Expected INT, PTR" % op.loc, file=sys.stderr)
+                    exit(1)
             elif op.operand == Intrinsic.ARGC:
                 stack.append((DataType.INT, op.loc))
             elif op.operand == Intrinsic.ARGV:
