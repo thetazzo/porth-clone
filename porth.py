@@ -591,7 +591,13 @@ def type_check_program(program: Program):
                 stack.append(a)
                 stack.append(a)
             elif op.operand == Intrinsic.SWAP:
-                assert False, "not implemented"
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(a)
+                stack.append(b)
             elif op.operand == Intrinsic.DROP:
                 if len(stack) < 1:
                     print("%s:%d:%d: ERROR: Not enough arguments for the DROP intrinsic" % op.loc, file=sys.stderr)
