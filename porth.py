@@ -9,7 +9,6 @@ from typing import *
 from enum import IntEnum, Enum, auto
 from dataclasses import dataclass
 from copy import copy
-#import time
 
 debug=False
 typ_check = False
@@ -409,15 +408,23 @@ class DataType(IntEnum):
     BOOL=auto() # tha boolean monster
     PTR=auto()
 
-def print_missing_intrinsic_args(place: Union[Token, Loc], intr: Intrinsic):
-   compiler_error_(place, "Not enough arguments for the `%s` intrinsic" % INTRINSIC_NAMES[intr]) 
+def print_missing_op_args(op: Op):
+    if op.typ == OpType.INTRINSIC:
+        assert isinstance(op.operand, Intrinsic)
+        compiler_error_(op.token, "Not enough arguments for the `%s` intrinsic" % INTRINSIC_NAMES[op.operand]) 
+    elif op.typ == OpType.IF:
+        compiler_error_(op.token, "Not enough arguments for the IF-block") 
+    else:
+        assert False, "unsupported type of operation"
+
+DataStack=List[Tuple[DataType, Token]]
 
 def type_check_program(program: Program):
-    stack: List[Tuple[DataType, Token]] = []
+    stack: DataStack = []
+    block_stack: List[Tuple[DataStack, OpType]] = []
     for ip in range(len(program)):
         op = program[ip]
         assert len(OpType) == 8, "Exhaustive ops handling in type_check_program: %d" % len(OpType)
-        # TODO: introcude intrinsic_human that converts intrinsic int to a human readable string
         assert len(DataType) == 3, "Exhaustive type handling in type_check_program(): %d" % len(DataType)
         if op.typ == OpType.PUSH_INT:
             stack.append((DataType.INT, op.token))
@@ -425,9 +432,31 @@ def type_check_program(program: Program):
             stack.append((DataType.INT, op.token))
             stack.append((DataType.PTR, op.token))
         elif op.typ == OpType.IF:
-            assert False, "not implemented"
+            if len(stack) < 1:
+                print_missing_op_args(op)
+                exit(1)
+            a_typ, a_token = stack.pop()
+            if a_typ != DataType.BOOL:
+                compiler_error_(op.token, "invalid agrument for the IF-block condition. Expected BOOL.")
+                exit(1)
+            block_stack.append((copy(stack), op.typ))
         elif op.typ == OpType.END:
-            assert False, "not implemented"
+            assert len(OpType) == 8, "Exhaustive op types: %d" % len(OpType)
+            expected_stack, block_typ = block_stack.pop()
+            if block_typ == OpType.IF:
+                expected_types=list(map(lambda x: x[0], expected_stack))
+                actual_types=list(map(lambda x: x[0], stack))
+                if  expected_types != actual_types:
+                    compiler_error_(op.token, "else-less if block is not allowed to alter the types of the arguments on the data stack.")
+                    compiler_note_(op.token, "Expected types: %s" % expected_types)
+                    compiler_note_(op.token, "Actual types: %s" % actual_types)
+                    exit(1)
+            elif block_typ == OpType.ELSE:
+                assert False, "`else` not implemented"
+            elif block_typ == OpType.DO:
+                assert False, "`do` not implemented"
+            else:
+                assert False, "unreachable"
         elif op.typ == OpType.ELSE:
             assert False, "not implemented"
         elif op.typ == OpType.WHILE:
@@ -435,19 +464,12 @@ def type_check_program(program: Program):
             pass;
         elif op.typ == OpType.DO:
             assert False, "not implemented"
-#            if len(stack) < 1:
-#                print_missing_intrinsic_args(op.token, op.operand)
-#                exit(1)
-#            a_typ, a_loc = stack.pop()
-#            if a_typ != DataType.BOOL:
-#                print("%s:%d:%d: ERROR: DO operation expects BOOL argument" % op.token.loc, file=sys.stderr)
-#                exit(1)
         elif op.typ == OpType.INTRINSIC:
             assert isinstance(op.operand, Intrinsic), "There is a bug in compilation step (probably)"
             assert len(DataType) == 3, "Exhaustive type handling in for `%s` in type_check_program(): %d" % (INTRINSIC_NAMES[op.operand], len(DataType))
             if op.operand == Intrinsic.PLUS:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
@@ -462,7 +484,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.MINUS:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
@@ -477,7 +499,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.MUL:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
@@ -489,7 +511,7 @@ def type_check_program(program: Program):
             elif op.operand == Intrinsic.DIVMOD:
                 # TODO: remove PTR support why would i MOD the PTR?
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
@@ -501,7 +523,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.EQ:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
@@ -512,7 +534,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.GT:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
@@ -523,7 +545,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.LT:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
@@ -534,7 +556,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.GE:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
@@ -545,7 +567,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.LE:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
@@ -556,7 +578,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.NE:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
@@ -567,7 +589,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.SHR:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
@@ -578,7 +600,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.SHL:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
@@ -589,7 +611,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.BOR:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
@@ -600,7 +622,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.BAND:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
@@ -611,18 +633,18 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.PRINT:
                 if len(stack) < 1:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 stack.pop()
             elif op.operand == Intrinsic.DUP:
                 if len(stack) < 1:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                 a = stack.pop()
                 stack.append(a)
                 stack.append(a)
             elif op.operand == Intrinsic.DUP2:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a = stack.pop()
                 b = stack.pop()
@@ -632,7 +654,7 @@ def type_check_program(program: Program):
                 stack.append(a)
             elif op.operand == Intrinsic.SWAP:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a = stack.pop()
                 b = stack.pop()
@@ -640,12 +662,12 @@ def type_check_program(program: Program):
                 stack.append(b)
             elif op.operand == Intrinsic.DROP:
                 if len(stack) < 1:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 stack.pop()
             elif op.operand == Intrinsic.OVER:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a = stack.pop()
                 b = stack.pop()
@@ -656,7 +678,7 @@ def type_check_program(program: Program):
                 stack.append((DataType.PTR, op.token))
             elif op.operand == Intrinsic.LOAD:
                 if len(stack) < 1:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 
@@ -667,7 +689,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.LOAD64:
                 if len(stack) < 1:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 
@@ -678,7 +700,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.STORE:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop() 
                 b_typ, b_loc = stack.pop() 
@@ -690,7 +712,7 @@ def type_check_program(program: Program):
                     exit(1)
             elif op.operand == Intrinsic.STORE64:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 a_typ, a_loc = stack.pop() 
                 b_typ, b_loc = stack.pop() 
@@ -711,40 +733,40 @@ def type_check_program(program: Program):
                 stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL1:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 for i in range(2):
                     stack.pop()
             elif op.operand == Intrinsic.SYSCALL2:
                 if len(stack) < 3:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 for i in range(3):
                     stack.pop()
             elif op.operand == Intrinsic.SYSCALL3:
                 if len(stack) < 4:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 for i in range(4):
                     stack.pop()
                 stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL4:
                 if len(stack) < 5:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 for i in range(5):
                     stack.pop()
                 stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL5:
                 if len(stack) < 6:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 for i in range(6):
                     stack.pop()
                 stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL6:
                 if len(stack) < 7:
-                    print_missing_intrinsic_args(op.token, op.operand)
+                    print_missing_op_args(op)
                     exit(1)
                 for i in range(7):
                     stack.pop()
