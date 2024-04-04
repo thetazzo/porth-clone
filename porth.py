@@ -503,8 +503,6 @@ def type_check_program(program: Program):
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
                     stack.append((DataType.BOOL, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
-                    stack.append((DataType.BOOL, op.loc))
                 else:
                     print_invalid_intrinsic_arg2(op, a_typ, b_typ)
                     exit(1)
@@ -515,8 +513,6 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
                     stack.append((DataType.BOOL, op.loc))
                 else:
                     print_invalid_intrinsic_arg2(op, a_typ, b_typ)
@@ -529,8 +525,6 @@ def type_check_program(program: Program):
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
                     stack.append((DataType.BOOL, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
-                    stack.append((DataType.BOOL, op.loc))
                 else:
                     print_invalid_intrinsic_arg2(op, a_typ, b_typ)
                     exit(1)
@@ -541,8 +535,6 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
                     stack.append((DataType.BOOL, op.loc))
                 else:
                     print_invalid_intrinsic_arg2(op, a_typ, b_typ)
@@ -555,8 +547,6 @@ def type_check_program(program: Program):
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
                     stack.append((DataType.BOOL, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
-                    stack.append((DataType.BOOL, op.loc))
                 else:
                     print_invalid_intrinsic_arg2(op, a_typ, b_typ)
                     exit(1)
@@ -567,8 +557,6 @@ def type_check_program(program: Program):
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
                     stack.append((DataType.INT, op.loc))
                 else:
                     print_invalid_intrinsic_arg2(op, a_typ, b_typ)
@@ -581,8 +569,6 @@ def type_check_program(program: Program):
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
                     stack.append((DataType.INT, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
-                    stack.append((DataType.INT, op.loc))
                 else:
                     print_invalid_intrinsic_arg2(op, a_typ, b_typ)
                     exit(1)
@@ -594,8 +580,6 @@ def type_check_program(program: Program):
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
                     stack.append((DataType.INT, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
-                    stack.append((DataType.INT, op.loc))
                 else:
                     print_invalid_intrinsic_arg2(op, a_typ, b_typ)
                     exit(1)
@@ -606,8 +590,6 @@ def type_check_program(program: Program):
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
                     stack.append((DataType.INT, op.loc))
                 else:
                     print_invalid_intrinsic_arg2(op, a_typ, b_typ)
