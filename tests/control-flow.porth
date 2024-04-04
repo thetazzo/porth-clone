@@ -1,22 +1,18 @@
-// if block
-34 35 + 69 = if
+include "std.porth"
+
+// if-else block
+34 35 + 80 = if 
     420 print
-    0 if 
-        42 print
-    else 
-        18 print
-    end
-else 
+else
     69 print
-    1 if
-        88 print
-    else 
-        60 print
-    end
 end
 
-// while block
+// compiler assisted refactoring haha
+34 35 + 69 = if 420 else 69 end print
 
+"--------------------------\n" stdout write drop
+
+// while block
 // run from 10 to 0
 10 while dup 0 > do
     dup print
