@@ -617,9 +617,9 @@ def type_check_program(program: Program):
             elif op.operand == Intrinsic.STORE64:
                 assert False, "not implemented"
             elif op.operand == Intrinsic.ARGC:
-                assert False, "not implemented"
+                stack.append((DataType.INT, op.loc))
             elif op.operand == Intrinsic.ARGV:
-                assert False, "not implemented"
+                stack.append((DataType.PTR, op.loc))
             elif op.operand == Intrinsic.SYSCALL0:
                 if len(stack) > 0:
                     print("%s:%d:%d: ERROR: Too many arguments for the SYSCALL0 intrinsic" % op.loc, file=sys.stderr)
