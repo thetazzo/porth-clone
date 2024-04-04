@@ -458,7 +458,11 @@ def type_check_program(program: Program):
                     compiler_note_(op.token, "Actual types: %s" % actual_types)
                     exit(1)
             elif block_typ == OpType.DO:
-                assert False, "`do` not implemented"
+                if  expected_types != actual_types:
+                    compiler_error_(op.token, "while-do condition is not allowed to alter the types of the arguments on the data stack")
+                    compiler_note_(op.token, "Expected types: %s" % expected_types)
+                    compiler_note_(op.token, "Actual types: %s" % actual_types)
+                    exit(1)
             else:
                 assert False, "unreachable"
         elif op.typ == OpType.ELSE:
@@ -467,10 +471,25 @@ def type_check_program(program: Program):
             block_stack.append((stack.copy(), op.typ))
             stack = stack_snapshot
         elif op.typ == OpType.WHILE:
-            # while is used only as a refrence for the while do loop jumps
-            pass;
+            block_stack.append((stack.copy(), op.typ))
         elif op.typ == OpType.DO:
-            assert False, "not implemented"
+            if len(stack) < 1:
+                print_missing_op_args(op)
+                exit(1)
+            a_typ, a_token = stack.pop()
+            if a_typ != DataType.BOOL:
+                compiler_error_(op.token, "invalid agrument for the WHILE-DO condition. Expected BOOL.")
+                exit(1)
+            expected_stack, block_typ = block_stack.pop()
+            assert block_typ == OpType.WHILE, "I smell a bug in the compileation step"
+            expected_types=list(map(lambda x: x[0], expected_stack))
+            actual_types=list(map(lambda x: x[0], stack))
+            if  expected_types != actual_types:
+                compiler_error_(op.token, "while-do condition is not allowed to alter the types of the arguments on the data stack")
+                compiler_note_(op.token, "Expected types: %s" % expected_types)
+                compiler_note_(op.token, "Actual types: %s" % actual_types)
+                exit(1)
+            block_stack.append((stack.copy(), op.typ))
         elif op.typ == OpType.INTRINSIC:
             assert isinstance(op.operand, Intrinsic), "There is a bug in compilation step (probably)"
             assert len(DataType) == 3, "Exhaustive type handling in for `%s` in type_check_program(): %d" % (INTRINSIC_NAMES[op.operand], len(DataType))
