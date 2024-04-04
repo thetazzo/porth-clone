@@ -397,7 +397,6 @@ def type_check_program(program: Program):
     for ip in range(len(program)):
         op = program[ip]
         assert len(OpType) == 8, "Exhaustive ops handling in type_check_program: %d" % len(OpType)
-        assert isinstance(op.operand, Intrinsic), "There is a bug in compilation step (probably)"
         # TODO: introcude intrinsic_human that converts intrinsic int to a human readable string
         assert len(DataType) == 3, "Exhaustive type handling in for `%s` in type_check_program(): %d" % (INTRINSIC_HUMAN_NAMES[op.operand], len(DataType))
         if op.typ == OpType.PUSH_INT:
@@ -423,6 +422,7 @@ def type_check_program(program: Program):
                 print("%s:%d:%d: ERROR: DO operation expects BOOL argument" % op.loc, file=sys.stderr)
                 exit(1)
         elif op.typ == OpType.INTRINSIC:
+            assert isinstance(op.operand, Intrinsic), "There is a bug in compilation step (probably)"
             if op.operand == Intrinsic.PLUS:
                 if len(stack) < 2:
                     print_missing_intrinsic_args(op)
