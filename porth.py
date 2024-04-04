@@ -476,12 +476,9 @@ def type_check_program(program: Program):
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
                     stack.append((DataType.INT, op.loc))
-                elif a_typ == DataType.INT and b_typ == DataType.PTR:
-                    stack.append((DataType.PTR, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.INT:
-                    stack.append((DataType.PTR, op.loc))
+                    stack.append((DataType.INT, op.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    print("%s:%d:%d: ERROR: invalid argument type for DIVMOD intrinsic. Expectred INT" % op.loc)
                     exit(1)
             elif op.operand == Intrinsic.EQ:
                 if len(stack) < 2:
