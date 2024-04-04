@@ -398,7 +398,7 @@ def type_check_program(program: Program):
         op = program[ip]
         assert len(OpType) == 8, "Exhaustive ops handling in type_check_program: %d" % len(OpType)
         # TODO: introcude intrinsic_human that converts intrinsic int to a human readable string
-        assert len(DataType) == 3, "Exhaustive type handling in for `%s` in type_check_program(): %d" % (INTRINSIC_HUMAN_NAMES[op.operand], len(DataType))
+        assert len(DataType) == 3, "Exhaustive type handling in type_check_program(): %d" % len(DataType)
         if op.typ == OpType.PUSH_INT:
             stack.append((DataType.INT, op.loc))
         elif op.typ == OpType.PUSH_STR:
@@ -423,6 +423,7 @@ def type_check_program(program: Program):
                 exit(1)
         elif op.typ == OpType.INTRINSIC:
             assert isinstance(op.operand, Intrinsic), "There is a bug in compilation step (probably)"
+            assert len(DataType) == 3, "Exhaustive type handling in for `%s` in type_check_program(): %d" % (INTRINSIC_HUMAN_NAMES[op.operand], len(DataType))
             if op.operand == Intrinsic.PLUS:
                 if len(stack) < 2:
                     print_missing_intrinsic_args(op)
@@ -560,13 +561,57 @@ def type_check_program(program: Program):
                     print_invalid_intrinsic_arg2(op, a_typ, b_typ)
                     exit(1)
             elif op.operand == Intrinsic.SHR:
-                assert False, "not implemented"
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_pos = stack.pop()
+                b_typ, b_pos = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.INT, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
+                    stack.append((DataType.INT, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
             elif op.operand == Intrinsic.SHL:
-                assert False, "not implemented"
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_pos = stack.pop()
+                b_typ, b_pos = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.INT, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
+                    stack.append((DataType.INT, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
             elif op.operand == Intrinsic.BOR:
-                assert False, "not implemented"
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_pos = stack.pop()
+                b_typ, b_pos = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.INT, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
+                    stack.append((DataType.INT, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
             elif op.operand == Intrinsic.BAND:
-                assert False, "not implemented"
+                if len(stack) < 2:
+                    print_missing_intrinsic_args(op)
+                    exit(1)
+                a_typ, a_pos = stack.pop()
+                b_typ, b_pos = stack.pop()
+                if a_typ == DataType.INT and b_typ == DataType.INT:
+                    stack.append((DataType.INT, op.loc))
+                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
+                    stack.append((DataType.INT, op.loc))
+                else:
+                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    exit(1)
             elif op.operand == Intrinsic.PRINT:
                 if len(stack) < 1:
                     print_missing_intrinsic_args(op)
