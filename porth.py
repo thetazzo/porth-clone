@@ -17,6 +17,7 @@ typ_check = False
 Loc=Tuple[str, int, int]
 
 DEFAULT_EXPANSION_LIMIT=1000
+EXPANSION_DIAGNOSTIC_LIMIT=10
 
 class Keyword(Enum):
     IF=auto()
@@ -72,17 +73,6 @@ class OpType(IntEnum):
     ELSE=auto()
     WHILE=auto()
     DO=auto()
-
-OpAddr=int
-
-@dataclass
-class Op:
-    typ: OpType
-    loc: Loc
-    operand: Optional[Union[int, str, Intrinsic, OpAddr]] = None
-
-Program=List[Op]
-
 class TokenType(Enum):
     WORD=auto()
     INT=auto()
@@ -94,14 +84,49 @@ assert len(TokenType) == 5, "Exhaustive TokenType definition. The `value` filed 
 @dataclass
 class Token:
     typ: TokenType
+    text: str
     loc: Loc
     value: Union[int, str, Keyword]
-    expanded: int = 0
+    expanded_from: Optional['Token'] = None
+    expanded_count: int = 0
+
+OpAddr=int
+
+@dataclass
+class Op:
+    typ: OpType
+    token: Token
+    operand: Optional[Union[int, str, Intrinsic, OpAddr]] = None
+
+Program=List[Op]
+
 
 NULL_POINTER_PADDING = 1 # a bit of padding at the begginig of the memory to make 0 an invalid address
 STR_CAPACITY = 640_000
 MEM_CAPACITY = 640_000
 ARGV_CAPACITY = 640_000
+
+def compiler_diagnostic(place: Union[Loc, Token], tag: str, message: str):
+    if isinstance(place, Token):
+        print("%s:%d:%d: %s: %s" % (place.loc + (tag, message)), file=sys.stderr)
+        stack = place.expanded_from
+        limit = 0
+        while stack is not None and limit <= EXPANSION_DIAGNOSTIC_LIMIT:
+            compiler_note_(stack.loc, "expanded from `%s`" % stack.text)
+            stack = stack.expanded_from
+            limit += 1
+        if limit > EXPANSION_DIAGNOSTIC_LIMIT:
+            print("...", file=sys.stderr)
+            print("... too many expansions ...", file=sys.stderr)
+            print("...", file=sys.stderr)
+    else:
+        print("%s:%d:%d: %s: %s" % (place + (tag, message)), file=sys.stderr)
+
+def compiler_error_(place: Union[Token, Loc], message: str):
+    compiler_diagnostic(place, "ERROR", message)
+
+def compiler_note_(place: Union[Token, Loc], message: str):
+    compiler_diagnostic(place, "NOTE", message)
 
 def simulate_little_endian_linux(program: Program, argv: List[str]):
     stack: List[int] = []
@@ -384,13 +409,8 @@ class DataType(IntEnum):
     BOOL=auto() # tha boolean monster
     PTR=auto()
 
-def print_missing_intrinsic_args(op: Op):
-    assert isinstance(op.operand, Intrinsic)
-    print("%s:%d:%d: ERROR: not enough arguments for the `%s` intrinsic" % (op.loc + (INTRINSIC_HUMAN_NAMES[op.operand],)), file=sys.stderr)
-
-def print_invalid_intrinsic_arg2(op: Op, a_typ: DataType, b_typ: DataType):
-    assert isinstance(op.operand, Intrinsic)
-    print("%s:%d:%d: ERROR: invalid argument type for `%s` intrinsic %s %s" % (op.loc + (INTRINSIC_HUMAN_NAMES[op.operand], a_typ, b_typ)), file=sys.stderr) 
+def print_missing_intrinsic_args(place: Union[Token, Loc], intr: Intrinsic):
+   compiler_error_(place, "Not enough arguments for the `%s` intrinsic" % INTRINSIC_NAMES[intr]) 
 
 def type_check_program(program: Program):
     stack: List[Tuple[DataType, Loc]] = []
@@ -400,10 +420,10 @@ def type_check_program(program: Program):
         # TODO: introcude intrinsic_human that converts intrinsic int to a human readable string
         assert len(DataType) == 3, "Exhaustive type handling in type_check_program(): %d" % len(DataType)
         if op.typ == OpType.PUSH_INT:
-            stack.append((DataType.INT, op.loc))
+            stack.append((DataType.INT, op.token.loc))
         elif op.typ == OpType.PUSH_STR:
-            stack.append((DataType.INT, op.loc))
-            stack.append((DataType.PTR, op.loc))
+            stack.append((DataType.INT, op.token.loc))
+            stack.append((DataType.PTR, op.token.loc))
         elif op.typ == OpType.IF:
             assert False, "not implemented"
         elif op.typ == OpType.END:
@@ -414,200 +434,195 @@ def type_check_program(program: Program):
             # while is used only as a refrence for the while do loop jumps
             pass;
         elif op.typ == OpType.DO:
-            if len(stack) < 1:
-                print_missing_intrinsic_args(op)
-                exit(1)
-            a_typ, a_loc = stack.pop()
-            if a_typ != DataType.BOOL:
-                print("%s:%d:%d: ERROR: DO operation expects BOOL argument" % op.loc, file=sys.stderr)
-                exit(1)
+            assert False, "not implemented"
+#            if len(stack) < 1:
+#                print_missing_intrinsic_args(op.token, op.operand)
+#                exit(1)
+#            a_typ, a_loc = stack.pop()
+#            if a_typ != DataType.BOOL:
+#                print("%s:%d:%d: ERROR: DO operation expects BOOL argument" % op.token.loc, file=sys.stderr)
+#                exit(1)
         elif op.typ == OpType.INTRINSIC:
             assert isinstance(op.operand, Intrinsic), "There is a bug in compilation step (probably)"
-            assert len(DataType) == 3, "Exhaustive type handling in for `%s` in type_check_program(): %d" % (INTRINSIC_HUMAN_NAMES[op.operand], len(DataType))
+            assert len(DataType) == 3, "Exhaustive type handling in for `%s` in type_check_program(): %d" % (INTRINSIC_NAMES[op.operand], len(DataType))
             if op.operand == Intrinsic.PLUS:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.loc))
+                    stack.append((DataType.INT, op.token.loc))
                 elif a_typ == DataType.INT and b_typ == DataType.PTR:
-                    stack.append((DataType.PTR, op.loc))
+                    stack.append((DataType.PTR, op.token.loc))
                 elif a_typ == DataType.PTR and b_typ == DataType.INT:
-                    stack.append((DataType.PTR, op.loc))
+                    stack.append((DataType.PTR, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for PLUS intrinsic. Expected INT or PTR")
                     exit(1)
             elif op.operand == Intrinsic.MINUS:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.loc))
+                    stack.append((DataType.INT, op.token.loc))
                 elif a_typ == DataType.INT and b_typ == DataType.PTR:
-                    stack.append((DataType.PTR, op.loc))
+                    stack.append((DataType.PTR, op.token.loc))
                 elif a_typ == DataType.PTR and b_typ == DataType.INT:
-                    stack.append((DataType.PTR, op.loc))
+                    stack.append((DataType.PTR, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for MINUS intrinsic. Expected INT or PTR")
                     exit(1)
             elif op.operand == Intrinsic.MUL:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.loc))
-                elif a_typ == DataType.INT and b_typ == DataType.PTR:
-                    stack.append((DataType.PTR, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.INT:
-                    stack.append((DataType.PTR, op.loc))
+                    stack.append((DataType.INT, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for MUL intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.DIVMOD:
                 # TODO: remove PTR support why would i MOD the PTR?
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.loc))
-                    stack.append((DataType.INT, op.loc))
+                    stack.append((DataType.INT, op.token.loc))
+                    stack.append((DataType.INT, op.token.loc))
                 else:
-                    print("%s:%d:%d: ERROR: invalid argument type for DIVMOD intrinsic. Expectred INT" % op.loc)
+                    compiler_error_(op.token, "Invalid argument types for DIVMOD intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.EQ:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.loc))
-                elif a_typ == DataType.PTR and b_typ == DataType.PTR:
-                    stack.append((DataType.BOOL, op.loc))
+                    stack.append((DataType.BOOL, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for EQ intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.GT:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.loc))
+                    stack.append((DataType.BOOL, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for GT intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.LT:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.loc))
+                    stack.append((DataType.BOOL, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for LT intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.GE:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.loc))
+                    stack.append((DataType.BOOL, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for GE intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.LE:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.loc))
+                    stack.append((DataType.BOOL, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for LE intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.NE:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.loc))
+                    stack.append((DataType.BOOL, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for NE intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.SHR:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.loc))
+                    stack.append((DataType.INT, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for SHR intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.SHL:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.loc))
+                    stack.append((DataType.INT, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for SHL intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.BOR:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.loc))
+                    stack.append((DataType.INT, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for BOR intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.BAND:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.loc))
+                    stack.append((DataType.INT, op.token.loc))
                 else:
-                    print_invalid_intrinsic_arg2(op, a_typ, b_typ)
+                    compiler_error_(op.token, "Invalid argument types for BAND intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.PRINT:
                 if len(stack) < 1:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 stack.pop()
             elif op.operand == Intrinsic.DUP:
                 if len(stack) < 1:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                 a = stack.pop()
                 stack.append(a)
                 stack.append(a)
             elif op.operand == Intrinsic.DUP2:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a = stack.pop()
                 b = stack.pop()
@@ -617,7 +632,7 @@ def type_check_program(program: Program):
                 stack.append(a)
             elif op.operand == Intrinsic.SWAP:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a = stack.pop()
                 b = stack.pop()
@@ -625,12 +640,12 @@ def type_check_program(program: Program):
                 stack.append(b)
             elif op.operand == Intrinsic.DROP:
                 if len(stack) < 1:
-                    print("%s:%d:%d: ERROR: Not enough arguments for the DROP intrinsic" % op.loc, file=sys.stderr)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 stack.pop()
             elif op.operand == Intrinsic.OVER:
                 if len(stack) < 2:
-                    print("%s:%d:%d: ERROR: Not enough arguments for the OVER intrinsic" % op.loc, file=sys.stderr)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a = stack.pop()
                 b = stack.pop()
@@ -638,32 +653,32 @@ def type_check_program(program: Program):
                 stack.append(a)
                 stack.append(b)
             elif op.operand == Intrinsic.MEM:
-                stack.append((DataType.PTR, op.loc))
+                stack.append((DataType.PTR, op.token.loc))
             elif op.operand == Intrinsic.LOAD:
                 if len(stack) < 1:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 
                 if a_typ == DataType.PTR:
-                    stack.append((DataType.INT, op.loc))
+                    stack.append((DataType.INT, op.token.loc))
                 else:
-                    print("%s:%d:%d: ERROR: Invalid argument type for LOAD intrinsic. Expected PTR." % op.loc, file=sys.stderr)
+                    compiler_error_(op.token, "Invalid argument types for LOAD intrinsic. Expected PTR")
                     exit(1)
             elif op.operand == Intrinsic.LOAD64:
                 if len(stack) < 1:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 
                 if a_typ == DataType.PTR:
-                    stack.append((DataType.INT, op.loc))
+                    stack.append((DataType.INT, op.token.loc))
                 else:
-                    print("%s:%d:%d: ERROR: Invalid argument type for LOAD64 intrinsic. Expected PTR." % op.loc, file=sys.stderr)
+                    compiler_error_(op.token, "Invalid argument types for LOAD64 intrinsic. Expected PTR")
                     exit(1)
             elif op.operand == Intrinsic.STORE:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop() 
                 b_typ, b_loc = stack.pop() 
@@ -671,11 +686,11 @@ def type_check_program(program: Program):
                 if a_typ == DataType.INT and b_typ == DataType.PTR:
                     pass
                 else:
-                    print("%s:%d:%d: ERROR: Invalid argument type for STORE intrinsic. Expected INT, PTR" % op.loc, file=sys.stderr)
+                    compiler_error_(op.token, "Invalid argument types for STORE intrinsic. Expected INT and PTR")
                     exit(1)
             elif op.operand == Intrinsic.STORE64:
                 if len(stack) < 2:
-                    print_missing_intrinsic_args(op)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 a_typ, a_loc = stack.pop() 
                 b_typ, b_loc = stack.pop() 
@@ -683,63 +698,63 @@ def type_check_program(program: Program):
                 if a_typ == DataType.INT and b_typ == DataType.PTR:
                     pass
                 else:
-                    print("%s:%d:%d: ERROR: Invalid argument type for STORE64 intrinsic. Expected INT, PTR" % op.loc, file=sys.stderr)
+                    compiler_error_(op.token, "Invalid argument types for STORE64 intrinsic. Expected INT and PTR")
                     exit(1)
             elif op.operand == Intrinsic.ARGC:
-                stack.append((DataType.INT, op.loc))
+                stack.append((DataType.INT, op.token.loc))
             elif op.operand == Intrinsic.ARGV:
-                stack.append((DataType.PTR, op.loc))
+                stack.append((DataType.PTR, op.token.loc))
             elif op.operand == Intrinsic.SYSCALL0:
                 if len(stack) > 0:
-                    print("%s:%d:%d: ERROR: Too many arguments for the SYSCALL0 intrinsic" % op.loc, file=sys.stderr)
+                    print("%s:%d:%d: ERROR: Too many arguments for the SYSCALL0 intrinsic" % op.token.loc, file=sys.stderr)
                     exit(1)
-                stack.append((DataType.INT, op.loc))
+                stack.append((DataType.INT, op.token.loc))
             elif op.operand == Intrinsic.SYSCALL1:
                 if len(stack) < 2:
-                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL1 intrinsic" % op.loc, file=sys.stderr)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 for i in range(2):
                     stack.pop()
             elif op.operand == Intrinsic.SYSCALL2:
                 if len(stack) < 3:
-                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL2 intrinsic" % op.loc, file=sys.stderr)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 for i in range(3):
                     stack.pop()
             elif op.operand == Intrinsic.SYSCALL3:
                 if len(stack) < 4:
-                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL3 intrinsic" % op.loc, file=sys.stderr)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 for i in range(4):
                     stack.pop()
-                stack.append((DataType.INT, op.loc))
+                stack.append((DataType.INT, op.token.loc))
             elif op.operand == Intrinsic.SYSCALL4:
                 if len(stack) < 5:
-                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL4 intrinsic" % op.loc, file=sys.stderr)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 for i in range(5):
                     stack.pop()
-                stack.append((DataType.INT, op.loc))
+                stack.append((DataType.INT, op.token.loc))
             elif op.operand == Intrinsic.SYSCALL5:
                 if len(stack) < 6:
-                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL5 intrinsic" % op.loc, file=sys.stderr)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 for i in range(6):
                     stack.pop()
-                stack.append((DataType.INT, op.loc))
+                stack.append((DataType.INT, op.token.loc))
             elif op.operand == Intrinsic.SYSCALL6:
                 if len(stack) < 7:
-                    print("%s:%d:%d: ERROR: Not enough arguments for the SYSCALL5 intrinsic" % op.loc, file=sys.stderr)
+                    print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 for i in range(6):
                     stack.pop()
-                stack.append((DataType.INT, op.loc))
+                stack.append((DataType.INT, op.token.loc))
             else:
                 assert False, "unreachable"
         else:
             assert False, "unreachable"
     if len(stack) != 0:
-        print("%s:%d:%d: ERROR: unhandled data left on the stack" % stack.pop()[1], file=sys.stderr) 
+        compiler_error_(stack.pop()[1], "unhandled data on the stack")
         exit(1)
 
 def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
@@ -1083,8 +1098,8 @@ KEYWORD_NAMES= {
     'include': Keyword.INCLUDE,
 }
 
-assert len(Intrinsic) == 34, "Exhaustive INTRINSIC_NAMES definition.: %d" % len(Intrinsic)
-INTRINSIC_NAMES = {
+assert len(Intrinsic) == 34, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
+INTRINSIC_BY_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
     '*': Intrinsic.MUL,
@@ -1121,43 +1136,7 @@ INTRINSIC_NAMES = {
     'syscall6': Intrinsic.SYSCALL6,
 }
 
-assert len(Intrinsic) == 34, "Exhaustive INTRINSIC_NAMES definition.: %d" % len(Intrinsic)
-INTRINSIC_HUMAN_NAMES = {
-    Intrinsic.PLUS: '+',
-    Intrinsic.MINUS: '-',
-    Intrinsic.MUL: '*',
-    Intrinsic.DIVMOD: 'divmod',
-    Intrinsic.PRINT: 'print',
-    Intrinsic.EQ: '=',
-    Intrinsic.GT: '>',
-    Intrinsic.LT: '<',
-    Intrinsic.GE: '>=',
-    Intrinsic.LE: '<=',
-    Intrinsic.NE: '!=',
-    Intrinsic.SHR: 'shr',
-    Intrinsic.SHL: 'shl',
-    Intrinsic.BOR: 'bor',
-    Intrinsic.BAND: 'band',
-    Intrinsic.DUP: 'dup',
-    Intrinsic.DUP2: '2dup',
-    Intrinsic.SWAP: 'swap',
-    Intrinsic.DROP: 'drop',
-    Intrinsic.OVER: 'over',
-    Intrinsic.MEM: 'mem',
-    Intrinsic.STORE: '.',
-    Intrinsic.STORE64: '.64',
-    Intrinsic.LOAD: ',',
-    Intrinsic.LOAD64: ',64',
-    Intrinsic.ARGC: 'argc',
-    Intrinsic.ARGV: 'argv',
-    Intrinsic.SYSCALL0: 'syscall0',
-    Intrinsic.SYSCALL1: 'syscall1',
-    Intrinsic.SYSCALL2: 'syscall2',
-    Intrinsic.SYSCALL3: 'syscall3',
-    Intrinsic.SYSCALL4: 'syscall4',
-    Intrinsic.SYSCALL5: 'syscall5',
-    Intrinsic.SYSCALL6: 'syscall6',
-}
+INTRINSIC_NAMES = {v: k for k, v in INTRINSIC_BY_NAMES.items()}
 
 @dataclass
 class Macro:
@@ -1177,10 +1156,11 @@ def token_name(typ: TokenType) -> str:
     else:
         assert False, "unreachable"
 
-def expand_macro(macro: Macro, expanded: int) -> List[Token]:
+def expand_macro(macro: Macro, expanded_from: Token) -> List[Token]:
     result = list(map(copy, macro.tokens))
     for token in result:
-        token.expanded = expanded
+        token.expanded_from = expanded_from
+        token.expanded_count = expanded_from.expanded_count + 1
     return result
 
 def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], expansion_limit: int) -> Program:
@@ -1194,50 +1174,50 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
         token = rtokens.pop()
         assert len(TokenType) == 5, "Exhaustive token handling in compile_tokens_to_program: %d" % len(TokenType)
         if token.typ == TokenType.WORD:
-            if token.value in INTRINSIC_NAMES:
+            if token.value in INTRINSIC_BY_NAMES:
                 assert isinstance(token.value, str)
-                program.append(Op(typ=OpType.INTRINSIC, loc=token.loc, operand=INTRINSIC_NAMES[token.value]))
+                program.append(Op(typ=OpType.INTRINSIC, token=token, operand=INTRINSIC_BY_NAMES[token.value]))
                 ip += 1
             elif token.value in macros:
-                if token.expanded >= expansion_limit:
-                    print("%s:%d:%d: ERROR: the macro exceeded the expansion limit (it expanded %d times)" % (token.loc + (token.expanded, )), file=sys.stderr)
+                if token.expanded_count >= expansion_limit:
+                    compiler_error_(token, "the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
                     exit(1)
                 assert isinstance(token.value, str)
-                rtokens += reversed(expand_macro(macros[token.value], token.expanded+1))
+                rtokens += reversed(expand_macro(macros[token.value], token))
                 continue
             else:
-                print("%s:%d:%d: ERROR: unknown word `%s`" % (token.loc + (token.value, )), file=sys.stderr)
+                compiler_error_(token, "unknown word `%s`" % token.value)
                 exit(1)
         elif token.typ == TokenType.INT:
             assert isinstance(token.value, int), "This is a lexer bug (probably)"
-            program.append(Op(typ=OpType.PUSH_INT, operand=token.value, loc=token.loc))
+            program.append(Op(typ=OpType.PUSH_INT, operand=token.value, token=token))
             ip += 1
         elif token.typ == TokenType.STR:
             assert isinstance(token.value, str), "This is a lexer bug (probably)"
-            program.append(Op(typ=OpType.PUSH_STR, operand=token.value, loc=token.loc))
+            program.append(Op(typ=OpType.PUSH_STR, operand=token.value, token=token))
             ip += 1
         elif token.typ == TokenType.CHAR:
             assert isinstance(token.value, int), "This is a lexer bug (probably)"
-            program.append(Op(typ=OpType.PUSH_INT, operand=token.value, loc=token.loc))
+            program.append(Op(typ=OpType.PUSH_INT, operand=token.value, token=token))
             ip += 1
         elif token.typ == TokenType.KEYWORD:
             assert len(Keyword) == 7, "Exhaustive keywords handling in compile_file_to_program(): %d" % len(Keyword)
 
             if token.value == Keyword.IF:
-                program.append(Op(typ=OpType.IF, loc=token.loc))
+                program.append(Op(typ=OpType.IF, token=token))
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.ELSE:
-                program.append(Op(typ=OpType.ELSE, loc=token.loc))
+                program.append(Op(typ=OpType.ELSE, token=token))
                 if_ip = stack.pop()
                 if program[if_ip].typ != OpType.IF:
-                    print('%s:%d:%d: ERROR: `else` can only be used in `if`-blocks' % program[if_ip].loc, file=sys.stderr)
+                    compiler_error_(program[if_ip].token, "`else` can only be used in `if` blocks")
                     exit(1)
                 program[if_ip].operand = ip + 1
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.END:
-                program.append(Op(typ=OpType.END, loc=token.loc))
+                program.append(Op(typ=OpType.END, token=token))
                 block_ip = stack.pop()
                 if program[block_ip].typ == OpType.IF or program[block_ip].typ == OpType.ELSE:
                     program[block_ip].operand = ip
@@ -1247,58 +1227,58 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                     program[ip].operand = program[block_ip].operand
                     program[block_ip].operand = ip + 1
                 else:
-                    print('%s:%d:%d: ERROR: `end` can only close `if`, `else` or `do` blocks for now' % program[block_ip].loc, file=sys.stderr)
+                    compiler_error_(program[block_ip].token, "`end` can only close `if`, `else` or `do` blocks")
                     exit(1)
                 ip += 1
             elif token.value == Keyword.WHILE:
-                program.append(Op(typ=OpType.WHILE, loc=token.loc))
+                program.append(Op(typ=OpType.WHILE, token=token))
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.DO:
-                program.append(Op(typ=OpType.DO, loc=token.loc))
+                program.append(Op(typ=OpType.DO, token=token))
                 while_ip = stack.pop()
                 program[ip].operand = while_ip
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.INCLUDE:
                 if len(rtokens) == 0:
-                    print("%s:%d:%d: ERROR: expected path to the include file but found nothing" % token.loc, file=sys.stderr)
+                    compiler_error_(token, "expected path to include file but found nothing")
                     exit(1)
                 token = rtokens.pop()
                 if token.typ != TokenType.STR:
-                    print("%s:%d:%d: ERROR: expected path to the include file to be %s but found %s" % (token.loc + (token_name(TokenType.STR), token_name(token.typ))), file=sys.stderr)
+                    compiler_error_(token, "expected path to include file to be %s but found %s" % (token_name(TokenType.STR), token_name(token.typ)))
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
                 file_included = False
                 for include_path in include_paths:
                     try:
-                        if token.expanded >= expansion_limit:
-                            print("%s:%d:%d: ERROR: the include exceeded the expansion limit (it expanded %d times)" % (token.loc + (token.expanded, )), file=sys.stderr)
+                        if token.expanded_count >= expansion_limit:
+                            compiler_error_(token, "the include exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
                             exit(1)
-                        rtokens += reversed(lex_file(path.join(include_path, token.value), token.expanded + 1))
+                        rtokens += reversed(lex_file(path.join(include_path, token.value), token))
                         file_included = True
                         break
                     except FileNotFoundError:
                         continue
                 if not file_included:
-                    print("%s:%d:%d: ERROR: file `%s` not found" % (token.loc + (token.value, )), file=sys.stderr)
+                    compiler_error_(token, "File `%s` not found" % token.value)
                     exit(1)
             elif token.value == Keyword.MACRO:
                 if len(rtokens) == 0:
-                    print("%s:%d:%d: ERROR: expected macro name but found nothing" % token.loc, file=sys.stderr)
+                    compiler_error_(token, "expected macro name but found nothing")
                     exit(1)
                 token = rtokens.pop()
     
                 if token.typ != TokenType.WORD:
-                    print("%s:%d:%d: ERROR: expected macro name to be %s but found %s" % (token.loc + (token_name(TokenType.WORD), token_name(token.typ))), file=sys.stderr)
+                    compiler_error_(token, "expected macro name to be %s but found %s" % (token_name(TokenType.WORD), token_name(token.typ)))
                     exit(1)
                 assert isinstance(token.value, str), "This is a bug in the lexer (probably)"
                 if token.value in macros:
-                    print("%s:%d:%d: ERROR: redefinition of already existing macro `%s`" % (token.loc + (token.value,)), file=sys.stderr)
-                    print("%s:%d:%d: NOTE: the first definition is located here" % (macros[token.value].loc))
+                    compiler_error_(token, "redefinition of already existing macro `%s`" % token.value)
+                    compiler_note_(macros[token.value].loc, "the first definition is located here")
                     exit(1)
-                if token.value in INTRINSIC_NAMES:
-                    print("%s:%d:%d: ERROR: redefinition of a intrinsic word `%s`" % (token.loc + (token.value,)), file=sys.stderr)
+                if token.value in INTRINSIC_BY_NAMES:
+                    compiler_error_(token, "redefinition of a intrinsic word `%s`" % token.value)
                     exit(1)
     
                 macro = Macro(token.loc, [])
@@ -1318,7 +1298,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                             nesting_depth -= 1
     
                 if token.typ != TokenType.KEYWORD and token.value != Keyword.END:
-                    print("%s:%d:%d: ERROR: expected `end` at the end of the macro definition but got `%s`" % (token.loc + (token.value,)), file=sys.stderr)
+                    compiler_error_(token, "expected `end` at the end of the macro definition but got `%s`" % (token.value,))
                     exit(1)
             else:
                 assert False, "unreachable"
@@ -1327,7 +1307,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
 
 
     if len(stack) > 0:
-        print('%s:%d:%d: ERROR: unclosed block' % program[stack.pop()].loc, file=sys.stderr)
+        compiler_error_(program[stack.pop()].token, "unclosed block")
         exit(1)
 
     return program
@@ -1383,7 +1363,7 @@ def lex_lines(file_path: str, lines: List[str]) -> Generator[Token, None, None]:
                     exit(1)
                 text_of_token = str_literal_buf
                 str_literal_buf = ""
-                yield Token(TokenType.STR, loc, unescape_string(text_of_token))
+                yield Token(TokenType.STR, text_of_token, loc, unescape_string(text_of_token))
                 col = find_col(line, col_end+1, lambda x: not x.isspace())
             elif line[col] == "'":
                 col_end = find_col(line, col+1, lambda x: x == "'")
@@ -1394,29 +1374,31 @@ def lex_lines(file_path: str, lines: List[str]) -> Generator[Token, None, None]:
                 if len(char_bytes) != 1:
                     print("%s:%d:%d: ERROR: only a single byte is allowed inside of a character literal" % loc, file=sys.stderr)
                     exit(1)
-                yield Token(TokenType.CHAR, loc, char_bytes[0])
+                yield Token(TokenType.CHAR, text_of_token, loc, char_bytes[0])
                 col = find_col(line, col_end+1, lambda x: not x.isspace())
             else:
                 col_end = find_col(line, col, lambda x: x.isspace())
                 text_of_token = line[col:col_end]
 
                 try:
-                    yield Token(TokenType.INT, loc, int(text_of_token))
+                    yield Token(TokenType.INT, text_of_token, loc, int(text_of_token))
                 except ValueError:
                     if text_of_token in KEYWORD_NAMES:
-                        yield Token(TokenType.KEYWORD, loc, KEYWORD_NAMES[text_of_token])
+                        yield Token(TokenType.KEYWORD, text_of_token, loc, KEYWORD_NAMES[text_of_token])
                     else:
                         if text_of_token.startswith("//"):
                             break
-                        yield Token(TokenType.WORD, loc, text_of_token)
+                        yield Token(TokenType.WORD, text_of_token, loc, text_of_token)
                 col = find_col(line, col_end, lambda x: not x.isspace())
         row += 1
 
-def lex_file(file_path: str, expanded: int = 0) -> List[Token]:
+def lex_file(file_path: str, expanded_from: Optional[Token] = None) -> List[Token]:
     with open(file_path, "r", encoding='utf-8') as f:
         result = [token for token in lex_lines(file_path, f.readlines())]
         for token in result:
-            token.expanded = expanded
+            if expanded_from is not None:
+                token.expanded_from = expanded_from
+                token.expanded_count = expanded_from.expanded_count + 1
         return result
 
 def compile_file_to_program(file_path: str, include_paths: List[str], expansion_limit: int) -> Program:
