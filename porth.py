@@ -483,7 +483,6 @@ def type_check_program(program: Program):
                 else:
                     print_invalid_intrinsic_arg2(op, a_typ, b_typ)
                     exit(1)
-                assert False, "not implemented"
             elif op.operand == Intrinsic.EQ:
                 if len(stack) < 2:
                     print_missing_intrinsic_args(op)
