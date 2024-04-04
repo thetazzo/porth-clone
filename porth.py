@@ -413,17 +413,17 @@ def print_missing_intrinsic_args(place: Union[Token, Loc], intr: Intrinsic):
    compiler_error_(place, "Not enough arguments for the `%s` intrinsic" % INTRINSIC_NAMES[intr]) 
 
 def type_check_program(program: Program):
-    stack: List[Tuple[DataType, Loc]] = []
+    stack: List[Tuple[DataType, Token]] = []
     for ip in range(len(program)):
         op = program[ip]
         assert len(OpType) == 8, "Exhaustive ops handling in type_check_program: %d" % len(OpType)
         # TODO: introcude intrinsic_human that converts intrinsic int to a human readable string
         assert len(DataType) == 3, "Exhaustive type handling in type_check_program(): %d" % len(DataType)
         if op.typ == OpType.PUSH_INT:
-            stack.append((DataType.INT, op.token.loc))
+            stack.append((DataType.INT, op.token))
         elif op.typ == OpType.PUSH_STR:
-            stack.append((DataType.INT, op.token.loc))
-            stack.append((DataType.PTR, op.token.loc))
+            stack.append((DataType.INT, op.token))
+            stack.append((DataType.PTR, op.token))
         elif op.typ == OpType.IF:
             assert False, "not implemented"
         elif op.typ == OpType.END:
@@ -452,11 +452,11 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.token.loc))
+                    stack.append((DataType.INT, op.token))
                 elif a_typ == DataType.INT and b_typ == DataType.PTR:
-                    stack.append((DataType.PTR, op.token.loc))
+                    stack.append((DataType.PTR, op.token))
                 elif a_typ == DataType.PTR and b_typ == DataType.INT:
-                    stack.append((DataType.PTR, op.token.loc))
+                    stack.append((DataType.PTR, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for PLUS intrinsic. Expected INT or PTR")
                     exit(1)
@@ -467,11 +467,11 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.token.loc))
+                    stack.append((DataType.INT, op.token))
                 elif a_typ == DataType.INT and b_typ == DataType.PTR:
-                    stack.append((DataType.PTR, op.token.loc))
+                    stack.append((DataType.PTR, op.token))
                 elif a_typ == DataType.PTR and b_typ == DataType.INT:
-                    stack.append((DataType.PTR, op.token.loc))
+                    stack.append((DataType.PTR, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for MINUS intrinsic. Expected INT or PTR")
                     exit(1)
@@ -482,7 +482,7 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.token.loc))
+                    stack.append((DataType.INT, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for MUL intrinsic. Expected INT")
                     exit(1)
@@ -494,8 +494,8 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.token.loc))
-                    stack.append((DataType.INT, op.token.loc))
+                    stack.append((DataType.INT, op.token))
+                    stack.append((DataType.INT, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for DIVMOD intrinsic. Expected INT")
                     exit(1)
@@ -506,7 +506,7 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.token.loc))
+                    stack.append((DataType.BOOL, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for EQ intrinsic. Expected INT")
                     exit(1)
@@ -517,7 +517,7 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.token.loc))
+                    stack.append((DataType.BOOL, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for GT intrinsic. Expected INT")
                     exit(1)
@@ -528,7 +528,7 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.token.loc))
+                    stack.append((DataType.BOOL, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for LT intrinsic. Expected INT")
                     exit(1)
@@ -539,7 +539,7 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.token.loc))
+                    stack.append((DataType.BOOL, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for GE intrinsic. Expected INT")
                     exit(1)
@@ -550,7 +550,7 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.token.loc))
+                    stack.append((DataType.BOOL, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for LE intrinsic. Expected INT")
                     exit(1)
@@ -561,7 +561,7 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.BOOL, op.token.loc))
+                    stack.append((DataType.BOOL, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for NE intrinsic. Expected INT")
                     exit(1)
@@ -572,7 +572,7 @@ def type_check_program(program: Program):
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.token.loc))
+                    stack.append((DataType.INT, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for SHR intrinsic. Expected INT")
                     exit(1)
@@ -583,7 +583,7 @@ def type_check_program(program: Program):
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.token.loc))
+                    stack.append((DataType.INT, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for SHL intrinsic. Expected INT")
                     exit(1)
@@ -594,7 +594,7 @@ def type_check_program(program: Program):
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.token.loc))
+                    stack.append((DataType.INT, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for BOR intrinsic. Expected INT")
                     exit(1)
@@ -605,7 +605,7 @@ def type_check_program(program: Program):
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
-                    stack.append((DataType.INT, op.token.loc))
+                    stack.append((DataType.INT, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for BAND intrinsic. Expected INT")
                     exit(1)
@@ -653,7 +653,7 @@ def type_check_program(program: Program):
                 stack.append(a)
                 stack.append(b)
             elif op.operand == Intrinsic.MEM:
-                stack.append((DataType.PTR, op.token.loc))
+                stack.append((DataType.PTR, op.token))
             elif op.operand == Intrinsic.LOAD:
                 if len(stack) < 1:
                     print_missing_intrinsic_args(op.token, op.operand)
@@ -661,7 +661,7 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 
                 if a_typ == DataType.PTR:
-                    stack.append((DataType.INT, op.token.loc))
+                    stack.append((DataType.INT, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for LOAD intrinsic. Expected PTR")
                     exit(1)
@@ -672,7 +672,7 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop()
                 
                 if a_typ == DataType.PTR:
-                    stack.append((DataType.INT, op.token.loc))
+                    stack.append((DataType.INT, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for LOAD64 intrinsic. Expected PTR")
                     exit(1)
@@ -701,14 +701,14 @@ def type_check_program(program: Program):
                     compiler_error_(op.token, "Invalid argument types for STORE64 intrinsic. Expected INT and PTR")
                     exit(1)
             elif op.operand == Intrinsic.ARGC:
-                stack.append((DataType.INT, op.token.loc))
+                stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.ARGV:
-                stack.append((DataType.PTR, op.token.loc))
+                stack.append((DataType.PTR, op.token))
             elif op.operand == Intrinsic.SYSCALL0:
                 if len(stack) > 0:
                     print("%s:%d:%d: ERROR: Too many arguments for the SYSCALL0 intrinsic" % op.token.loc, file=sys.stderr)
                     exit(1)
-                stack.append((DataType.INT, op.token.loc))
+                stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL1:
                 if len(stack) < 2:
                     print_missing_intrinsic_args(op.token, op.operand)
@@ -727,28 +727,28 @@ def type_check_program(program: Program):
                     exit(1)
                 for i in range(4):
                     stack.pop()
-                stack.append((DataType.INT, op.token.loc))
+                stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL4:
                 if len(stack) < 5:
                     print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 for i in range(5):
                     stack.pop()
-                stack.append((DataType.INT, op.token.loc))
+                stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL5:
                 if len(stack) < 6:
                     print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
                 for i in range(6):
                     stack.pop()
-                stack.append((DataType.INT, op.token.loc))
+                stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL6:
                 if len(stack) < 7:
                     print_missing_intrinsic_args(op.token, op.operand)
                     exit(1)
-                for i in range(6):
+                for i in range(7):
                     stack.pop()
-                stack.append((DataType.INT, op.token.loc))
+                stack.append((DataType.INT, op.token))
             else:
                 assert False, "unreachable"
         else:
