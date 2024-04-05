@@ -1447,7 +1447,8 @@ def cmd_call_echoed(cmd: List[str], silent: bool=False) -> int:
 def print_usage(compiler_name: str):
     print("Usage: %s [OPTIONS] <SUBCOMMAND> [ARGS]" % compiler_name)
     print("  options:")
-    print("    -debug                Enable debug mode")
+    print("    --debug                Enable debug mode")
+    print("    --unsafe               Disable type checking")
     print("    -I <path>             Add the path to the include search list")
     print("    -E <expansion-limit>  Macro and include expansion limit (Default %d)" % DEFAULT_EXPANSION_LIMIT)
     print("  SUBCOMMAND:")
@@ -1458,6 +1459,8 @@ def print_usage(compiler_name: str):
     print("        -o <file|dir>       Customize the output path")
     print("        -s                  Silent mode ~ Don't print any info about compilation phases")
     print("    help                  Print this help to stdout and exit with 0 code")
+
+unsafe=False
 
 if __name__ == '__main__' and '__file__' in globals():
     argv = sys.argv
@@ -1471,6 +1474,9 @@ if __name__ == '__main__' and '__file__' in globals():
         if argv[0] == '--debug':
             argv = argv[1:]
             debug = True
+        if argv[0] == '--unsafe':
+            argv = argv[1:]
+            unsafe = True
         elif argv[0] == '-I':
             argv = argv[1:]
             if len(argv) == 0:
@@ -1509,7 +1515,10 @@ if __name__ == '__main__' and '__file__' in globals():
             exit(1)
         program_path, *argv = argv
         program = compile_file_to_program(program_path, include_paths, expansion_limit);
-        type_check_program(program)
+        if not unsafe:
+            type_check_program(program)
+        else:
+            print("[INFO] Simulating in UNSAFE mode")
         simulate_little_endian_linux(program, [program_path]+argv)
     elif subcommand == "com":
         silent = False
@@ -1564,7 +1573,10 @@ if __name__ == '__main__' and '__file__' in globals():
         if not silent:
             print("[INFO] Generating %s" % (basepath + ".asm"))
         program = compile_file_to_program(program_path, include_paths, expansion_limit);
-        type_check_program(program)
+        if not unsafe:
+            type_check_program(program)
+        else:
+            print("[INFO] Compiling in UNSAFE mode")
         generate_nasm_linux_x86_64(program, basepath + ".asm")
         cmd_call_echoed(["nasm", "-felf64", basepath + ".asm"], silent)
         cmd_call_echoed(["ld", "-o", basepath, basepath + ".o"], silent)
