@@ -5,7 +5,7 @@ macro N 1000 end
 0 3 while dup N < do
     dup  3 mod 0 = 
     over 5 mod 0 =
-    bor if
+    or if
         swap over + swap
     end
     1 +
