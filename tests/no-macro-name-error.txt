@@ -4,18 +4,6 @@
 :i returncode 1
 :b stdout 0
 
-:b stderr 1072
-Traceback (most recent call last):
-  File "/home/tilc/dev/tayol/projects/porth-clone/./porth.py", line 1589, in <module>
-    program = compile_file_to_program(program_path, include_paths, expansion_limit);
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tilc/dev/tayol/projects/porth-clone/./porth.py", line 1463, in compile_file_to_program
-    return compile_tokens_to_program(lex_file(file_path), include_paths, expansion_limit)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tilc/dev/tayol/projects/porth-clone/./porth.py", line 1331, in compile_tokens_to_program
-    compiler_error_(token, "expected macro name to be %s but found %s" % (token_name(TokenType.WORD), token_name(token.typ)))
-                                                                                                      ^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tilc/dev/tayol/projects/porth-clone/./porth.py", line 1215, in token_name
-    assert False, "unreachable"
-AssertionError: unreachable
+:b stderr 84
+./tests/no-macro-name-error.porth:1:1: ERROR: expected macro name but found nothing
 
