@@ -31,6 +31,10 @@ macro 2drop
     drop drop
 end
 
+macro 2dup
+    over over
+end
+
 macro todo
     "TODO: not implemented" stderr write
     1 exit

@@ -43,7 +43,6 @@ class Intrinsic(IntEnum):
     BAND=auto()
     PRINT=auto()
     DUP=auto()
-    DUP2=auto()
     SWAP=auto()
     DROP=auto()
     OVER=auto()
@@ -287,14 +286,6 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 stack.append(a)
                 stack.append(a)
                 ip += 1
-            elif op.operand == Intrinsic.DUP2:
-                b = stack.pop()
-                a = stack.pop()
-                stack.append(a)
-                stack.append(b)
-                stack.append(a)
-                stack.append(b)
-                ip += 1
             elif op.operand == Intrinsic.SWAP:
                 a = stack.pop()
                 b = stack.pop()
@@ -494,7 +485,7 @@ def type_check_program(program: Program):
                 exit(1)
             block_stack.append((stack.copy(), op.typ))
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 35, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
+            assert len(Intrinsic) == 34, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
             assert isinstance(op.operand, Intrinsic), "There is a bug in compilation step (probably)"
             assert len(DataType) == 3, "Exhaustive type handling in for `%s` in type_check_program(): %d" % (INTRINSIC_NAMES[op.operand], len(DataType))
             if op.operand == Intrinsic.PLUS:
@@ -667,16 +658,6 @@ def type_check_program(program: Program):
                 if len(stack) < 1:
                     print_missing_op_args(op)
                 a = stack.pop()
-                stack.append(a)
-                stack.append(a)
-            elif op.operand == Intrinsic.DUP2:
-                if len(stack) < 2:
-                    print_missing_op_args(op)
-                    exit(1)
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(b)
-                stack.append(b)
                 stack.append(a)
                 stack.append(a)
             elif op.operand == Intrinsic.SWAP:
@@ -895,7 +876,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 assert isinstance(op.operand, int), "There is a bug in the compilation step (probably)"
                 out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 35, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
+                assert len(Intrinsic) == 34, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
                 if op.operand == Intrinsic.PLUS:
                     out.write(";;  -- plus --\n")
                     out.write("    pop rax\n")
@@ -1009,14 +990,6 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop rax\n")
                     out.write("    push rax\n")
                     out.write("    push rax\n")
-                elif op.operand == Intrinsic.DUP2:
-                    out.write(";;  -- 2dup -- \n")
-                    out.write("    pop rbx\n")
-                    out.write("    pop rax\n")
-                    out.write("    push rax\n")
-                    out.write("    push rbx\n")
-                    out.write("    push rax\n")
-                    out.write("    push rbx\n")
                 elif op.operand == Intrinsic.SWAP:
                     out.write(";;  -- swap --\n")
                     out.write("    pop rax\n")
@@ -1155,7 +1128,7 @@ KEYWORD_NAMES= {
     'include': Keyword.INCLUDE,
 }
 
-assert len(Intrinsic) == 35, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
+assert len(Intrinsic) == 34, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
 INTRINSIC_BY_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
@@ -1173,7 +1146,6 @@ INTRINSIC_BY_NAMES = {
     'bor': Intrinsic.BOR,
     'band': Intrinsic.BAND,
     'dup': Intrinsic.DUP,
-    '2dup': Intrinsic.DUP2,
     'swap': Intrinsic.SWAP,
     'drop': Intrinsic.DROP,
     'over': Intrinsic.OVER,
