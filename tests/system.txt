@@ -2,8 +2,7 @@
 :b stdin 0
 
 :i returncode 0
-:b stdout 13
-Hello, World
-
+:b stdout 30
+Dead Test, Remove It Or Fix It
 :b stderr 0
 

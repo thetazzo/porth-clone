@@ -1,3 +1,4 @@
+include "std.porth"
 
 // include "std.porth"
 
@@ -13,3 +14,4 @@
 // Ohh yeah
 
 // "Hello Semen!\n" stdout write
+"Hello, Men // Of// Sea\n" stdout write drop // this comment should be allowed
