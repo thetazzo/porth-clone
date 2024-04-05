@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from copy import copy
 
 debug=False
-typ_check = False
 
 Loc=Tuple[str, int, int]
 
@@ -499,14 +498,11 @@ def type_check_program(program: Program):
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
-                if a_typ == DataType.INT and b_typ == DataType.INT:
+
+                if a_typ == b_typ and (a_typ == DataType.INT or a_typ == DataType.PTR):
                     stack.append((DataType.INT, op.token))
-                elif a_typ == DataType.INT and b_typ == DataType.PTR:
-                    stack.append((DataType.PTR, op.token))
-                elif a_typ == DataType.PTR and b_typ == DataType.INT:
-                    stack.append((DataType.PTR, op.token))
                 else:
-                    compiler_error_(op.token, "Invalid argument types for PLUS intrinsic. Expected INT or PTR")
+                    compiler_error_(op.token, "Invalid argument types for PLUS intrinsic. Expected INT or PTR. Found %s")
                     exit(1)
             elif op.operand == Intrinsic.MINUS:
                 if len(stack) < 2:
@@ -514,12 +510,8 @@ def type_check_program(program: Program):
                     exit(1)
                 a_typ, a_loc = stack.pop()
                 b_typ, b_loc = stack.pop()
-                if a_typ == DataType.INT and b_typ == DataType.INT:
+                if a_typ == b_typ and (a_typ == DataType.INT or a_typ == DataType.PTR):
                     stack.append((DataType.INT, op.token))
-                elif a_typ == DataType.INT and b_typ == DataType.PTR:
-                    stack.append((DataType.PTR, op.token))
-                elif a_typ == DataType.PTR and b_typ == DataType.INT:
-                    stack.append((DataType.PTR, op.token))
                 else:
                     compiler_error_(op.token, "Invalid argument types for MINUS intrinsic. Expected INT or PTR")
                     exit(1)
@@ -802,7 +794,7 @@ def type_check_program(program: Program):
         else:
             assert False, "unreachable"
     if len(stack) != 0:
-        compiler_error_(stack.pop()[1], "unhandled data on the stack")
+        compiler_error_(stack[-1][1], "unhandled data on the stack: %s" % list(map(lambda x: x[0], stack)))
         exit(1)
 
 def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
@@ -1484,9 +1476,6 @@ if __name__ == '__main__' and '__file__' in globals():
         if argv[0] == '--debug':
             argv = argv[1:]
             debug = True
-        elif argv[0] == '--check':
-            argv = argv[1:]
-            typ_check = True
         elif argv[0] == '-I':
             argv = argv[1:]
             if len(argv) == 0:
@@ -1525,8 +1514,7 @@ if __name__ == '__main__' and '__file__' in globals():
             exit(1)
         program_path, *argv = argv
         program = compile_file_to_program(program_path, include_paths, expansion_limit);
-        if typ_check:
-            type_check_program(program)
+        type_check_program(program)
         simulate_little_endian_linux(program, [program_path]+argv)
     elif subcommand == "com":
         silent = False
@@ -1581,9 +1569,7 @@ if __name__ == '__main__' and '__file__' in globals():
         if not silent:
             print("[INFO] Generating %s" % (basepath + ".asm"))
         program = compile_file_to_program(program_path, include_paths, expansion_limit);
-        if typ_check:
-            print("[INFO] Running the type checker")
-            type_check_program(program)
+        type_check_program(program)
         generate_nasm_linux_x86_64(program, basepath + ".asm")
         cmd_call_echoed(["nasm", "-felf64", basepath + ".asm"], silent)
         cmd_call_echoed(["ld", "-o", basepath, basepath + ".o"], silent)
