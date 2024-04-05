@@ -1,0 +1,22 @@
+include "std.porth"
+
+macro NAME_CAP 256 end
+"What is your name?\n" stdout write drop
+
+macro name mem end
+
+NAME_CAP name stdin read
+
+dup 0 <= if
+    "ERROR: could not read your name\n" stderr write drop
+    1 exit
+end
+
+// remove the last new line
+name over + 1 - , '\n' = if
+    1 -
+end
+
+"Hello " stdout write drop
+name stdout write drop
+

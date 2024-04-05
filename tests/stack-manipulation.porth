@@ -1,21 +1,27 @@
-
-// store the separation line into memeory
-0 while dup 30 < do
-    dup mem + 45 .
-    1 +
-end
-mem + 10 .
+include "std.porth"
 
 // push int
 420 69 42 100 69420
 print print print print print
 
-31 mem 1 1 syscall3
+"------------------------------\n" stdout write drop
 
 // push str
-"hello world\n" 1 1 syscall3
+"Hello, World\n" stdout write drop // ascii
+"Hello, \"World\"\n" stdout write drop // string with double quotes
+// multiline string
+"
+muli
+freakin
+line
+str
+" stdout write drop
 
-31 mem 1 1 syscall3
+"------------------------------\n" stdout write drop
+// Characters
+'F' print
+
+"------------------------------\n" stdout write drop
 
 // dup
 69 dup
@@ -23,13 +29,13 @@ print print
 420 dup
 print print
 
-31 mem 1 1 syscall3
+"------------------------------\n" stdout write drop
 
 // 2dup
 69 420 2dup
 print print print print
 
-31 mem 1 1 syscall3
+"------------------------------\n" stdout write drop
 
 // swap
 69 420 2dup
@@ -37,13 +43,13 @@ print print
 swap
 print print
 
-31 mem 1 1 syscall3
+"------------------------------\n" stdout write drop
 
 // drop
 13 69 103 420 42
-drop print drop print
+drop print drop print drop
 
-31 mem 1 1 syscall3
+"------------------------------\n" stdout write drop
 
 // over
-69 420 over print
+69 420 over print drop drop

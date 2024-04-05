@@ -2,14 +2,22 @@
 :b stdin 0
 
 :i returncode 0
-:b stdout 270
+:b stdout 343
 69420
 100
 42
 69
 420
 ------------------------------
-hello world
+Hello, World
+Hello, "World"
+
+muli
+freakin
+line
+str
+------------------------------
+70
 ------------------------------
 69
 69

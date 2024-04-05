@@ -2,8 +2,8 @@
 :b stdin 0
 
 :i returncode 0
-:b stdout 19
+:b stdout 14
 Hello, World!
-69420
+
 :b stderr 0
 

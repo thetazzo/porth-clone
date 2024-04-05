@@ -2,7 +2,8 @@
 :b stdin 0
 
 :i returncode 0
-:b stdout 0
+:b stdout 23
+Hello, Men // Of// Sea
 
 :b stderr 0
 

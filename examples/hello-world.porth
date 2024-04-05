@@ -1,4 +1,3 @@
 include "std.porth"
 
-"Hello, World!\n" stdout write
-"69420" 1 write
+"Hello, World!\n" stdout write drop

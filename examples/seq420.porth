@@ -1,4 +1,6 @@
+include "std.porth"
+
 421 0 while 2dup > do
     dup print
     1 +
-end
+end 2drop
