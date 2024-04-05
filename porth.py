@@ -52,6 +52,7 @@ class Intrinsic(IntEnum):
     LOAD64=auto()
     STORE=auto()
     STORE64=auto()
+    CAST_PTR=auto()
     ARGC=auto()
     ARGV=auto()
     SYSCALL0=auto()
@@ -71,6 +72,7 @@ class OpType(IntEnum):
     ELSE=auto()
     WHILE=auto()
     DO=auto()
+
 class TokenType(Enum):
     WORD=auto()
     INT=auto()
@@ -204,7 +206,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
             else:
                 ip += 1
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 34, "Exhaustive handling of intrinsic n simulate_little_endian_linux: %d" % len(Intrinsic)
+            assert len(Intrinsic) == 35, "Exhaustive handling of intrinsic n simulate_little_endian_linux: %d" % len(Intrinsic)
             if op.operand == Intrinsic.PLUS:
                 a = stack.pop()
                 b = stack.pop()
@@ -335,6 +337,8 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 for byte in value64:
                     mem[addr64] = byte
                     addr64 += 1
+                ip += 1
+            elif op.operand == Intrinsic.CAST_PTR:
                 ip += 1
             elif op.operand == Intrinsic.ARGC:
                 stack.append(argc)
@@ -490,6 +494,7 @@ def type_check_program(program: Program):
                 exit(1)
             block_stack.append((stack.copy(), op.typ))
         elif op.typ == OpType.INTRINSIC:
+            assert len(Intrinsic) == 35, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
             assert isinstance(op.operand, Intrinsic), "There is a bug in compilation step (probably)"
             assert len(DataType) == 3, "Exhaustive type handling in for `%s` in type_check_program(): %d" % (INTRINSIC_NAMES[op.operand], len(DataType))
             if op.operand == Intrinsic.PLUS:
@@ -501,8 +506,12 @@ def type_check_program(program: Program):
 
                 if a_typ == b_typ and (a_typ == DataType.INT or a_typ == DataType.PTR):
                     stack.append((DataType.INT, op.token))
+                elif a_typ == DataType.INT and b_typ == DataType.PTR:
+                    stack.append((DataType.PTR, op.token))
+                elif a_typ == DataType.PTR and b_typ == DataType.INT:
+                    stack.append((DataType.PTR, op.token))
                 else:
-                    compiler_error_(op.token, "Invalid argument types for PLUS intrinsic. Expected INT or PTR. Found %s")
+                    compiler_error_(op.token, "Invalid argument types for PLUS intrinsic. Expected INT or PTR.")
                     exit(1)
             elif op.operand == Intrinsic.MINUS:
                 if len(stack) < 2:
@@ -740,6 +749,12 @@ def type_check_program(program: Program):
                 else:
                     compiler_error_(op.token, "Invalid argument types for STORE64 intrinsic. Expected INT and PTR")
                     exit(1)
+            elif op.operand == Intrinsic.CAST_PTR:
+                if len(stack) < 1:
+                    print_missing_op_args(op)
+                    exit(1)
+                a_typ, a_token = stack.pop()
+                stack.append((DataType.PTR, a_token))
             elif op.operand == Intrinsic.ARGC:
                 stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.ARGV:
@@ -880,7 +895,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 assert isinstance(op.operand, int), "There is a bug in the compilation step (probably)"
                 out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 34, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
+                assert len(Intrinsic) == 35, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
                 if op.operand == Intrinsic.PLUS:
                     out.write(";;  -- plus --\n")
                     out.write("    pop rax\n")
@@ -1043,6 +1058,8 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop rbx\n");
                     out.write("    pop rax\n");
                     out.write("    mov [rax], rbx\n");
+                elif op.operand == Intrinsic.CAST_PTR:
+                    pass
                 elif op.operand == Intrinsic.ARGC:
                     out.write(";;  -- argc --\n")
                     out.write("    mov rax, [args_ptr]\n")
@@ -1138,7 +1155,7 @@ KEYWORD_NAMES= {
     'include': Keyword.INCLUDE,
 }
 
-assert len(Intrinsic) == 34, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
+assert len(Intrinsic) == 35, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
 INTRINSIC_BY_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
@@ -1165,6 +1182,7 @@ INTRINSIC_BY_NAMES = {
     '.64': Intrinsic.STORE64,
     ',': Intrinsic.LOAD,
     ',64': Intrinsic.LOAD64,
+    'cast(ptr)': Intrinsic.CAST_PTR,
     'argc': Intrinsic.ARGC,
     'argv': Intrinsic.ARGV,
     'syscall0': Intrinsic.SYSCALL0,
