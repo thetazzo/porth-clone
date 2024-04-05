@@ -205,7 +205,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
             else:
                 ip += 1
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 35, "Exhaustive handling of intrinsic n simulate_little_endian_linux: %d" % len(Intrinsic)
+            assert len(Intrinsic) == 34, "Exhaustive handling of intrinsic n simulate_little_endian_linux: %d" % len(Intrinsic)
             if op.operand == Intrinsic.PLUS:
                 a = stack.pop()
                 b = stack.pop()
@@ -512,8 +512,13 @@ def type_check_program(program: Program):
                 b_typ, b_loc = stack.pop()
                 if a_typ == b_typ and (a_typ == DataType.INT or a_typ == DataType.PTR):
                     stack.append((DataType.INT, op.token))
+                elif b_typ == DataType.PTR and a_typ == DataType.INT:
+                    stack.append((DataType.PTR, op.token))
+                elif a_typ == DataType.PTR and b_typ == DataType.INT:
+                    compiler_error_(op.token, "Subtracting a PTR from INT is not allowed")
+                    exit(1)
                 else:
-                    compiler_error_(op.token, "Invalid argument types for MINUS intrinsic. Expected INT or PTR")
+                    compiler_error_(op.token, "Invalid argument types for MINUS intrinsic. Expected INT, PTR")
                     exit(1)
             elif op.operand == Intrinsic.MUL:
                 if len(stack) < 2:
@@ -716,7 +721,7 @@ def type_check_program(program: Program):
                 if a_typ == DataType.INT and b_typ == DataType.PTR:
                     pass
                 else:
-                    compiler_error_(op.token, "Invalid argument types for STORE intrinsic. Expected INT and PTR")
+                    compiler_error_(op.token, "Invalid argument types for STORE intrinsic: %s" % [a_typ,  b_typ])
                     exit(1)
             elif op.operand == Intrinsic.STORE64:
                 if len(stack) < 2:
@@ -725,10 +730,10 @@ def type_check_program(program: Program):
                 a_typ, a_loc = stack.pop() 
                 b_typ, b_loc = stack.pop() 
 
-                if a_typ == DataType.INT and b_typ == DataType.PTR:
+                if (a_typ == DataType.INT or a_typ == DataType.PTR) and b_typ == DataType.PTR:
                     pass
                 else:
-                    compiler_error_(op.token, "Invalid argument types for STORE64 intrinsic. Expected INT and PTR")
+                    compiler_error_(op.token, "Invalid argument types for STORE64 intrinsic: %s" % [a_typ, b_typ])
                     exit(1)
             elif op.operand == Intrinsic.CAST_PTR:
                 if len(stack) < 1:
