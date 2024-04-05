@@ -1,15 +1,11 @@
 include "std.porth"
 
-// (argv + 8) (argc - 1)   
+1 while dup argc < do
+  dup nth_argv strlen
+  over nth_argv puts
 
-// add 8 (skip one byte) so that we skip the fist argv which is the name of the program
-argv 8 +
-// substract 1 from argc because we skip the first argument in argv
-argc 1 -
-while dup 0 > do
-    over ,64 dup cast(ptr) strlen swap
-    stdout write drop
-    "\n" stdout write drop
-    1 - swap
-    8 + swap
-end drop drop
+  "\n" puts
+
+  1 +
+end drop
+
