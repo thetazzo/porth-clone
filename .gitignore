@@ -28,3 +28,5 @@ tests/memory
 tests/stack-manipulation
 tests/system
 tests/argv
+tests/macro-with-no-end-error
+tests/macros
