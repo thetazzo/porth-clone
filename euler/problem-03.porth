@@ -10,5 +10,4 @@ Number 2 while over 1 > do
     else 
         1 +
     end
-end
-print
+end print drop

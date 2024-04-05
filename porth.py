@@ -638,10 +638,13 @@ def type_check_program(program: Program):
                     exit(1)
                 a_typ, a_pos = stack.pop()
                 b_typ, b_pos = stack.pop()
-                if a_typ == DataType.INT and b_typ == DataType.INT:
+
+                if a_typ == b_typ and a_typ == DataType.INT:
                     stack.append((DataType.INT, op.token))
+                elif a_typ == b_typ and a_typ == DataType.BOOL:
+                    stack.append((DataType.BOOL, op.token))
                 else:
-                    compiler_error_(op.token, "Invalid argument types for BOR intrinsic. Expected INT")
+                    compiler_error_(op.token, "Invalid argument types for BOR intrinsic: %s" % [a_typ, b_typ])
                     exit(1)
             elif op.operand == Intrinsic.BAND:
                 if len(stack) < 2:

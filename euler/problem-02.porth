@@ -9,5 +9,5 @@ macro acc mem end
         over acc ,64 + acc swap .64
     end
     swap over +
-end
+end 2drop
 acc ,64 print
