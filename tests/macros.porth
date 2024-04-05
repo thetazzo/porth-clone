@@ -9,7 +9,7 @@ end
 
 macro even_fibs
     // 0 1 
-    0 1 while over 20000000001 < do
+    0 1 while over 100000 < do
         over 2 mod 0 = if
             over print
         end

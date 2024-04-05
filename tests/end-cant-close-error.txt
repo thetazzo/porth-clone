@@ -1,0 +1,9 @@
+:i argc 0
+:b stdin 0
+
+:i returncode 1
+:b stdout 0
+
+:b stderr 96
+./tests/end-cant-close-error.porth:1:1: ERROR: `end` can only close `if`, `else` or `do` blocks
+

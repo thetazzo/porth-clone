@@ -7,9 +7,9 @@ argv 8 +
 // substract 1 from argc because we skip the first argument in argv
 argc 1 -
 while dup 0 > do
-    over ,64 dup strlen swap
+    over ,64 dup cast(ptr) strlen swap
     stdout write drop
     "\n" stdout write drop
     1 - swap
     8 + swap
-end
+end drop drop
