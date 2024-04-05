@@ -39,8 +39,8 @@ class Intrinsic(IntEnum):
     NE=auto()
     SHR=auto()
     SHL=auto()
-    BOR=auto()
-    BAND=auto()
+    OR=auto()
+    AND=auto()
     PRINT=auto()
     DUP=auto()
     SWAP=auto()
@@ -267,12 +267,12 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 b = stack.pop()
                 stack.append(int(b << a))
                 ip += 1
-            elif op.operand == Intrinsic.BOR:
+            elif op.operand == Intrinsic.OR:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(a | b))
                 ip += 1
-            elif op.operand == Intrinsic.BAND:
+            elif op.operand == Intrinsic.AND:
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(int(a & b))
@@ -632,7 +632,7 @@ def type_check_program(program: Program):
                 else:
                     compiler_error_(op.token, "Invalid argument types for SHL intrinsic. Expected INT")
                     exit(1)
-            elif op.operand == Intrinsic.BOR:
+            elif op.operand == Intrinsic.OR:
                 if len(stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
@@ -644,9 +644,9 @@ def type_check_program(program: Program):
                 elif a_typ == b_typ and a_typ == DataType.BOOL:
                     stack.append((DataType.BOOL, op.token))
                 else:
-                    compiler_error_(op.token, "Invalid argument types for BOR intrinsic: %s" % [a_typ, b_typ])
+                    compiler_error_(op.token, "Invalid argument types for OR intrinsic: %s" % [a_typ, b_typ])
                     exit(1)
-            elif op.operand == Intrinsic.BAND:
+            elif op.operand == Intrinsic.AND:
                 if len(stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
@@ -655,7 +655,7 @@ def type_check_program(program: Program):
                 if a_typ == DataType.INT and b_typ == DataType.INT:
                     stack.append((DataType.INT, op.token))
                 else:
-                    compiler_error_(op.token, "Invalid argument types for BAND intrinsic. Expected INT")
+                    compiler_error_(op.token, "Invalid argument types for AND intrinsic. Expected INT")
                     exit(1)
             elif op.operand == Intrinsic.PRINT:
                 if len(stack) < 1:
@@ -923,14 +923,14 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop rbx\n")
                     out.write("    shl rbx, cl\n")
                     out.write("    push rbx\n")
-                elif op.operand == Intrinsic.BOR:
-                    out.write(";;  -- bor --\n")
+                elif op.operand == Intrinsic.OR:
+                    out.write(";;  -- or --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rbx\n")
                     out.write("    or rbx, rax\n")
                     out.write("    push rbx\n")
-                elif op.operand == Intrinsic.BAND:
-                    out.write(";;  -- band --\n")
+                elif op.operand == Intrinsic.AND:
+                    out.write(";;  -- and --\n")
                     out.write("    pop rax\n")
                     out.write("    pop rbx\n")
                     out.write("    and rbx, rax\n")
@@ -1151,8 +1151,8 @@ INTRINSIC_BY_NAMES = {
     '!=': Intrinsic.NE,
     'shr': Intrinsic.SHR,
     'shl': Intrinsic.SHL,
-    'bor': Intrinsic.BOR,
-    'band': Intrinsic.BAND,
+    'or': Intrinsic.OR,
+    'and': Intrinsic.AND,
     'dup': Intrinsic.DUP,
     'swap': Intrinsic.SWAP,
     'drop': Intrinsic.DROP,
