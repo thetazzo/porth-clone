@@ -18,6 +18,7 @@ examples/hello-world
 examples/rule-110
 examples/seq420
 examples/name
+examples/cat
 tests/arithmetics
 tests/bitwise-operations
 tests/comments

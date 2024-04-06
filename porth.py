@@ -456,35 +456,46 @@ def type_check_program(program: Program):
             if len(stack) < 1:
                 print_missing_op_args(op)
                 exit(1)
-            a_typ, a_token = stack.pop()
-            if a_typ != DataType.BOOL:
-                compiler_error_(op.token, "invalid agrument for the IF-block condition. Expected BOOL.")
+            a_type, a_token = stack.pop()
+            if a_type != DataType.BOOL:
+                compiler_error_(op.token, "Invalid argument for the if-block condition. Expected BOOL.")
                 exit(1)
-            block_stack.append((stack.copy(), op.typ))
+            block_stack.append((copy(stack), op.typ))
         elif op.typ == OpType.END:
-            expected_stack, block_typ = block_stack.pop()
-            expected_types=list(map(lambda x: x[0], expected_stack))
-            actual_types=list(map(lambda x: x[0], stack))
-            if block_typ == OpType.IF:
-                if  expected_types != actual_types:
-                    compiler_error_(op.token, "else-less if block is not allowed to alter the types of the arguments on the data stack.")
-                    compiler_note_(op.token, "Expected types: %s" % expected_types)
-                    compiler_note_(op.token, "Actual types: %s" % actual_types)
+            block_snapshot, block_type = block_stack.pop()
+            assert len(OpType) == 8, "Exhaustive handling of op types"
+            if block_type == OpType.IF:
+                expected_types = list(map(lambda x: x[0], block_snapshot))
+                actual_types = list(map(lambda x: x[0], stack))
+                if expected_types != actual_types:
+                    compiler_error_(op.token, 'else-less if block is not allowed to alter the types of the arguments on the data stack')
+                    compiler_note_(op.token.loc, 'Expected types: %s' % expected_types)
+                    compiler_note_(op.token.loc, 'Actual types: %s' % actual_types)
                     exit(1)
-            elif block_typ == OpType.ELSE:
-                if  expected_types != actual_types:
-                    compiler_error_(op.token, "both branches of the if block must produce the same types of the arguments on the data stack.")
-                    compiler_note_(op.token, "Expected types: %s" % expected_types)
-                    compiler_note_(op.token, "Actual types: %s" % actual_types)
+            elif block_type == OpType.ELSE:
+                expected_types = list(map(lambda x: x[0], block_snapshot))
+                actual_types = list(map(lambda x: x[0], stack))
+                if expected_types != actual_types:
+                    compiler_error_(op.token, 'both branches of the if-block must produce the same types of the arguments on the data stack')
+                    compiler_note_(op.token.loc, 'Expected types: %s' % expected_types)
+                    compiler_note_(op.token.loc, 'Actual types: %s' % actual_types)
                     exit(1)
-            elif block_typ == OpType.DO:
-                if  expected_types != actual_types:
-                    compiler_error_(op.token, "while-do condition is not allowed to alter the types of the arguments on the data stack")
-                    compiler_note_(op.token, "Expected types: %s" % expected_types)
-                    compiler_note_(op.token, "Actual types: %s" % actual_types)
+            elif block_type == OpType.DO:
+                while_snapshot, while_type = block_stack.pop()
+                assert while_type == OpType.WHILE
+
+                expected_types = list(map(lambda x: x[0], while_snapshot))
+                actual_types = list(map(lambda x: x[0], stack))
+
+                if expected_types != actual_types:
+                    compiler_error_(op.token, 'while-do body is not allowed to alter the types of the arguments on the data stack')
+                    compiler_note_(op.token.loc, 'Expected types: %s' % expected_types)
+                    compiler_note_(op.token.loc, 'Actual types: %s' % actual_types)
                     exit(1)
+
+                stack = block_snapshot
             else:
-                assert False, "unreachable"
+                assert "unreachable"
         elif op.typ == OpType.ELSE:
             stack_snapshot, block_typ = block_stack.pop()
             assert block_typ == OpType.IF, "I smell a bug somwhere"
@@ -499,15 +510,6 @@ def type_check_program(program: Program):
             a_typ, a_token = stack.pop()
             if a_typ != DataType.BOOL:
                 compiler_error_(op.token, "invalid agrument for the WHILE-DO condition. Expected BOOL.")
-                exit(1)
-            expected_stack, block_typ = block_stack.pop()
-            assert block_typ == OpType.WHILE, "I smell a bug in the compileation step"
-            expected_types=list(map(lambda x: x[0], expected_stack))
-            actual_types=list(map(lambda x: x[0], stack))
-            if  expected_types != actual_types:
-                compiler_error_(op.token, "while-do condition is not allowed to alter the types of the arguments on the data stack")
-                compiler_note_(op.token, "Expected types: %s" % expected_types)
-                compiler_note_(op.token, "Actual types: %s" % actual_types)
                 exit(1)
             block_stack.append((stack.copy(), op.typ))
         elif op.typ == OpType.INTRINSIC:
