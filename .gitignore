@@ -33,3 +33,5 @@ tests/system
 tests/argv
 tests/macro-with-no-end-error
 tests/macros
+tests/else-less-if
+tests/if-else
