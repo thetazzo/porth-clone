@@ -19,6 +19,8 @@ examples/rule-110
 examples/seq420
 examples/name
 examples/cat
+examples/gol
+examples/reverse-linked-list
 tests/arithmetics
 tests/bitwise-operations
 tests/comments
