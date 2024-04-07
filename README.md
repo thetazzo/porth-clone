@@ -269,6 +269,14 @@ end
 include "std.porth"
 ```
 
+### Misc
+
+* `here` - a string `"<file-path>:<row>:<col>"` is pushed onto the stack. Where `<file-path>` is the path to the file where `here` is located, `<row>` is the row on which `here` is located and `col` is the colum on which `here` is starts. Useful for reporting developer errors
+```pascal
+include "std.porth"
+
+here puts ": TODO: not impmeneted\n" puts 1 exit
+
 ---
 
 ## References
