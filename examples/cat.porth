@@ -20,9 +20,9 @@ else
     O_RDONLY over nth_argv AT_FDCWD openat
     
     dup 0 < if
-      "ERROR: could not open file " stderr write drop
-      over nth_argv dup strlen swap stderr write drop
-      "\n" stderr write drop
+      "ERROR: could not open file " eputs
+      over nth_argv dup strlen swap eputs
+      "\n" eputs
       drop
     else
       fd swap .64

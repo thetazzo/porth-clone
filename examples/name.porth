@@ -8,7 +8,7 @@ macro name mem end
 NAME_CAP name stdin read
 
 dup 0 <= if
-    "ERROR: could not read your name\n" stderr write drop
+    "ERROR: could not read your name\n" eputs
     1 exit
 end 
 
