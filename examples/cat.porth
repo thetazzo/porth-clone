@@ -8,7 +8,7 @@ macro buffer fd 8 + end
 
 macro cat_fd
   while BUFFER_CAP buffer fd ,64 read dup 0 > do
-     buffer stdout write drop
+     buffer puts
   end drop
 end
 

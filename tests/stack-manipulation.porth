@@ -4,24 +4,24 @@ include "std.porth"
 420 69 42 100 69420
 print print print print print
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 
 // push str
-"Hello, World\n" stdout write drop // ascii
-"Hello, \"World\"\n" stdout write drop // string with double quotes
+"Hello, World\n" puts // ascii
+"Hello, \"World\"\n" puts // string with double quotes
 // multiline string
 "
 muli
 freakin
 line
 str
-" stdout write drop
+" puts
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 // Characters
 'F' print
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 
 // dup
 69 dup
@@ -29,13 +29,13 @@ print print
 420 dup
 print print
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 
 // 2dup
 69 420 2dup
 print print print print
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 
 // swap
 69 420 2dup
@@ -43,13 +43,13 @@ print print
 swap
 print print
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 
 // drop
 13 69 103 420 42
 drop print drop print drop
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 
 // over
 69 420 over print drop drop

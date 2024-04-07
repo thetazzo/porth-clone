@@ -1,6 +1,6 @@
 include "std.porth"
 
-"Dead Test, Remove It Or Fix It" stdout write drop
+"Dead Test, Remove It Or Fix It" puts 
 //mem dup 72  .
 //1 + dup 101 .
 //1 + dup 108 .

@@ -4,33 +4,33 @@ include "std.porth"
 69 420  = print
 69 69   = print
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 
 // Greater than
 420 69  > print
 69 420  > print
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 
 // Less than
 420 69  < print
 69 420  < print
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 
 // Greater or Equals
 420 69 >= print
 69 420 >= print
 69 69  >= print
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 
 // Less or Equals
 420 69 <= print
 69 420 <= print
 69 69  <= print
 
-"------------------------------\n" stdout write drop
+"------------------------------\n" puts
 
 // Not Equals
 69 69  != print

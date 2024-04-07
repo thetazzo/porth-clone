@@ -1,7 +1,7 @@
 include "std.porth"
 
 macro NAME_CAP 256 end
-"What is your name?\n" stdout write drop
+"What is your name?\n" puts
 
 macro name mem end
 
@@ -17,6 +17,6 @@ name over + 1 - , '\n' = if
     1 -
 end
 
-"Hello " stdout write drop
-name stdout write drop
+"Hello " puts
+name puts
 
