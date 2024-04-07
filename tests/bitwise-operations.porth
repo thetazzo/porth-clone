@@ -18,3 +18,11 @@ include "std.porth"
 // bit and
 1 2 and print
 
+"------------------------------\n" stdout write drop
+
+// not 
+
+0 not 1 + print 
+
+// TODO: `print` intrinsics cannot print negeative numbers in compilation
+// 69420 not print
