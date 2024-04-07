@@ -11,12 +11,17 @@ from dataclasses import dataclass
 from copy import copy
 import traceback
 
+PORTH_EXT = ".porth" 
+DEFAULT_EXPANSION_LIMIT=1000
+EXPANSION_DIAGNOSTIC_LIMIT=10
+MEM_CAPACITY = 640_000
+SIM_NULL_POINTER_PADDING = 1 # a bit of padding at the begginig of the memory to make 0 an invalid address
+SIM_STR_CAPACITY = 640_000
+SIM_ARGV_CAPACITY = 640_000
+
 debug=False
 
 Loc=Tuple[str, int, int]
-
-DEFAULT_EXPANSION_LIMIT=1000
-EXPANSION_DIAGNOSTIC_LIMIT=10
 
 class Keyword(Enum):
     IF=auto()
@@ -100,12 +105,6 @@ class Op:
 
 Program=List[Op]
 
-
-NULL_POINTER_PADDING = 1 # a bit of padding at the begginig of the memory to make 0 an invalid address
-STR_CAPACITY = 640_000
-MEM_CAPACITY = 640_000
-ARGV_CAPACITY = 640_000
-
 def get_cstr_from_mem(mem: bytearray, ptr: int) -> bytes:
     end = ptr
     while mem[end] != 0:
@@ -144,16 +143,16 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
     ENOENT=2
 
     stack: List[int] = []
-    mem = bytearray(NULL_POINTER_PADDING + STR_CAPACITY + ARGV_CAPACITY + MEM_CAPACITY)
+    mem = bytearray(SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY + MEM_CAPACITY)
 
-    str_buf_ptr  = NULL_POINTER_PADDING
+    str_buf_ptr  = SIM_NULL_POINTER_PADDING
     str_ptrs: Dict[int, int] = {}
     str_size = 0
 
-    argv_buf_ptr = NULL_POINTER_PADDING + STR_CAPACITY
+    argv_buf_ptr = SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY
     argc = 0
 
-    mem_buf_ptr  = NULL_POINTER_PADDING + STR_CAPACITY + ARGV_CAPACITY
+    mem_buf_ptr  = SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY
 
     fds: List[BinaryIO] = [sys.stdin.buffer, sys.stdout.buffer, sys.stderr.buffer]
 
@@ -165,12 +164,12 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
         mem[arg_ptr:arg_ptr+n] = value
         mem[arg_ptr+n] = 0
         str_size += n + 1
-        assert str_size <= STR_CAPACITY, "String buffer overflow"
+        assert str_size <= SIM_STR_CAPACITY, "String buffer overflow"
 
         argv_ptr = argv_buf_ptr+argc*8
         mem[argv_ptr:argv_ptr+8] = arg_ptr.to_bytes(8, byteorder='little')
         argc += 1
-        assert argc*8 <= ARGV_CAPACITY, "Argv buffer, overflow"
+        assert argc*8 <= SIM_ARGV_CAPACITY, "Argv buffer, overflow"
 
     ip = 0
     while ip < len(program):
@@ -191,7 +190,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                     str_ptrs[ip] = str_ptr
                     mem[str_ptr:str_ptr+n] = value
                     str_size += n
-                    assert str_size <= STR_CAPACITY, "String buffer overflow"
+                    assert str_size <= SIM_STR_CAPACITY, "String buffer overflow"
                 stack.append(str_ptrs[ip])
                 ip += 1
             elif op.typ == OpType.IF:
@@ -1590,18 +1589,16 @@ if __name__ == '__main__' and '__file__' in globals():
         if output_path is not None:
             if path.isdir(output_path):
                 basename = path.basename(program_path)
-                porth_ext = '.porth'
-                if basename.endswith(porth_ext):
-                    basename = basename[:-len(porth_ext)]
+                if basename.endswith(PORTH_EXT):
+                    basename = basename[:-len(PORTH_EXT)]
                 basedir = path.dirname(output_path)
             else:
                 basename = path.basename(output_path)
                 basedir = path.dirname(output_path)
         else:
             basename = path.basename(program_path)
-            porth_ext = '.porth'
-            if basename.endswith(porth_ext):
-                basename = basename[:-len(porth_ext)]
+            if basename.endswith(PORTH_EXT):
+                basename = basename[:-len(PORTH_EXT)]
             basedir = path.dirname(program_path)
 
         # if basedir is empty we should "fix" the path appending the current working directory.
