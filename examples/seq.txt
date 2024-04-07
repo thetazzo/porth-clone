@@ -1,0 +1,10 @@
+:i argc 0
+:b stdin 2
+69
+:i returncode 1
+:b stdout 0
+
+:b stderr 47
+Usage: seq <limit>
+ERROR: no limit is provided
+
