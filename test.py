@@ -117,6 +117,7 @@ def run_test_for_file(file_path: str) -> Tuple[bool, bool]:
 def run_test_for_folder(folder: str):
     sim_failed = 0
     com_failed = 0
+    test_count = 0
     for entry in os.scandir(folder):
         if entry.is_file() and entry.path.endswith(PORTH_EXT):
             sim_ok, com_ok = run_test_for_file(entry.path)
@@ -124,7 +125,9 @@ def run_test_for_folder(folder: str):
                 sim_failed += 1
             if not com_ok:
                 com_failed += 1
+            test_count += 1
     print()
+    print("Executed %d tests" % test_count) 
     print("Simulation failed: %d, Compilation failed: %d" % (sim_failed, com_failed))
     if sim_failed != 0 or com_failed != 0:
         exit(1)

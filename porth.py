@@ -686,6 +686,8 @@ def type_check_program(program: Program):
                 b_typ, b_pos = stack.pop()
                 if a_typ == DataType.INT and b_typ == DataType.INT:
                     stack.append((DataType.INT, op.token))
+                elif a_typ == DataType.BOOL and b_typ == DataType.BOOL:
+                    stack.append((DataType.BOOL, op.token))
                 else:
                     compiler_error_with_expansion_stack(op.token, "Invalid argument types for AND intrinsic. Expected INT")
                     exit(1)
