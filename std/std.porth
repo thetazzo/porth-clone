@@ -1,3 +1,7 @@
+macro NULL 0 end
+
+macro true 0 0 = end
+macro false 0 0 != end
 
 // Standard streams
 macro stdin  0 end
@@ -5,23 +9,30 @@ macro stdout 1 end
 macro stderr 2 end
 
 // Syscalls
-macro SYS_read         0   end 
-macro SYS_write        1   end 
-macro SYS_open         2   end 
-macro SYS_close        3   end 
-macro SYS_exit         60  end
-macro SYS_openat       257 end
-macro SYS_kcpm         312 end
-macro SYS_finit_module 313 end
+macro SYS_read            0   end 
+macro SYS_write           1   end 
+macro SYS_open            2   end 
+macro SYS_close           3   end 
+macro SYS_exit            60  end
+macro SYS_clock_nanosleep 230 end
+macro SYS_openat          257 end
+macro SYS_kcpm            312 end
+macro SYS_finit_module    313 end
 
 macro AT_FDCWD -100 end
+
 macro O_RDONLY 0 end
 
-macro write  SYS_write  syscall3 end
-macro read   SYS_read   syscall3 end
-macro openat SYS_openat syscall3 end
-macro close  SYS_close  syscall1 end
-macro exit   SYS_exit   syscall1 drop end
+macro CLOCK_MONOTONIC 1 end
+macro TIMER_ABSTIME   1 end
+
+// wrappers for syscalls
+macro write  SYS_write                    syscall3 end
+macro read   SYS_read                     syscall3 end
+macro openat SYS_openat                   syscall3 end
+macro close  SYS_close                    syscall1 end
+macro exit   SYS_exit                     syscall1 drop end
+macro clock_nanosleep SYS_clock_nanosleep syscall4 end
 
 macro / divmod drop end
 macro % divmod swap drop end
