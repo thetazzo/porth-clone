@@ -104,15 +104,6 @@ a = pop()
 push(a)
 push(a)
 ```
-* `2dup` - duplicate top two elements on the stack 
-```
-a = pop()
-b = pop()
-push(a)
-push(a)
-push(b)
-push(b)
-```
 * `swap` - swaps top 2 elements on the stack
 ```
 a = pop();
@@ -132,10 +123,20 @@ push(b)
 ```
 pop()
 ```
-* `dump` - print the element on top of the stack to *stdout* and remove it form the stack
+* `print` - print the element on top of the stack to *stdout* and remove it form the stack
 ```
 a = pop()
 print(a)
+```
+
+* `rot` - rotate top 3 elements on the stack
+```
+a = pop()
+b = pop()
+c = pop()
+push(b)
+push(a)
+push(c)
 ```
 
 #### Comparison
