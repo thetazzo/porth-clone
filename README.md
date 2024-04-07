@@ -6,10 +6,21 @@
 
 ### Example
 
+* Hello World
 ```pascal
 include "std.porth"
 
-"Hello World!\n" write
+"Hello World!\n" puts
+```
+
+* A program that prints numbers from 0 to 69
+```pascal
+include "std.porth"
+
+69 0 while 2dup >= do
+    dup print
+    1 +
+end 2drop
 ```
 
 ### Compilation
