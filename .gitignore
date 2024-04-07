@@ -25,7 +25,6 @@ tests/arithmetics
 tests/bitwise-operations
 tests/comments
 tests/comparison
-tests/control-flow
 tests/dead-recursive-macro
 tests/memory
 tests/stack-manipulation
