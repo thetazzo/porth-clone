@@ -5,8 +5,8 @@ import os
 from os import path
 import subprocess
 import shlex
-from typing import List, BinaryIO, Tuple, Optional
-from dataclasses import dataclass, field
+from typing import List, BinaryIO, Tuple
+from dataclasses import dataclass
 
 PORTH_EXT = '.porth'
 
@@ -47,9 +47,7 @@ class TestCase:
     stdout: bytes
     stderr: bytes
 
-DEFAULT_TEST_CASE=TestCase(argv=[], stdin=bytes(), returncode=0, stdout=bytes(), stderr=bytes())
-
-def load_test_case(file_path: str) -> Optional[TestCase]:
+def load_test_case(file_path: str) -> TestCase:
     try:
         with open(file_path, "rb") as f:
             argv = []
@@ -62,7 +60,7 @@ def load_test_case(file_path: str) -> Optional[TestCase]:
             stderr = read_blob_field(f, b'stderr')
             return TestCase(argv, stdin, returncode, stdout, stderr)
     except FileNotFoundError:
-        return None
+        return TestCase(argv=[], stdin=bytes(), returncode=0, stdout=bytes(), stderr=bytes())
 
 def save_test_case(file_path: str,
                    argv: List[str], stdin: bytes,
@@ -76,13 +74,8 @@ def save_test_case(file_path: str,
         write_blob_field(f, b'stdout', stdout)
         write_blob_field(f, b'stderr', stderr)
 
-@dataclass
-class RunStats:
-    failed: int = 0
-    ignored: int = 0
-    failed_files: List[str] = field(default_factory=list)
+def run_test_for_file(file_path: str) -> Tuple[bool, bool]:
 
-def run_test_for_file(file_path: str, stats: RunStats = RunStats()):
     assert path.isfile(file_path)
     assert file_path.endswith(PORTH_EXT)
 
@@ -91,53 +84,55 @@ def run_test_for_file(file_path: str, stats: RunStats = RunStats()):
     tc_path = file_path[:-len(PORTH_EXT)] + ".txt"
     tc = load_test_case(tc_path)
 
-    error = False
+    sim = cmd_run_echoed([sys.executable, "./porth.py", "sim", file_path, *tc.argv], input=tc.stdin, capture_output=True)
+    sim_ok = True
+    if sim.returncode != tc.returncode or sim.stdout != tc.stdout or sim.stderr != tc.stderr:
+        sim_ok = False
+        print("[ERROR] Unexpected simulation output")
+        print("  Expected:")
+        print("    return code: %s" % tc.returncode)
+        print("    stdout: \n%s" % tc.stdout.decode("utf-8"))
+        print("    stderr: \n%s" % tc.stderr.decode("utf-8"))
+        print("  Actual:")
+        print("    return code: %s" % sim.returncode)
+        print("    stdout: \n%s" % sim.stdout.decode("utf-8"))
+        print("    stderr: \n%s" % sim.stderr.decode("utf-8"))
 
-    if tc is not None:
-        # TODO: do something about fasm splash output
-        com = cmd_run_echoed(["./porth.py", "com", "-r", "-s", file_path, *tc.argv], input=tc.stdin, capture_output=True)
-        if com.returncode != tc.returncode or com.stdout != tc.stdout or com.stderr != tc.stderr:
-            print("[ERROR] Unexpected output")
-            print("  Expected:")
-            print("    return code: %s" % tc.returncode)
-            print("    stdout: \n%s" % tc.stdout.decode("utf-8"))
-            print("    stderr: \n%s" % tc.stderr.decode("utf-8"))
-            print("  Actual:")
-            print("    return code: %s" % com.returncode)
-            print("    stdout: \n%s" % com.stdout.decode("utf-8"))
-            print("    stderr: \n%s" % com.stderr.decode("utf-8"))
-            error = True
-            stats.failed += 1
+    com = cmd_run_echoed([sys.executable, "./porth.py", "com", "-r", "-s", file_path, *tc.argv], input=tc.stdin, capture_output=True)
+    com_ok = True
+    if com.returncode != tc.returncode or com.stdout != tc.stdout or com.stderr != tc.stderr:
+        com_ok = False
+        print("[ERROR] Unexpected compilation output")
+        print("  Expected:")
+        print("    return code: %s" % tc.returncode)
+        print("    stdout: \n%s" % tc.stdout.decode("utf-8"))
+        print("    stderr: \n%s" % tc.stderr.decode("utf-8"))
+        print("  Actual:")
+        print("    return code: %s" % com.returncode)
+        print("    stdout: \n%s" % com.stdout.decode("utf-8"))
+        print("    stderr: \n%s" % com.stderr.decode("utf-8"))
 
-    else:
-        print('[WARNING] Could not find any input/output data for %s. Ignoring testing. Only checking if it compiles.' % file_path)
-        com = cmd_run_echoed(["./porth.py", "com", file_path])
-        if com.returncode != 0:
-            error = True
-            stats.failed += 1
-        stats.ignored += 1
-
-    if error:
-        stats.failed_files.append(file_path)
+    return (sim_ok, com_ok)
 
 def run_test_for_folder(folder: str):
-    stats = RunStats()
+    sim_failed = 0
+    com_failed = 0
     for entry in os.scandir(folder):
         if entry.is_file() and entry.path.endswith(PORTH_EXT):
-            run_test_for_file(entry.path, stats)
+            sim_ok, com_ok = run_test_for_file(entry.path)
+            if not sim_ok:
+                sim_failed += 1
+            if not com_ok:
+                com_failed += 1
     print()
-    print("Failed: %d, Ignored: %d" % (stats.failed, stats.ignored))
-    if stats.failed != 0:
-        print("Failed files:")
-        print()
-        for failed_file in stats.failed_files:
-            print(f"{failed_file}")
+    print("Simulation failed: %d, Compilation failed: %d" % (sim_failed, com_failed))
+    if sim_failed != 0 or com_failed != 0:
         exit(1)
 
 def update_input_for_file(file_path: str, argv: List[str]):
     assert file_path.endswith(PORTH_EXT)
     tc_path = file_path[:-len(PORTH_EXT)] + ".txt"
-    tc = load_test_case(tc_path) or DEFAULT_TEST_CASE
+    tc = load_test_case(tc_path)
 
     print("[INFO] Provide the stdin for the test case. Press ^D when you are done...")
 
@@ -150,9 +145,9 @@ def update_input_for_file(file_path: str, argv: List[str]):
 
 def update_output_for_file(file_path: str):
     tc_path = file_path[:-len(PORTH_EXT)] + ".txt"
-    tc = load_test_case(tc_path) or DEFAULT_TEST_CASE
+    tc = load_test_case(tc_path)
 
-    output = cmd_run_echoed(["./porth.py", "com", "-s", "-r", file_path, *tc.argv], input=tc.stdin, capture_output=True)
+    output = cmd_run_echoed([sys.executable, "./porth.py", "sim", file_path, *tc.argv], input=tc.stdin, capture_output=True)
     print("[INFO] Saving output to %s" % tc_path)
     save_test_case(tc_path,
                    tc.argv, tc.stdin,
@@ -186,14 +181,11 @@ def usage(exe_name: str):
     print("          file or folder with *.porth files. The default [TARGET] is")
     print("          './tests/'")
     print()
-    print("    full (synonyms: all)")
-    print("      Test and type check everything. (Should be run on CI)")
-    print()
     print("    help")
     print("      Print this message to stdout and exit with 0 code.")
 
+# TODO: support several test cases per single program
 if __name__ == '__main__':
-    # TODO: test.py should create ./porth native executable if does not exist yet
     exe_name, *argv = sys.argv
 
     subcommand = "run"
@@ -240,13 +232,7 @@ if __name__ == '__main__':
         elif path.isfile(target):
             run_test_for_file(target)
         else:
-            # TODO: `./test.py run non-existing-file` fails with 'unreachable'
             assert False, 'unreachable'
-    elif subcommand == 'full' or subcommand == 'all':
-        cmd_run_echoed(['mypy', './test.py'])
-        run_test_for_folder('./tests/')
-        run_test_for_folder('./examples/')
-        run_test_for_folder('./euler/')
     elif subcommand == 'help':
         usage(exe_name)
     else:

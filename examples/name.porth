@@ -10,7 +10,7 @@ NAME_CAP name stdin read
 dup 0 <= if
     "ERROR: could not read your name\n" stderr write drop
     1 exit
-end
+end 
 
 // remove the last new line
 name over + 1 - , '\n' = if

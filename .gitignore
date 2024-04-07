@@ -18,11 +18,13 @@ examples/hello-world
 examples/rule-110
 examples/seq420
 examples/name
+examples/cat
+examples/gol
+examples/reverse-linked-list
 tests/arithmetics
 tests/bitwise-operations
 tests/comments
 tests/comparison
-tests/control-flow
 tests/dead-recursive-macro
 tests/memory
 tests/stack-manipulation
@@ -30,3 +32,5 @@ tests/system
 tests/argv
 tests/macro-with-no-end-error
 tests/macros
+tests/else-less-if
+tests/if-else

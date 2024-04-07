@@ -9,6 +9,7 @@ from typing import *
 from enum import IntEnum, Enum, auto
 from dataclasses import dataclass
 from copy import copy
+import traceback
 
 debug=False
 
@@ -105,6 +106,12 @@ STR_CAPACITY = 640_000
 MEM_CAPACITY = 640_000
 ARGV_CAPACITY = 640_000
 
+def get_cstr_from_mem(mem: bytearray, ptr: int) -> bytes:
+    end = ptr
+    while mem[end] != 0:
+        end += 1
+    return mem[ptr:end]
+
 def compiler_diagnostic(place: Union[Loc, Token], tag: str, message: str):
     if isinstance(place, Token):
         print("%s:%d:%d: %s: %s" % (place.loc + (tag, message)), file=sys.stderr)
@@ -128,6 +135,10 @@ def compiler_note_(place: Union[Token, Loc], message: str):
     compiler_diagnostic(place, "NOTE", message)
 
 def simulate_little_endian_linux(program: Program, argv: List[str]):
+    AT_FDCWD=-100
+    O_RDONLY=0
+    ENOENT=2
+
     stack: List[int] = []
     mem = bytearray(NULL_POINTER_PADDING + STR_CAPACITY + ARGV_CAPACITY + MEM_CAPACITY)
 
@@ -140,260 +151,276 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
 
     mem_buf_ptr  = NULL_POINTER_PADDING + STR_CAPACITY + ARGV_CAPACITY
 
-    fds: Dict[int, BinaryIO] = {
-        0: sys.stdin.buffer,
-        1: sys.stdout.buffer,
-        2: sys.stderr.buffer,
-    }
+    fds: List[BinaryIO] = [sys.stdin.buffer, sys.stdout.buffer, sys.stderr.buffer]
 
     for arg in argv:
-        arg_value = arg.encode('utf-8')
-        n = len(arg_value)
+        value = arg.encode('utf-8')
+        n = len(value)
 
         arg_ptr = str_buf_ptr + str_size
-        mem[arg_ptr:arg_ptr+n] = arg_value
+        mem[arg_ptr:arg_ptr+n] = value
         mem[arg_ptr+n] = 0
         str_size += n + 1
         assert str_size <= STR_CAPACITY, "String buffer overflow"
-        
-        argv_ptr = argv_buf_ptr+argc*8 
-        mem[argv_ptr:argv_ptr+8] = arg_ptr.to_bytes(8, byteorder="little")
+
+        argv_ptr = argv_buf_ptr+argc*8
+        mem[argv_ptr:argv_ptr+8] = arg_ptr.to_bytes(8, byteorder='little')
         argc += 1
-        assert argc*8 <= ARGV_CAPACITY, "Argv buffer overflow"
+        assert argc*8 <= ARGV_CAPACITY, "Argv buffer, overflow"
 
     ip = 0
     while ip < len(program):
-        assert len(OpType) == 8, "Exhaustive op handling in simulate_little_endian_linux: %d" % len(OpType)
+        assert len(OpType) == 8, "Exhaustive op handling in simulate_little_endian_linux"
         op = program[ip]
-        if op.typ == OpType.PUSH_INT:
-            assert isinstance(op.operand, int), "There is a bug in the lexer (probably)"
-            stack.append(op.operand)
-            ip += 1
-        elif op.typ == OpType.PUSH_STR:
-            assert isinstance(op.operand, str), "There is a bug in the lexer (probably)"
-            bs = op.operand.encode('utf-8')
-            n = len(bs)
-            stack.append(n)
-            if ip not in str_ptrs:
-                str_ptr = str_buf_ptr+str_size
-                str_ptrs[ip] = str_ptr
-                mem[str_ptr:str_ptr+n] = bs
-                str_size += n
-                assert str_size <= STR_CAPACITY, "String buffer overflow"
-            stack.append(str_ptrs[ip])
-            ip += 1
-        elif op.typ == OpType.IF:
-            a = stack.pop()
-            if a == 0:
-                assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
-                ip = op.operand 
-            else:
+        try:
+            if op.typ == OpType.PUSH_INT:
+                assert isinstance(op.operand, int), "This could be a bug in the compilation step"
+                stack.append(op.operand)
                 ip += 1
-        elif op.typ == OpType.ELSE:
-            assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
-            ip = op.operand
-        elif op.typ == OpType.END:
-            assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
-            ip = op.operand
-        elif op.typ == OpType.WHILE:
-            ip += 1
-        elif op.typ == OpType.DO:
-            a = stack.pop()
-            if a == 0:
+            elif op.typ == OpType.PUSH_STR:
+                assert isinstance(op.operand, str), "This could be a bug in the compilation step"
+                value = op.operand.encode('utf-8')
+                n = len(value)
+                stack.append(n)
+                if ip not in str_ptrs:
+                    str_ptr = str_buf_ptr+str_size
+                    str_ptrs[ip] = str_ptr
+                    mem[str_ptr:str_ptr+n] = value
+                    str_size += n
+                    assert str_size <= STR_CAPACITY, "String buffer overflow"
+                stack.append(str_ptrs[ip])
+                ip += 1
+            elif op.typ == OpType.IF:
+                a = stack.pop()
+                if a == 0:
+                    assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+                    ip = op.operand
+                else:
+                    ip += 1
+            elif op.typ == OpType.ELSE:
                 assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
                 ip = op.operand
-            else:
+            elif op.typ == OpType.END:
+                assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+                ip = op.operand
+            elif op.typ == OpType.WHILE:
                 ip += 1
-        elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 34, "Exhaustive handling of intrinsic n simulate_little_endian_linux: %d" % len(Intrinsic)
-            if op.operand == Intrinsic.PLUS:
+            elif op.typ == OpType.DO:
                 a = stack.pop()
-                b = stack.pop()
-                stack.append(a + b)
-                ip += 1
-            elif op.operand == Intrinsic.MINUS:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(b - a)
-                ip += 1
-            elif op.operand == Intrinsic.MUL:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(a * b)
-                ip += 1
-            elif op.operand == Intrinsic.DIVMOD:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(b // a)
-                stack.append(b % a)
-                ip += 1
-            elif op.operand == Intrinsic.EQ:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(int(a == b))
-                ip += 1
-            elif op.operand == Intrinsic.GT:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(int(b > a))
-                ip += 1
-            elif op.operand == Intrinsic.LT:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(int(b < a))
-                ip += 1
-            elif op.operand == Intrinsic.GE:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(int(b >= a))
-                ip += 1
-            elif op.operand == Intrinsic.LE:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(int(b <= a))
-                ip += 1
-            elif op.operand == Intrinsic.NE:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(int(b != a))
-                ip += 1
-            elif op.operand == Intrinsic.SHR:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(int(b >> a))
-                ip += 1
-            elif op.operand == Intrinsic.SHL:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(int(b << a))
-                ip += 1
-            elif op.operand == Intrinsic.OR:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(int(a | b))
-                ip += 1
-            elif op.operand == Intrinsic.AND:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(int(a & b))
-                ip += 1
-            elif op.operand == Intrinsic.PRINT:
-                a = stack.pop()
-                print(a)
-                ip += 1
-            elif op.operand == Intrinsic.DUP:
-                a = stack.pop()
-                stack.append(a)
-                stack.append(a)
-                ip += 1
-            elif op.operand == Intrinsic.SWAP:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(a)
-                stack.append(b)
-                ip += 1
-            elif op.operand == Intrinsic.DROP:
-                stack.pop()
-                ip += 1
-            elif op.operand == Intrinsic.OVER:
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(b)
-                stack.append(a)
-                stack.append(b)
-                ip += 1
-            elif op.operand == Intrinsic.MEM:
-                stack.append(STR_CAPACITY)
-                ip += 1
-            elif op.operand == Intrinsic.LOAD:
-                addr = stack.pop()
-                byte = mem[addr]
-                stack.append(byte)
-                ip += 1
-            elif op.operand == Intrinsic.STORE:
-                store_value = stack.pop()
-                store_addr = stack.pop()
-                mem[store_addr] = store_value & 0xFF
-                ip += 1
-            elif op.operand == Intrinsic.LOAD64:
-                addr = stack.pop()
-                _bytes = bytearray(8)
-                for offset in range(0,8):
-                    _bytes[offset] = mem[addr + offset]
-                stack.append(int.from_bytes(_bytes, byteorder="little"))
-                ip += 1
-            elif op.operand == Intrinsic.STORE64:
-                value64 = stack.pop().to_bytes(length=8, byteorder="little")
-                addr64 = stack.pop()
-                for byte in value64:
-                    mem[addr64] = byte
-                    addr64 += 1
-                ip += 1
-            elif op.operand == Intrinsic.CAST_PTR:
-                ip += 1
-            elif op.operand == Intrinsic.ARGC:
-                stack.append(argc)
-                ip += 1
-            elif op.operand == Intrinsic.ARGV:
-                stack.append(argv_buf_ptr)
-                ip += 1
-            elif op.operand == Intrinsic.SYSCALL0:
-                syscall_number= stack.pop()
-                if syscall_number == 39:
-                    stack.append(os.getpid())
+                if a == 0:
+                    assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+                    ip = op.operand
                 else:
-                    assert False, "unknown syscall number %d" % syscall_number
-                ip += 1
-            elif op.operand == Intrinsic.SYSCALL1:
-                assert False, "not implemented"
-            elif op.operand == Intrinsic.SYSCALL2:
-                assert False, "not implemented"
-            elif op.operand == Intrinsic.SYSCALL3:
-                syscall_number = stack.pop()
-                arg1 = stack.pop()
-                arg2 = stack.pop()
-                arg3 = stack.pop()
-                if syscall_number == 0: # SYS_read
-                    fd = arg1
-                    buf = arg2
-                    count = arg3
-                    # NOTE: trying to behave like a POSIX tty in canonical mode by making the data available
-                    # on each newline
-                    # https://en.wikipedia.org/wiki/POSIX_terminal_interface#Canonical_mode_processing
-                    # TODO: maybe this behavior should be customizable
-                    data = fds[fd].readline(count)
-                    mem[buf:buf+len(data)] = data
-                    stack.append(len(data))
-                elif syscall_number == 1: # SYS_write
-                    fd = arg1
-                    buf = arg2
-                    count = arg3
-                    fds[fd].write(mem[buf:buf+count])
-                    fds[fd].flush()
-                    stack.append(count)
+                    ip += 1
+            elif op.typ == OpType.INTRINSIC:
+                assert len(Intrinsic) == 34, "Exhaustive handling of intrinsic in simulate_little_endian_linux()"
+                if op.operand == Intrinsic.PLUS:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(a + b)
+                    ip += 1
+                elif op.operand == Intrinsic.MINUS:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(b - a)
+                    ip += 1
+                elif op.operand == Intrinsic.MUL:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(b * a)
+                    ip += 1
+                elif op.operand == Intrinsic.DIVMOD:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(b // a)
+                    stack.append(b % a)
+                    ip += 1
+                elif op.operand == Intrinsic.EQ:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(int(a == b))
+                    ip += 1
+                elif op.operand == Intrinsic.GT:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(int(b > a))
+                    ip += 1
+                elif op.operand == Intrinsic.LT:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(int(b < a))
+                    ip += 1
+                elif op.operand == Intrinsic.GE:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(int(b >= a))
+                    ip += 1
+                elif op.operand == Intrinsic.LE:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(int(b <= a))
+                    ip += 1
+                elif op.operand == Intrinsic.NE:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(int(b != a))
+                    ip += 1
+                elif op.operand == Intrinsic.SHR:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(int(b >> a))
+                    ip += 1
+                elif op.operand == Intrinsic.SHL:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(int(b << a))
+                    ip += 1
+                elif op.operand == Intrinsic.OR:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(int(a | b))
+                    ip += 1
+                elif op.operand == Intrinsic.AND:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(int(a & b))
+                    ip += 1
+                elif op.operand == Intrinsic.PRINT:
+                    a = stack.pop()
+                    fds[1].write(b"%d\n" % a)
+                    fds[1].flush()
+                    ip += 1
+                elif op.operand == Intrinsic.DUP:
+                    a = stack.pop()
+                    stack.append(a)
+                    stack.append(a)
+                    ip += 1
+                elif op.operand == Intrinsic.SWAP:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(a)
+                    stack.append(b)
+                    ip += 1
+                elif op.operand == Intrinsic.DROP:
+                    stack.pop()
+                    ip += 1
+                elif op.operand == Intrinsic.OVER:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(b)
+                    stack.append(a)
+                    stack.append(b)
+                    ip += 1
+                elif op.operand == Intrinsic.MEM:
+                    stack.append(mem_buf_ptr)
+                    ip += 1
+                elif op.operand == Intrinsic.LOAD:
+                    addr = stack.pop()
+                    byte = mem[addr]
+                    stack.append(byte)
+                    ip += 1
+                elif op.operand == Intrinsic.STORE:
+                    store_value = stack.pop()
+                    store_addr = stack.pop()
+                    mem[store_addr] = store_value & 0xFF
+                    ip += 1
+                elif op.operand == Intrinsic.LOAD64:
+                    addr = stack.pop()
+                    _bytes = bytearray(8)
+                    for offset in range(0,8):
+                        _bytes[offset] = mem[addr + offset]
+                    stack.append(int.from_bytes(_bytes, byteorder="little"))
+                    ip += 1
+                elif op.operand == Intrinsic.STORE64:
+                    store_value = stack.pop()
+                    store_value64 = store_value.to_bytes(length=8, byteorder="little", signed=(store_value < 0));
+                    store_addr64 = stack.pop();
+                    for byte in store_value64:
+                        mem[store_addr64] = byte;
+                        store_addr64 += 1;
+                    ip += 1
+                elif op.operand == Intrinsic.ARGC:
+                    stack.append(argc)
+                    ip += 1
+                elif op.operand == Intrinsic.ARGV:
+                    stack.append(argv_buf_ptr)
+                    ip += 1
+                elif op.operand == Intrinsic.CAST_PTR:
+                    # Ignore the type casting. It's only useful for type_check_program() phase
+                    ip += 1
+                elif op.operand == Intrinsic.SYSCALL0:
+                    syscall_number = stack.pop();
+                    if syscall_number == 39: # SYS_getpid
+                        stack.append(os.getpid());
+                    else:
+                        assert False, "unknown syscall number %d" % syscall_number
+                    ip += 1
+                elif op.operand == Intrinsic.SYSCALL1:
+                    syscall_number = stack.pop()
+                    arg1 = stack.pop()
+                    if syscall_number == 60: # SYS_exit
+                        exit(arg1)
+                    elif syscall_number == 3: # SYS_close
+                        fds[arg1].close()
+                        stack.append(0)
+                    else:
+                        assert False, "unknown syscall number %d" % syscall_number
+                    ip += 1
+                elif op.operand == Intrinsic.SYSCALL2:
+                    assert False, "not implemented"
+                elif op.operand == Intrinsic.SYSCALL3:
+                    syscall_number = stack.pop()
+                    arg1 = stack.pop()
+                    arg2 = stack.pop()
+                    arg3 = stack.pop()
+                    if syscall_number == 0: # SYS_read
+                        fd = arg1
+                        buf = arg2
+                        count = arg3
+                        # https://en.wikipedia.org/wiki/POSIX_terminal_interface#Canonical_mode_processing
+                        data = fds[fd].readline(count)
+                        mem[buf:buf+len(data)] = data
+                        stack.append(len(data))
+                    elif syscall_number == 1: # SYS_write
+                        fd = arg1
+                        buf = arg2
+                        count = arg3
+                        fds[fd].write(mem[buf:buf+count])
+                        fds[fd].flush()
+                        stack.append(count)
+                    elif syscall_number == 257: # SYS_openat
+                        dirfd = arg1
+                        pathname_ptr = arg2
+                        flags = arg3
+                        if dirfd != AT_FDCWD:
+                            assert False, "openat: unsupported dirfd"
+                        if flags != O_RDONLY:
+                            assert False, "openat: unsupported flags"
+                        pathname = get_cstr_from_mem(mem, pathname_ptr).decode('utf-8')
+                        fd = len(fds)
+                        try:
+                            fds.append(open(pathname, 'rb'))
+                            stack.append(fd)
+                        except FileNotFoundError:
+                            stack.append(-ENOENT)
+                    else:
+                        assert False, "unknown syscall number %d" % syscall_number
+                    ip += 1
+                elif op.operand == Intrinsic.SYSCALL4:
+                    assert False, "not implemented"
+                elif op.operand == Intrinsic.SYSCALL5:
+                    assert False, "not implemented"
+                elif op.operand == Intrinsic.SYSCALL6:
+                    assert False, "not implemented"
                 else:
-                    assert False, "unknown syscall number %d" % syscall_number
-                ip += 1
-            elif op.operand == Intrinsic.SYSCALL4:
-                assert False, "not implemented"
-            elif op.operand == Intrinsic.SYSCALL5:
-                assert False, "not implemented"
-            elif op.operand == Intrinsic.SYSCALL6:
-                assert False, "not implemented"
+                    assert False, "unreachable"
             else:
                 assert False, "unreachable"
-            #intr_count[op.operand - 1] += 1
-            #intr_time[op.operand - 1] += time.time() - start
-        else:
-            assert False, "unreachable"
-        #op_count[op.typ-1] += 1
-        #op_time[op.typ- 1] += time.time() - start
+        except Exception as e:
+            compiler_error_(op.token, "Python Exception during simulation")
+            traceback.print_exception(type(e), e, e.__traceback__)
+            exit(1)
     if debug:
-        #for op_typ in OpType:
-        #    print(" %s -> %d times (%f secs)" % (op_typ.name, op_count[op_typ-1], op_time[op_typ-1]))
-        #    if op_typ == OpType.INTRINSIC:
-        #        for intr_typ in Intrinsic:
-        #            print("    %s -> %d times (%f secs)" % (intr_typ.name, intr_count[intr_typ-1], intr_time[intr_typ-1]))
         print("[INFO] Memory dump")
         print(mem[:20])
 
@@ -429,36 +456,46 @@ def type_check_program(program: Program):
             if len(stack) < 1:
                 print_missing_op_args(op)
                 exit(1)
-            a_typ, a_token = stack.pop()
-            if a_typ != DataType.BOOL:
-                compiler_error_(op.token, "invalid agrument for the IF-block condition. Expected BOOL.")
+            a_type, a_token = stack.pop()
+            if a_type != DataType.BOOL:
+                compiler_error_(op.token, "Invalid argument for the if-block condition. Expected BOOL.")
                 exit(1)
-            block_stack.append((stack.copy(), op.typ))
+            block_stack.append((copy(stack), op.typ))
         elif op.typ == OpType.END:
-            assert len(OpType) == 8, "Exhaustive op types: %d" % len(OpType)
-            expected_stack, block_typ = block_stack.pop()
-            expected_types=list(map(lambda x: x[0], expected_stack))
-            actual_types=list(map(lambda x: x[0], stack))
-            if block_typ == OpType.IF:
-                if  expected_types != actual_types:
-                    compiler_error_(op.token, "else-less if block is not allowed to alter the types of the arguments on the data stack.")
-                    compiler_note_(op.token, "Expected types: %s" % expected_types)
-                    compiler_note_(op.token, "Actual types: %s" % actual_types)
+            block_snapshot, block_type = block_stack.pop()
+            assert len(OpType) == 8, "Exhaustive handling of op types"
+            if block_type == OpType.IF:
+                expected_types = list(map(lambda x: x[0], block_snapshot))
+                actual_types = list(map(lambda x: x[0], stack))
+                if expected_types != actual_types:
+                    compiler_error_(op.token, 'else-less if block is not allowed to alter the types of the arguments on the data stack')
+                    compiler_note_(op.token.loc, 'Expected types: %s' % expected_types)
+                    compiler_note_(op.token.loc, 'Actual types: %s' % actual_types)
                     exit(1)
-            elif block_typ == OpType.ELSE:
-                if  expected_types != actual_types:
-                    compiler_error_(op.token, "both branches of the if block must produce the same types of the arguments on the data stack.")
-                    compiler_note_(op.token, "Expected types: %s" % expected_types)
-                    compiler_note_(op.token, "Actual types: %s" % actual_types)
+            elif block_type == OpType.ELSE:
+                expected_types = list(map(lambda x: x[0], block_snapshot))
+                actual_types = list(map(lambda x: x[0], stack))
+                if expected_types != actual_types:
+                    compiler_error_(op.token, 'both branches of the if-block must produce the same types of the arguments on the data stack')
+                    compiler_note_(op.token.loc, 'Expected types: %s' % expected_types)
+                    compiler_note_(op.token.loc, 'Actual types: %s' % actual_types)
                     exit(1)
-            elif block_typ == OpType.DO:
-                if  expected_types != actual_types:
-                    compiler_error_(op.token, "while-do condition is not allowed to alter the types of the arguments on the data stack")
-                    compiler_note_(op.token, "Expected types: %s" % expected_types)
-                    compiler_note_(op.token, "Actual types: %s" % actual_types)
+            elif block_type == OpType.DO:
+                while_snapshot, while_type = block_stack.pop()
+                assert while_type == OpType.WHILE
+
+                expected_types = list(map(lambda x: x[0], while_snapshot))
+                actual_types = list(map(lambda x: x[0], stack))
+
+                if expected_types != actual_types:
+                    compiler_error_(op.token, 'while-do body is not allowed to alter the types of the arguments on the data stack')
+                    compiler_note_(op.token.loc, 'Expected types: %s' % expected_types)
+                    compiler_note_(op.token.loc, 'Actual types: %s' % actual_types)
                     exit(1)
+
+                stack = block_snapshot
             else:
-                assert False, "unreachable"
+                assert "unreachable"
         elif op.typ == OpType.ELSE:
             stack_snapshot, block_typ = block_stack.pop()
             assert block_typ == OpType.IF, "I smell a bug somwhere"
@@ -473,15 +510,6 @@ def type_check_program(program: Program):
             a_typ, a_token = stack.pop()
             if a_typ != DataType.BOOL:
                 compiler_error_(op.token, "invalid agrument for the WHILE-DO condition. Expected BOOL.")
-                exit(1)
-            expected_stack, block_typ = block_stack.pop()
-            assert block_typ == OpType.WHILE, "I smell a bug in the compileation step"
-            expected_types=list(map(lambda x: x[0], expected_stack))
-            actual_types=list(map(lambda x: x[0], stack))
-            if  expected_types != actual_types:
-                compiler_error_(op.token, "while-do condition is not allowed to alter the types of the arguments on the data stack")
-                compiler_note_(op.token, "Expected types: %s" % expected_types)
-                compiler_note_(op.token, "Actual types: %s" % actual_types)
                 exit(1)
             block_stack.append((stack.copy(), op.typ))
         elif op.typ == OpType.INTRINSIC:
@@ -749,9 +777,11 @@ def type_check_program(program: Program):
             elif op.operand == Intrinsic.ARGV:
                 stack.append((DataType.PTR, op.token))
             elif op.operand == Intrinsic.SYSCALL0:
-                if len(stack) > 0:
-                    print("%s:%d:%d: ERROR: Too many arguments for the SYSCALL0 intrinsic" % op.token.loc, file=sys.stderr)
+                if len(stack) < 1:
+                    print_missing_op_args(op)
                     exit(1)
+                for i in range(1):
+                    stack.pop()
                 stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL1:
                 if len(stack) < 2:
@@ -759,6 +789,7 @@ def type_check_program(program: Program):
                     exit(1)
                 for i in range(2):
                     stack.pop()
+                stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL2:
                 if len(stack) < 3:
                     print_missing_op_args(op)

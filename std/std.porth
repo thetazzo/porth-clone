@@ -5,14 +5,23 @@ macro stdout 1 end
 macro stderr 2 end
 
 // Syscalls
-macro SYS_read  0  end 
-macro SYS_write 1  end 
-macro SYS_open  2  end 
-macro SYS_exit  60 end
+macro SYS_read         0   end 
+macro SYS_write        1   end 
+macro SYS_open         2   end 
+macro SYS_close        3   end 
+macro SYS_exit         60  end
+macro SYS_openat       257 end
+macro SYS_kcpm         312 end
+macro SYS_finit_module 313 end
 
-macro write SYS_write syscall3 end
-macro read  SYS_read  syscall3 end
-macro exit  SYS_exit  syscall1 end
+macro AT_FDCWD -100 end
+macro O_RDONLY 0 end
+
+macro write  SYS_write  syscall3 end
+macro read   SYS_read   syscall3 end
+macro openat SYS_openat syscall3 end
+macro close  SYS_close  syscall1 end
+macro exit   SYS_exit   syscall1 drop end
 
 macro / divmod drop end
 macro % divmod swap drop end
@@ -20,7 +29,7 @@ macro mod % end
 macro div / end
 
 macro nth_argv
-    8 + argv + ,64 cast(ptr)
+    8 * argv + ,64 cast(ptr)
 end
 
 // increments value a the pointer
