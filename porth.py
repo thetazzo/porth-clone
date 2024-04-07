@@ -61,6 +61,7 @@ class Intrinsic(IntEnum):
     CAST_PTR=auto()
     ARGC=auto()
     ARGV=auto()
+    HERE=auto()
     SYSCALL0=auto()
     SYSCALL1=auto()
     SYSCALL2=auto()
@@ -217,7 +218,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 else:
                     ip += 1
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 35, "Exhaustive handling of intrinsic in simulate_little_endian_linux()"
+                assert len(Intrinsic) == 36, "Exhaustive handling of intrinsic in simulate_little_endian_linux()"
                 if op.operand == Intrinsic.PLUS:
                     a = stack.pop()
                     b = stack.pop()
@@ -352,6 +353,18 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                     ip += 1
                 elif op.operand == Intrinsic.ARGV:
                     stack.append(argv_buf_ptr)
+                    ip += 1
+                elif op.operand == Intrinsic.HERE:
+                    value = ("%s:%d:%d" % op.token.loc).encode("utf-8")
+                    n = len(value)
+                    stack.append(n)
+                    if ip not in str_ptrs:
+                        str_ptr = str_buf_ptr+str_size
+                        str_ptrs[ip] = str_ptr
+                        mem[str_ptr:str_ptr+n] = value
+                        str_size += n
+                        assert str_size <= SIM_STR_CAPACITY, "String buffer overflow"
+                    stack.append(str_ptrs[ip])
                     ip += 1
                 elif op.operand == Intrinsic.CAST_PTR:
                     # Ignore the type casting. It's only useful for type_check_program() phase
@@ -521,7 +534,7 @@ def type_check_program(program: Program):
                 exit(1)
             block_stack.append((stack.copy(), op.typ))
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 35, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
+            assert len(Intrinsic) == 36, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
             assert isinstance(op.operand, Intrinsic), "There is a bug in compilation step (probably)"
             assert len(DataType) == 3, "Exhaustive type handling in for `%s` in type_check_program(): %d" % (INTRINSIC_NAMES[op.operand], len(DataType))
             if op.operand == Intrinsic.PLUS:
@@ -798,6 +811,9 @@ def type_check_program(program: Program):
                 stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.ARGV:
                 stack.append((DataType.PTR, op.token))
+            elif op.operand == Intrinsic.HERE:
+               stack.append((DataType.INT, op.token)) 
+               stack.append((DataType.PTR, op.token)) 
             elif op.operand == Intrinsic.SYSCALL0:
                 if len(stack) < 1:
                     print_missing_op_args(op)
@@ -855,7 +871,7 @@ def type_check_program(program: Program):
         exit(1)
 
 def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
-    strs: List[str] = []
+    strs: List[bytes] = []
     with open(out_file_path, "w") as out:
         out.write("BITS 64\n")
         out.write("segment .text\n")
@@ -912,7 +928,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 out.write("    mov rax, %d\n" % n)
                 out.write("    push rax\n")
                 out.write("    push str_%d\n" % len(strs))
-                strs.append(op.operand)
+                strs.append(value)
             elif op.typ == OpType.IF:
                 out.write(";;  -- if --\n")
                 out.write("    pop rax\n")
@@ -937,7 +953,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 assert isinstance(op.operand, int), "There is a bug in the compilation step (probably)"
                 out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 35, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
+                assert len(Intrinsic) == 36, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
                 if op.operand == Intrinsic.PLUS:
                     out.write(";;  -- plus --\n")
                     out.write("    pop rax\n")
@@ -1109,6 +1125,14 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    mov rax, [args_ptr]\n")
                     out.write("    add rax, 8\n")
                     out.write("    push rax\n") 
+                elif op.operand == Intrinsic.HERE:
+                    value = ("%s:%d:%d" % op.token.loc).encode("utf-8")
+                    n = len(value)
+                    out.write(";; -- here --\n")
+                    out.write("    mov rax, %d\n" % n)
+                    out.write("    push rax\n")
+                    out.write("    push str_%d\n" % len(strs))
+                    strs.append(value)
                 elif op.operand == Intrinsic.SYSCALL0:
                     out.write(";;  -- syscall0 --\n")
                     out.write("    pop rax\n")
@@ -1177,7 +1201,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
         out.write(";;  -- allocated data --\n")
         out.write("segment .data\n")               # segment for staticaly allocated elements
         for index, s in enumerate(strs):
-            out.write("str_%d: db %s\n" % (index, ','.join(map(hex, list(bytes(s, 'utf-8'))))))
+            out.write("str_%d: db %s\n" % (index, ','.join(map(hex, list(bytes(s))))))
         out.write(";;  -- not yet allocated data --\n")
         out.write("segment .bss\n")                # segment of statically allocated declared variables that have no value assigned to them yet
         out.write("args_ptr: resq 1\n")            # reserve space for arguments(argv)
@@ -1194,7 +1218,7 @@ KEYWORD_NAMES= {
     'include': Keyword.INCLUDE,
 }
 
-assert len(Intrinsic) == 35, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
+assert len(Intrinsic) == 36, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
 INTRINSIC_BY_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
@@ -1224,6 +1248,7 @@ INTRINSIC_BY_NAMES = {
     'cast(ptr)': Intrinsic.CAST_PTR,
     'argc': Intrinsic.ARGC,
     'argv': Intrinsic.ARGV,
+    'here': Intrinsic.HERE,
     'syscall0': Intrinsic.SYSCALL0,
     'syscall1': Intrinsic.SYSCALL1,
     'syscall2': Intrinsic.SYSCALL2,

@@ -62,6 +62,10 @@ macro strlen
     swap -
 end
 
+macro eputs
+    stderr write drop
+end
+
 macro puts
     stdout write drop
 end

@@ -1,7 +1,7 @@
 include "std.porth"
 
 macro check_less
-    < if "Yes\n" else "No\n" end stdout write drop
+    < if "Yes\n" else "No\n" end puts
 end
 
 1 2 check_less

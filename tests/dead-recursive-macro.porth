@@ -4,4 +4,4 @@ macro dead_recursive_macro
     dead_recursive_macro
 end
 
-"Dead recursive macros should not cause any problems" stdout write drop
+"Dead recursive macros should not cause any problems" puts
