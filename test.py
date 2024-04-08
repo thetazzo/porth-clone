@@ -122,6 +122,9 @@ def run_test_for_file(file_path: str, stats: RunStats = RunStats()):
             stats.com_failed += 1
     else: 
         print("[WARNING] Could not find any input/output data for %s. Skipping ..." % file_path)
+        com = cmd_run_echoed([sys.executable, "./porth.py", "com", file_path])
+        if com.returncode != 0:
+            stats.com_failed += 1
         stats.ignored += 1
 
 def run_test_for_folder(folder: str):
