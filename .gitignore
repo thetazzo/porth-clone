@@ -30,6 +30,7 @@ tests/comments
 tests/comparison
 tests/dead-recursive-macro
 tests/memory
+tests/memory-forth-style
 tests/stack-manipulation
 tests/system
 tests/argv
