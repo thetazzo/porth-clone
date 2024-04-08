@@ -1,0 +1,19 @@
+include "std.porth"
+
+macro N 69 end
+
+// sum of squares
+0 1 while dup N <= do
+    swap over dup * + swap 
+    1 +
+end drop
+
+// square of sums
+0 1 while dup N <= do
+    swap over + swap
+    1 +
+end drop
+dup * 
+
+swap -
+print
