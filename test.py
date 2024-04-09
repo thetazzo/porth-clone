@@ -135,7 +135,7 @@ def run_test_for_folder(folder: str):
     sim_failed = 0
     com_failed = 0
     test_count = 0
-    failed_tests = []
+    failed_tests: List[str] = []
     for entry in os.scandir(folder):
         if entry.is_file() and entry.path.endswith(PORTH_EXT):
             run_test_for_file(entry.path, stats, failed_tests)

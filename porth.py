@@ -1492,6 +1492,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                     assert program[block_ip].operand is not None
                     block_begin_ip = program[block_ip].operand
 
+                    assert isinstance(block_begin_ip, OpAddr)
                     if program[block_begin_ip].typ == OpType.WHILE:
                         program[ip].operand = block_begin_ip
                         program[block_ip].operand = ip + 1
