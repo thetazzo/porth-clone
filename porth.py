@@ -1429,7 +1429,7 @@ def expand_macro(macro: Macro, expanded_from: Token) -> List[Token]:
         token.expanded_count = expanded_from.expanded_count + 1
     return result
 
-def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], expansion_limit: int) -> Program:
+def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], expansion_limit: int) -> Program:
     stack = []
     program: List[Op] = []
     rtokens = list(reversed(tokens))
@@ -1438,7 +1438,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
     while len(rtokens) > 0:
         # TODO: some sort of safety mechanisem for recursive macros
         token = rtokens.pop()
-        assert len(TokenType) == 5, "Exhaustive token handling in compile_tokens_to_program: %d" % len(TokenType)
+        assert len(TokenType) == 5, "Exhaustive token handling in parse_program_from_tokens: %d" % len(TokenType)
         if token.typ == TokenType.WORD:
             if token.value in INTRINSIC_BY_NAMES:
                 assert isinstance(token.value, str)
@@ -1678,7 +1678,7 @@ def lex_file(file_path: str, expanded_from: Optional[Token] = None) -> List[Toke
         return result
 
 def compile_file_to_program(file_path: str, include_paths: List[str], expansion_limit: int) -> Program:
-    return compile_tokens_to_program(lex_file(file_path), include_paths, expansion_limit)
+    return parse_program_from_tokens(lex_file(file_path), include_paths, expansion_limit)
 
 def cmd_call_echoed(cmd: List[str], silent: bool=False) -> int:
     if not silent:
