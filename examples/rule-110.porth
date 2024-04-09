@@ -6,7 +6,7 @@ mem N 2 - + 1 .
 
 0 while dup N 2 - < do
     0 while dup N < do
-        dup mem + , 1 = if
+        if dup mem + , 1 = do
             dup mem + N + '*' .
         else
             dup mem + N + ' ' .

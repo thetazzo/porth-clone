@@ -82,7 +82,7 @@ class RunStats:
     com_failed: int = 0
     ignored: int = 0
 
-def run_test_for_file(file_path: str, stats: RunStats = RunStats()):
+def run_test_for_file(file_path: str, stats: RunStats = RunStats(), failed_tests: List[str] = []):
 
     assert path.isfile(file_path)
     assert file_path.endswith(PORTH_EXT)
@@ -106,6 +106,7 @@ def run_test_for_file(file_path: str, stats: RunStats = RunStats()):
             print("    stdout: \n%s" % sim.stdout.decode("utf-8"))
             print("    stderr: \n%s" % sim.stderr.decode("utf-8"))
             stats.sim_failed += 1
+            failed_tests.append(file_path)
 
         com = cmd_run_echoed([sys.executable, "./porth.py", "com", "-r", "-s", file_path, *tc.argv], input=tc.stdin, capture_output=True)
         if com.returncode != tc.returncode or com.stdout != tc.stdout or com.stderr != tc.stderr:
@@ -120,6 +121,8 @@ def run_test_for_file(file_path: str, stats: RunStats = RunStats()):
             print("    stdout: \n%s" % com.stdout.decode("utf-8"))
             print("    stderr: \n%s" % com.stderr.decode("utf-8"))
             stats.com_failed += 1
+            if file_path not in failed_tests:
+                failed_tests.append(file_path)
     else: 
         print("[WARNING] Could not find any input/output data for %s. Skipping ..." % file_path)
         com = cmd_run_echoed([sys.executable, "./porth.py", "com", file_path])
@@ -132,13 +135,17 @@ def run_test_for_folder(folder: str):
     sim_failed = 0
     com_failed = 0
     test_count = 0
+    failed_tests: List[str] = []
     for entry in os.scandir(folder):
         if entry.is_file() and entry.path.endswith(PORTH_EXT):
-            run_test_for_file(entry.path, stats)
+            run_test_for_file(entry.path, stats, failed_tests)
             test_count += 1
     print()
     print("Executed %d tests" % test_count) 
     print("Simulation failed: %d, Compilation failed: %d, Ignored: %d" % (stats.sim_failed, stats.com_failed, stats.ignored))
+    print("--------------------------------------")
+    for ft in failed_tests:
+        print(ft)
     if stats.sim_failed != 0 or stats.com_failed != 0:
         exit(1)
 
