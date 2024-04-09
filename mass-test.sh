@@ -15,6 +15,13 @@ if ! mypy ./test.py ; then
     exit 1
 fi
 echo "\n---------------------------------------------------------------------"
+echo "                          Compile porth.porth                        "
+echo "---------------------------------------------------------------------"
+if ! ~/dev/external/pypy3.10-v7.3.15-linux64/bin/pypy3 ./porth.py com ./porth.porth ; then
+    echo "Testing has failed"
+    exit 1
+fi
+echo "\n---------------------------------------------------------------------"
 echo "                          TESTING: ./tests                           "
 echo "---------------------------------------------------------------------"
 if ! ~/dev/external/pypy3.10-v7.3.15-linux64/bin/pypy3 ./test.py ; then
