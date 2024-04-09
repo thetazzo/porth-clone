@@ -97,10 +97,14 @@ macro cstreq
     , 0 = swap , 0 = and
 end
 
+macro fputs
+    write drop
+end
+
 macro eputs
-    stderr write drop
+    stderr fputs
 end
 
 macro puts
-    stdout write drop
+    stdout fputs
 end
