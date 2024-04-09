@@ -213,13 +213,13 @@ macro main
     1 nth_argv
 
     // TODO: consider adding null terminated string literals
-    if dup "com\0" swap drop streq do
+    if dup "com\0" swap drop cstreq do
         compile-opz
-    else if dup "sim\0" swap drop streq do
+    else if dup "sim\0" swap drop cstreq do
         simulate-opz
-    else if dup "print\0" swap drop streq do
+    else if dup "print\0" swap drop cstreq do
         print-opz
-    else if dup "help\0" swap drop streq do
+    else if dup "help\0" swap drop cstreq do
         print_usage
         0 exit
     else
