@@ -79,6 +79,10 @@ macro cstrlen
     swap -
 end
 
+macro cstr-to-pstr
+    dup cstrlen swap
+end
+
 macro cstreq 
     while
         if over , 0 != over , 0 != and do
