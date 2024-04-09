@@ -15,9 +15,9 @@ macro ans mem end
         end
         swap drop
 
-        2dup = if 
+        if 2dup = do 
             // a b
-            dup ans ,64 > if
+            if dup ans ,64 > do
                 ans over .64 
             end
         end
