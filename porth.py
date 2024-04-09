@@ -1726,6 +1726,7 @@ def generate_control_flow_graph_as_dot_file(program: Program, dot_path: str):
         for ip in range(len(program)):
             op = program[ip]
             if op.typ == OpType.INTRINSIC:
+                assert isinstance(op.operand, Intrinsic)
                 f.write(f"    Node_{ip} [label={repr(repr(INTRINSIC_NAMES[op.operand]))}];\n")
                 f.write(f"    Node_{ip} -> Node_{ip+1};\n")
             elif op.typ == OpType.PUSH_INT:
