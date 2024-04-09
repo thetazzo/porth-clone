@@ -102,44 +102,44 @@ end
 
 // TODO: porth.porth does not run nasm and ld as external commands to finish off the process of compilation
 macro compile-opz // --
-	"BITS 64\n" puts
-	"segment .text\n" puts
-	"print:\n" puts
-	"    mov     r9, -3689348814741910323\n" puts
-	"    sub     rsp, 40\n" puts
-	"    mov     BYTE [rsp+31], 10\n" puts
-	"    lea     rcx, [rsp+30]\n" puts
-	".L2:\n" puts
-	"    mov     rax, rdi\n" puts
-	"    lea     r8, [rsp+32]\n" puts
-	"    mul     r9\n" puts
-	"    mov     rax, rdi\n" puts
-	"    sub     r8, rcx\n" puts
-	"    shr     rdx, 3\n" puts
-	"    lea     rsi, [rdx+rdx*4]\n" puts
-	"    add     rsi, rsi\n" puts
-	"    sub     rax, rsi\n" puts
-	"    add     eax, 48\n" puts
-	"    mov     BYTE [rcx], al\n" puts
-	"    mov     rax, rdi\n" puts
-	"    mov     rdi, rdx\n" puts
-	"    mov     rdx, rcx\n" puts
-	"    sub     rcx, 1\n" puts
-	"    cmp     rax, 9\n" puts
-	"    ja      .L2\n" puts
-	"    lea     rax, [rsp+32]\n" puts
-	"    mov     edi, 1\n" puts
-	"    sub     rdx, rax\n" puts
-	"    xor     eax, eax\n" puts
-	"    lea     rsi, [rsp+32+rdx]\n" puts
-	"    mov     rdx, r8\n" puts
-	"    mov     rax, 1\n" puts
-	"    syscall\n" puts
-	"    add     rsp, 40\n" puts
-	"    ret\n" puts
-	"global _start\n" puts
-	"_start:\n" puts
-	"    mov [args_ptr], rsp\n" puts
+    "BITS 64\n" puts
+    "segment .text\n" puts
+    "print:\n" puts
+    "    mov     r9, -3689348814741910323\n" puts
+    "    sub     rsp, 40\n" puts
+    "    mov     BYTE [rsp+31], 10\n" puts
+    "    lea     rcx, [rsp+30]\n" puts
+    ".L2:\n" puts
+    "    mov     rax, rdi\n" puts
+    "    lea     r8, [rsp+32]\n" puts
+    "    mul     r9\n" puts
+    "    mov     rax, rdi\n" puts
+    "    sub     r8, rcx\n" puts
+    "    shr     rdx, 3\n" puts
+    "    lea     rsi, [rdx+rdx*4]\n" puts
+    "    add     rsi, rsi\n" puts
+    "    sub     rax, rsi\n" puts
+    "    add     eax, 48\n" puts
+    "    mov     BYTE [rcx], al\n" puts
+    "    mov     rax, rdi\n" puts
+    "    mov     rdi, rdx\n" puts
+    "    mov     rdx, rcx\n" puts
+    "    sub     rcx, 1\n" puts
+    "    cmp     rax, 9\n" puts
+    "    ja      .L2\n" puts
+    "    lea     rax, [rsp+32]\n" puts
+    "    mov     edi, 1\n" puts
+    "    sub     rdx, rax\n" puts
+    "    xor     eax, eax\n" puts
+    "    lea     rsi, [rsp+32+rdx]\n" puts
+    "    mov     rdx, r8\n" puts
+    "    mov     rax, 1\n" puts
+    "    syscall\n" puts
+    "    add     rsp, 40\n" puts
+    "    ret\n" puts
+    "global _start\n" puts
+    "_start:\n" puts
+    "    mov [args_ptr], rsp\n" puts
 
     0 while dup ops-count @64 < do
         // ptr type
@@ -150,27 +150,27 @@ macro compile-opz // --
             ";;  -- push int " puts dup Op.operand @64 putd " --\n" puts
             "    mov rax, " puts dup Op.operand @64 putd "\n" puts
             "    push rax\n" puts
-        else if dup Op.type @64 OP_PLUS = do
-			";;  -- plus --\n" puts
-			"    pop rax\n" puts
-			"    pop rbx\n" puts
-			"    add rax, rbx\n" puts
-			"    push rax\n" puts
-        else if dup Op.type @64 OP_PRINT = do
-			";;  -- print --\n" puts
-			"    pop rdi\n" puts
-			"    call print\n" puts
+        elif dup Op.type @64 OP_PLUS = do
+            ";;  -- plus --\n" puts
+            "    pop rax\n" puts
+            "    pop rbx\n" puts
+            "    add rax, rbx\n" puts
+            "    push rax\n" puts
+        elif dup Op.type @64 OP_PRINT = do
+            ";;  -- print --\n" puts
+            "    pop rdi\n" puts
+            "    call print\n" puts
         else 
             here eputs ": unreachable\n" eputs 1 exit
-        end end end // TOOD: introduce a better construction to avoid this mess
+        end
         drop
         1 +
     end drop
-	"    mov rax, 60\n" puts
-	"    mov rdi, 0\n" puts
-	"    syscall\n" puts
-	"segment .bss\n" puts                
-	"args_ptr: resq 1\n" puts           
+    "    mov rax, 60\n" puts
+    "    mov rdi, 0\n" puts
+    "    syscall\n" puts
+    "segment .bss\n" puts
+    "args_ptr: resq 1\n" puts
     "mem: resb " puts MEM_CAPACITY putd "\n" puts
 end
 
@@ -213,21 +213,20 @@ macro main
     program123
     1 nth_argv
 
-    // TODO: consider adding null terminated string literals
     if dup "com"c cstreq do
         compile-opz
-    else if dup "sim"c cstreq do
+    elif dup "sim"c cstreq do
         simulate-opz
-    else if dup "print"c cstreq do
+    elif dup "print"c cstreq do
         print-opz
-    else if dup "help"c cstreq do
+    elif dup "help"c cstreq do
         stdout print_usage
         0 exit
     else
         stderr print_usage
         "ERROR: unknown subcommand `" eputs dup dup cstrlen swap eputs "`\n" eputs
         1 exit
-    end end end end
+    end
     drop
 end
 main
