@@ -203,12 +203,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 stack.append(str_ptrs[ip])
                 ip += 1
             elif op.typ == OpType.IF:
-                a = stack.pop()
-                if a == 0:
-                    assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
-                    ip = op.operand
-                else:
-                    ip += 1
+                ip += 1
             elif op.typ == OpType.ELSE:
                 assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
                 ip = op.operand
@@ -535,26 +530,11 @@ def type_check_program(program: Program):
             stack.append((DataType.INT, op.token))
             stack.append((DataType.PTR, op.token))
         elif op.typ == OpType.IF:
-            if len(stack) < 1:
-                print_missing_op_args(op)
-                exit(1)
-            a_type, a_token = stack.pop()
-            if a_type != DataType.BOOL:
-                compiler_error_with_expansion_stack(op.token, "Invalid argument for the if-block condition. Expected BOOL.")
-                exit(1)
             block_stack.append((copy(stack), op.typ))
         elif op.typ == OpType.END:
             block_snapshot, block_type = block_stack.pop()
             assert len(OpType) == 8, "Exhaustive handling of op types"
-            if block_type == OpType.IF:
-                expected_types = list(map(lambda x: x[0], block_snapshot))
-                actual_types = list(map(lambda x: x[0], stack))
-                if expected_types != actual_types:
-                    compiler_error_with_expansion_stack(op.token, 'else-less if block is not allowed to alter the types of the arguments on the data stack')
-                    compiler_note_(op.token.loc, 'Expected types: %s' % expected_types)
-                    compiler_note_(op.token.loc, 'Actual types: %s' % actual_types)
-                    exit(1)
-            elif block_type == OpType.ELSE:
+            if block_type == OpType.ELSE:
                 expected_types = list(map(lambda x: x[0], block_snapshot))
                 actual_types = list(map(lambda x: x[0], stack))
                 if expected_types != actual_types:
@@ -563,28 +543,32 @@ def type_check_program(program: Program):
                     compiler_note_(op.token.loc, 'Actual types: %s' % actual_types)
                     exit(1)
             elif block_type == OpType.DO:
-                while_snapshot, while_type = block_stack.pop()
-                assert while_type == OpType.WHILE
+                begin_snapshot, begin_typ = block_stack.pop()
 
-                expected_types = list(map(lambda x: x[0], while_snapshot))
-                actual_types = list(map(lambda x: x[0], stack))
+                if begin_typ == OpType.WHILE or begin_typ == OpType.IF:
+                    expected_types = list(map(lambda x: x[0], begin_snapshot))
+                    actual_types = list(map(lambda x: x[0], stack))
 
-                if expected_types != actual_types:
-                    compiler_error_with_expansion_stack(op.token, 'while-do body is not allowed to alter the types of the arguments on the data stack')
-                    compiler_note_(op.token.loc, 'Expected types: %s' % expected_types)
-                    compiler_note_(op.token.loc, 'Actual types: %s' % actual_types)
-                    exit(1)
+                    if expected_types != actual_types:
+                        compiler_error_with_expansion_stack(op.token, 'while-do body is not allowed to alter the types of the arguments on the data stack')
+                        compiler_note_(op.token.loc, 'Expected types: %s' % expected_types)
+                        compiler_note_(op.token.loc, 'Actual types: %s' % actual_types)
+                        exit(1)
 
-                stack = block_snapshot
+                    stack = block_snapshot
+                else:
+                    assert False, "unreachable"
             else:
                 assert "unreachable"
         elif op.typ == OpType.ELSE:
-            stack_snapshot, block_typ = block_stack.pop()
-            assert block_typ == OpType.IF, "I smell a bug somwhere"
+            do_snapshot, do_typ = block_stack.pop()
+            assert do_typ == OpType.DO, "I smell a bug somwhere"
+
+            if_snapshot, if_typ = block_stack.pop()
+            assert if_typ == OpType.IF, "I smell a bug somewhere"
+
             block_stack.append((stack.copy(), op.typ))
-            stack = stack_snapshot
-        elif op.typ == OpType.WHILE:
-            block_stack.append((stack.copy(), op.typ))
+            stack = do_snapshot
         elif op.typ == OpType.DO:
             if len(stack) < 1:
                 print_missing_op_args(op)
@@ -1048,10 +1032,8 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 strs.append(value)
             elif op.typ == OpType.IF:
                 out.write(";;  -- if --\n")
-                out.write("    pop rax\n")
-                out.write("    test rax, rax\n")
-                assert isinstance(op.operand, int), "There is a bug in the compilation step (probably)"
-                out.write("    jz addr_%d\n" % op.operand)
+            elif op.typ == OpType.WHILE:
+                out.write(";;  -- while --\n")
             elif op.typ == OpType.ELSE:
                 out.write(";;  -- else --\n")
                 assert isinstance(op.operand, int), "There is a bug in the compilation step (probably)"
@@ -1061,8 +1043,6 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 out.write(";;  -- end --\n")
                 if ip + 1 != op.operand:
                     out.write("    jmp addr_%d\n" % op.operand)
-            elif op.typ == OpType.WHILE:
-                out.write(";;  -- while --\n")
             elif op.typ == OpType.DO:
                 out.write(";;  -- do --\n")
                 out.write("    pop rax\n")
@@ -1483,25 +1463,34 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                 ip += 1
             elif token.value == Keyword.ELSE:
                 program.append(Op(typ=OpType.ELSE, token=token))
-                if_ip = stack.pop()
-                if program[if_ip].typ != OpType.IF:
-                    compiler_error_with_expansion_stack(program[if_ip].token, "`else` can only be used in `if` blocks")
+                do_ip = stack.pop()
+                if program[do_ip].typ != OpType.DO:
+                    compiler_error_with_expansion_stack(program[if_ip].token, "`else` can only be used in `if-do` blocks")
                     exit(1)
-                program[if_ip].operand = ip + 1
+                program[do_ip].operand = ip + 1
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.END:
                 program.append(Op(typ=OpType.END, token=token))
                 block_ip = stack.pop()
-                if program[block_ip].typ == OpType.IF or program[block_ip].typ == OpType.ELSE:
+                if program[block_ip].typ == OpType.ELSE:
                     program[block_ip].operand = ip
                     program[ip].operand = ip + 1
                 elif program[block_ip].typ == OpType.DO:
                     assert program[block_ip].operand is not None
-                    program[ip].operand = program[block_ip].operand
-                    program[block_ip].operand = ip + 1
+                    block_begin_ip = program[block_ip].operand
+
+                    if program[block_begin_ip].typ == OpType.WHILE:
+                        program[ip].operand = block_begin_ip
+                        program[block_ip].operand = ip + 1
+                    elif program[block_begin_ip].typ == OpType.IF:
+                        program[ip].operand = ip + 1
+                        program[block_ip].operand = ip + 1
+                    else:
+                        compiler_error_with_expansion_stack(program[block_begin_ip].token, "`end` can only close `do` blocks that are part of `if` or `while`")
+                        exit(1)
                 else:
-                    compiler_error_with_expansion_stack(program[block_ip].token, "`end` can only close `if`, `else` or `do` blocks")
+                    compiler_error_with_expansion_stack(program[block_ip].token, "`end` can only close `else` or `do` blocks")
                     exit(1)
                 ip += 1
             elif token.value == Keyword.WHILE:
@@ -1510,8 +1499,8 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                 ip += 1
             elif token.value == Keyword.DO:
                 program.append(Op(typ=OpType.DO, token=token))
-                while_ip = stack.pop()
-                program[ip].operand = while_ip
+                while_or_if_ip = stack.pop()
+                program[ip].operand = while_or_if_ip
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.INCLUDE:
