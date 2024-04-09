@@ -25,7 +25,7 @@ macro ops-count sim-stack SIM_STACK_CAP 8 * + end
 macro ops ops-count 8 + end
 
 macro sim-stack-push // u64 --
-    sim-stack-count @64 SIM_STACK_CAP >= if
+    if sim-stack-count @64 SIM_STACK_CAP >= do
         here eputs ": ERROR: sim stack overflow in simulation mode\n" eputs 1 exit 
     end
 
@@ -35,7 +35,7 @@ macro sim-stack-push // u64 --
 end
 
 macro sim-stack-pop // -- u64
-    sim-stack-count @64 0 = if 
+    if sim-stack-count @64 0 = do 
         here eputs ": ERROR: sim stack underflow in simulation mode\n" eputs 1 exit
     end
     sim-stack-count dec64
@@ -50,7 +50,7 @@ macro push-op // type operand --
 end
 
 macro putd // u64 --
-    dup 0 = if
+    if dup 0 = do
       "0" puts
     else
       putd-buffer PUTD_BUFFER_CAP +
@@ -83,14 +83,14 @@ macro simulate-opz
         dup sizeof(Op) * ops +
 
         // ptr
-        dup Op.type @64 OP_PUSH_INT = if
+        if dup Op.type @64 OP_PUSH_INT = do
             dup Op.operand @64 sim-stack-push
-        else dup Op.type @64 OP_PLUS = if
+        else if dup Op.type @64 OP_PLUS = do
             sim-stack-pop
             sim-stack-pop
             +
             sim-stack-push
-        else dup Op.type @64 OP_PRINT = if
+        else if dup Op.type @64 OP_PRINT = do
             sim-stack-pop print
         else 
             here eputs ": unreachable\n" eputs 1 exit
@@ -146,17 +146,17 @@ macro compile-opz // --
         dup sizeof(Op) * ops +
 
         // ptr
-        dup Op.type @64 OP_PUSH_INT = if
+        if dup Op.type @64 OP_PUSH_INT = do
             ";;  -- push int " puts dup Op.operand @64 putd " --\n" puts
             "    mov rax, " puts dup Op.operand @64 putd "\n" puts
             "    push rax\n" puts
-        else dup Op.type @64 OP_PLUS = if
+        else if dup Op.type @64 OP_PLUS = do
 			";;  -- plus --\n" puts
 			"    pop rax\n" puts
 			"    pop rbx\n" puts
 			"    add rax, rbx\n" puts
 			"    push rax\n" puts
-        else dup Op.type @64 OP_PRINT = if
+        else if dup Op.type @64 OP_PRINT = do
 			";;  -- print --\n" puts
 			"    pop rdi\n" puts
 			"    call print\n" puts
@@ -203,7 +203,7 @@ end
 
 // entrypoint of the program
 macro main 
-    argc 2 < if
+    if argc 2 < do
         print_usage
         here eputs ": ERROR: subcommands is not provided\n" eputs
         1 exit
@@ -213,13 +213,13 @@ macro main
     1 nth_argv
 
     // TODO: consider adding null terminated string literals
-    dup "com\0" swap drop streq if
+    if dup "com\0" swap drop streq do
         compile-opz
-    else dup "sim\0" swap drop streq if
+    else if dup "sim\0" swap drop streq do
         simulate-opz
-    else dup "print\0" swap drop streq if
+    else if dup "print\0" swap drop streq do
         print-opz
-    else dup "help\0" swap drop streq if
+    else if dup "help\0" swap drop streq do
         print_usage
         0 exit
     else
