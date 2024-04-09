@@ -1719,6 +1719,46 @@ def cmd_call_echoed(cmd: List[str], silent: bool=False) -> int:
         print("[CMD] %s" % " ".join(map(shlex.quote, cmd)))
     return subprocess.call(cmd)
 
+def generate_control_flow_graph_as_dot_file(program: Program, dot_path: str):
+    print(f"[INFO] Generating {dot_path}")
+    with open(dot_path, "w") as f:
+        f.write("digraph Program {\n")
+        for ip in range(len(program)):
+            op = program[ip]
+            if op.typ == OpType.INTRINSIC:
+                f.write(f"    Node_{ip} [label={repr(repr(INTRINSIC_NAMES[op.operand]))}];\n")
+                f.write(f"    Node_{ip} -> Node_{ip+1};\n")
+            elif op.typ == OpType.PUSH_INT:
+                f.write(f"    Node_{ip} [label=\"INT: {op.operand}\"];")
+                f.write(f"    Node_{ip} -> Node_{ip+1};\n")
+            elif op.typ == OpType.PUSH_STR:
+                f.write(f"    Node_{ip} [label={repr(repr(op.operand))}];\n")
+                f.write(f"    Node_{ip} -> Node_{ip+1};\n")
+            elif op.typ == OpType.PUSH_CSTR:
+                f.write(f"    Node_{ip} [label={repr(repr(op.operand))}];\n")
+                f.write(f"    Node_{ip} -> Node_{ip+1};\n")
+            elif op.typ == OpType.IF:
+                f.write(f"    Node_{ip} [shape=record label=if];\n")
+                f.write(f"    Node_{ip} -> Node_{ip+1};\n")
+            elif op.typ == OpType.WHILE:
+                f.write(f"    Node_{ip} [shape=record label=while];\n")
+                f.write(f"    Node_{ip} -> Node_{ip+1};\n")
+            elif op.typ == OpType.DO:
+                f.write(f"    Node_{ip} [shape=record label=do];\n")
+                f.write(f"    Node_{ip} -> Node_{ip+1} [label=true];\n")
+                f.write(f"    Node_{ip} -> Node_{op.operand} [label=false style=dashed];\n")
+            elif op.typ == OpType.ELSE:
+                f.write(f"    Node_{ip} [shape=record label=else];\n")
+                f.write(f"    Node_{ip} -> Node_{op.operand};\n")
+            elif op.typ == OpType.END:
+                f.write(f"    Node_{ip} [shape=record label=end];\n")
+                f.write(f"    Node_{ip} -> Node_{op.operand};\n")
+            else:
+                assert False, f"unimplemented operation {[op.typ]}"
+        f.write(f"    Node_{len(program)} [label=halt]")
+        f.write("}\n")
+    cmd_call_echoed(["dot", "-Tsvg", "-O", dot_path])
+
 def print_usage(compiler_name: str):
     print("Usage: %s [OPTIONS] <SUBCOMMAND> [ARGS]" % compiler_name)
     print("  options:")
@@ -1733,6 +1773,7 @@ def print_usage(compiler_name: str):
     print("        -r                  Run the program after successful compilation")
     print("        -o <file|dir>       Customize the output path")
     print("        -s                  Silent mode ~ Don't print any info about compilation phases")
+    print("        -cf                 Dump Control Flow graph of the program in dot format")
     print("    help                  Print this help to stdout and exit with 0 code")
 
 unsafe=False
@@ -1797,6 +1838,7 @@ if __name__ == '__main__' and '__file__' in globals():
         simulate_little_endian_linux(program, [program_path]+argv)
     elif subcommand == "com":
         silent = False
+        control_flow = False
         run = False
         output_path = None
         while len(argv) > 0:
@@ -1811,6 +1853,8 @@ if __name__ == '__main__' and '__file__' in globals():
                     print("[ERROR] no argument is provided for parameter -o", file=sys.stderr)
                     exit(1)
                 output_path, *argv = argv
+            elif arg == '-cf':
+                control_flow = True
             else:
                 program_path = arg
                 break
@@ -1846,6 +1890,9 @@ if __name__ == '__main__' and '__file__' in globals():
         if not silent:
             print("[INFO] Generating %s" % (basepath + ".asm"))
         program = compile_file_to_program(program_path, include_paths, expansion_limit);
+
+        if control_flow:
+            generate_control_flow_graph_as_dot_file(program, basepath + ".dot")
         if not unsafe:
             type_check_program(program)
         else:
