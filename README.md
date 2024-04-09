@@ -76,23 +76,80 @@ $ ./examples/rule-110
 ## Documentation
 
 ### Data types
-* `<integer>` - push integer onto the stack. Here the integer is anything that is parsable by [int](https://docs.python.org/3/library/functions.html#int) function
+
+#### Integer
+
+Currently an integer is anything that is parsable by [int](https://docs.python.org/3/library/functions.html#int) function of Python. When the compiler encounters an integer it pushes it onto the data stack for processing by the relevant operations.
+
+Example:
+
+```pascal
+10 20 +
 ```
-push(<integer>)
+
+The code above pushes 10 and 20 onto the data stack and sums them up with `+` operation.
+
+#### String
+
+Currently a string is any sequence of bytes sandwiched between two `"`. No newlines inside of the strings are allowed. Escaping is done by [unicode_escape codec](https://docs.python.org/3/library/codecs.html#text-encodings) of Python. No way to escape `"` themselves for now. No special support for Unicode is provided right now too.
+
+When the compiler encounters a string:
+1. the size of the string in bytes is pushed onto the data stack,
+2. the bytes of the string are copied somewhere into the memory (the exact location is implementation specific),
+3. the pointer to the beginning of the string is pushed onto the data stack.
+
+Those, a single string pushes two values onto the data stack: the size and the pointer.
+
+Example:
+
 ```
-* `<string>` - push size and address of the string literal onto the stack. A string literal is a sequence of characters enclosed with `"`
+include "std.porth"
+"Hello, World" puts
 ```
-size = len(<string>)
-push(n)
-ptr = static_memory_alloc(n)
-copy(ptr, <string>)
-push(ptr)
+
+The `puts` macro from `std.porth` module expects two values on the data stack:
+1. the size of the buffer it needs to print,
+2. the pointer to the beginning of the buffer.
+
+The size and the pointer are provided by the string `"Hello, World"`.
+
+#### C-style String
+
+It's like a regular string but it does not push its size on the stack and implicitly ends with [NULL-terminator](https://en.wikipedia.org/wiki/Null-terminated_string). Designed specifically to interact with C code or any other kind of code that expects NULL-terminated strings.
+
 ```
-* `<character>` - push a character as an integer onto the stack. For instance `'*'` would push `42` onto the stack since that is the character ascii code
+include "std.porth"
+
+O_RDONLY "input.txt"c AT_FDCWD openat
+//                  ^
+//                  |
+//                  postfix that indicates a C-style string
+
+if dup 0 < do
+    "ERROR: could not open the file\n" eputs
+    1 exit
+else
+    "Successfully opened the file!\n" puts
+end
+
+close
 ```
-value = ord(<character>)
-push(value)
+
+Here we are using [openat(2)](https://linux.die.net/man/2/openat) Linux syscall to open a file. The syscall expects the pathname to be a NULL-terminated string.
+
+#### Character
+
+Currently a character is a single byte sandwiched between two `'`. Escaping is done by [unicode_escape codec](https://docs.python.org/3/library/codecs.html#text-encodings) of Python. No way to escape `'` themselves for now. No special support for Unicode is provided right now too.
+
+When compiler encounters a character it pushes its value as an integer onto the stack.
+
+Example:
+
 ```
+'E' print
+```
+
+This program pushes integer `69` onto the stack (since the ASCII code of letter `E` is `69`) and prints it with the `print` operation.
 
 ### Built-in Words
 
@@ -288,6 +345,7 @@ include "std.porth"
 include "std.porth"
 
 here puts ": TODO: not impmeneted\n" puts 1 exit
+```
 
 ---
 
