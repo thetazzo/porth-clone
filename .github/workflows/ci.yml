@@ -1,5 +1,8 @@
 name: CI
-on: [push, pull_request]
+on: 
+  pull_request:
+  push:
+    branches: [ master ]
 jobs:
   builds:
     runs-on: ubuntu-latest
@@ -31,6 +34,7 @@ jobs:
         run: |
           mypy ./porth.py
           mypy ./test.py
+          ./pypy3.7-v7.3.5-linux64/bin/pypy3 ./porth.py com ./porth.porth
           ./pypy3.10-v7.3.15-linux64/bin/pypy3 ./test.py
           ./pypy3.10-v7.3.15-linux64/bin/pypy3 ./test.py run ./examples/
           ./pypy3.10-v7.3.15-linux64/bin/pypy3 ./test.py run ./euler/
