@@ -41,3 +41,4 @@ tests/macros
 tests/else-less-if
 tests/if-else
 tests/here
+tests/cstr

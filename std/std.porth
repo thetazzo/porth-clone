@@ -73,13 +73,17 @@ end
 // the first element on the stack contains the length pf the string literal
 // the second element on the stack contains the full length including \0
 // NOTE: it counts event the new line \n
-macro strlen
+macro cstrlen
     dup
     while dup , 0 != do 1 + end
     swap -
 end
 
-macro streq 
+macro cstr-to-pstr
+    dup cstrlen swap
+end
+
+macro cstreq 
     while
         if over , 0 != over , 0 != and do
             over , over , =

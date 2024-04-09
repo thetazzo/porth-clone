@@ -213,18 +213,18 @@ macro main
     1 nth_argv
 
     // TODO: consider adding null terminated string literals
-    if dup "com\0" swap drop streq do
+    if dup "com"c cstreq do
         compile-opz
-    else if dup "sim\0" swap drop streq do
+    else if dup "sim"c cstreq do
         simulate-opz
-    else if dup "print\0" swap drop streq do
+    else if dup "print"c cstreq do
         print-opz
-    else if dup "help\0" swap drop streq do
+    else if dup "help"c cstreq do
         print_usage
         0 exit
     else
         print_usage
-        "ERROR: unknown subcommand `" eputs dup dup strlen swap eputs "`\n" eputs
+        "ERROR: unknown subcommand `" eputs dup dup cstrlen swap eputs "`\n" eputs
         1 exit
     end end end end
     drop
