@@ -26,8 +26,9 @@ Loc=Tuple[str, int, int]
 
 class Keyword(Enum):
     IF=auto()
-    END=auto()
+    ELIF=auto()
     ELSE=auto()
+    END=auto()
     WHILE=auto()
     DO=auto()
     MACRO=auto()
@@ -82,8 +83,9 @@ class OpType(IntEnum):
     PUSH_CSTR=auto()
     INTRINSIC=auto()
     IF=auto()
-    END=auto()
+    ELIF=auto()
     ELSE=auto()
+    END=auto()
     WHILE=auto()
     DO=auto()
 
@@ -184,7 +186,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
 
     ip = 0
     while ip < len(program):
-        assert len(OpType) == 9, "Exhaustive op handling in simulate_little_endian_linux"
+        assert len(OpType) == 10, "Exhaustive op handling in simulate_little_endian_linux"
         op = program[ip]
         try:
             if op.typ == OpType.PUSH_INT:
@@ -218,6 +220,9 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 ip += 1
             elif op.typ == OpType.IF:
                 ip += 1
+            elif op.typ == OpType.ELIF:
+                assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
+                ip = op.operand
             elif op.typ == OpType.ELSE:
                 assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
                 ip = op.operand
@@ -1042,7 +1047,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
         out.write("    mov [args_ptr], rsp\n")
         for ip in range(len(program)):
             op = program[ip]
-            assert len(OpType) == 9, "Exhaustive ops handling in generate_nasm_linux_x86_64: %d" % len(OpType)
+            assert len(OpType) == 10, "Exhaustive ops handling in generate_nasm_linux_x86_64: %d" % len(OpType)
             out.write("addr_%d:\n" % ip)
             if op.typ == OpType.PUSH_INT:
                 out.write(";;  -- push int --\n")
@@ -1070,7 +1075,10 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 out.write(";;  -- while --\n")
             elif op.typ == OpType.ELSE:
                 out.write(";;  -- else --\n")
-                assert isinstance(op.operand, int), "There is a bug in the parsing step (probably)"
+                assert isinstance(op.operand, OpAddr), "There is a bug in the parsing step (probably)"
+                out.write("    jmp addr_%d\n" % op.operand)
+            elif op.typ == OpType.ELIF:
+                out.write(";;  -- elif --\n")
                 out.write("    jmp addr_%d\n" % op.operand)
             elif op.typ == OpType.END:
                 assert isinstance(op.operand, int), "There is a bug in the parsing step (probably)"
@@ -1368,11 +1376,12 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
         out.write("args_ptr: resq 1\n")            # reserve space for arguments(argv)
         out.write("mem: resb %d\n" % MEM_CAPACITY) # reserve space for program memory
 
-assert len(Keyword) == 7, "Exhaustive KEYWORD_NAMES definition: %d" % len(Keyword) 
+assert len(Keyword) == 8, "Exhaustive KEYWORD_NAMES definition: %d" % len(Keyword) 
 KEYWORD_NAMES= {
     'if': Keyword.IF,
-    'end': Keyword.END,
+    'elif': Keyword.ELIF,
     'else': Keyword.ELSE,
+    'end': Keyword.END,
     'while': Keyword.WHILE,
     'do': Keyword.DO,
     'macro': Keyword.MACRO,
@@ -1495,21 +1504,52 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
             program.append(Op(typ=OpType.PUSH_INT, operand=token.value, token=token))
             ip += 1
         elif token.typ == TokenType.KEYWORD:
-            assert len(Keyword) == 7, "Exhaustive keywords handling in compile_file_to_program(): %d" % len(Keyword)
+            assert len(Keyword) == 8, "Exhaustive keywords handling in compile_file_to_program(): %d" % len(Keyword)
 
             if token.value == Keyword.IF:
                 program.append(Op(typ=OpType.IF, token=token))
                 stack.append(ip)
                 ip += 1
+            elif token.value == Keyword.ELIF:
+                program.append(Op(typ=OpType.ELIF, token=token))
+                do_ip = stack.pop()
+                if program[do_ip].typ != OpType.DO:
+                    compiler_error_with_expansion_stack(program[do_ip].token, "`elif` can only be used in `if-do` blocks")
+                    exit(1)
+                pre_do_ip = program[do_ip].operand
+                assert isinstance(pre_do_ip, OpAddr)
+                if program[pre_do_ip].typ == OpType.IF:
+                    program[do_ip].operand = ip + 1
+                    stack.append(ip)
+                    ip += 1
+                elif program[pre_do_ip].typ == OpType.ELIF:
+                    program[do_ip].operand = ip + 1
+                    program[pre_do_ip].operand = ip
+                    stack.append(ip)
+                    ip += 1
+                else:
+                    compiler_error_with_expansion_stack(program[pre_do_ip].token, "`elif` can only close `do` blocks that are preceded by `if` or another `elif`")
+                    exit(1)
             elif token.value == Keyword.ELSE:
                 program.append(Op(typ=OpType.ELSE, token=token))
                 do_ip = stack.pop()
                 if program[do_ip].typ != OpType.DO:
                     compiler_error_with_expansion_stack(program[do_ip].token, "`else` can only be used in `if-do` blocks")
                     exit(1)
-                program[do_ip].operand = ip + 1
-                stack.append(ip)
-                ip += 1
+                pre_do_ip = program[do_ip].operand
+                assert isinstance(pre_do_ip, OpAddr)
+                if program[pre_do_ip].typ == OpType.IF:
+                    program[do_ip].operand = ip + 1
+                    stack.append(ip)
+                    ip += 1
+                elif program[pre_do_ip].typ == OpType.ELIF:
+                    program[pre_do_ip].operand = ip
+                    program[do_ip].operand = ip + 1
+                    stack.append(ip)
+                    ip += 1
+                else:
+                    compiler_error_with_expansion_stack(program[pre_do_ip].token, "`elif` can only close `do` blocks that are preceded by `if` or another `elif`")
+                    exit(1)
             elif token.value == Keyword.END:
                 program.append(Op(typ=OpType.END, token=token))
                 block_ip = stack.pop()
@@ -1519,7 +1559,6 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                 elif program[block_ip].typ == OpType.DO:
                     assert program[block_ip].operand is not None
                     block_begin_ip = program[block_ip].operand
-
                     assert isinstance(block_begin_ip, OpAddr)
                     if program[block_begin_ip].typ == OpType.WHILE:
                         program[ip].operand = block_begin_ip
@@ -1540,8 +1579,9 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                 ip += 1
             elif token.value == Keyword.DO:
                 program.append(Op(typ=OpType.DO, token=token))
-                while_or_if_ip = stack.pop()
-                program[ip].operand = while_or_if_ip
+                pre_do_ip = stack.pop()
+                assert program[pre_do_ip].typ == OpType.WHILE or program[pre_do_ip].typ == OpType.IF or program[pre_do_ip].typ == OpType.ELIF
+                program[ip].operand = pre_do_ip
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.INCLUDE:
@@ -1752,6 +1792,10 @@ def generate_control_flow_graph_as_dot_file(program: Program, dot_path: str):
                 f.write(f"    Node_{ip} [shape=record label=do];\n")
                 f.write(f"    Node_{ip} -> Node_{ip+1} [label=true];\n")
                 f.write(f"    Node_{ip} -> Node_{op.operand} [label=false style=dashed];\n")
+            elif op.typ == OpType.ELIF:
+                assert isinstance(op.operand, OpAddr)
+                f.write(f"    Node_{ip} [shape=record label=elif];\n")
+                f.write(f"    Node_{ip} -> Node_{op.operand};\n")
             elif op.typ == OpType.ELSE:
                 assert isinstance(op.operand, OpAddr)
                 f.write(f"    Node_{ip} [shape=record label=else];\n")
