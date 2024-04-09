@@ -1477,7 +1477,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                 program.append(Op(typ=OpType.ELSE, token=token))
                 do_ip = stack.pop()
                 if program[do_ip].typ != OpType.DO:
-                    compiler_error_with_expansion_stack(program[if_ip].token, "`else` can only be used in `if-do` blocks")
+                    compiler_error_with_expansion_stack(program[do_ip].token, "`else` can only be used in `if-do` blocks")
                     exit(1)
                 program[do_ip].operand = ip + 1
                 stack.append(ip)
