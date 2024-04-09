@@ -7,13 +7,13 @@ macro name mem end
 
 NAME_CAP name stdin read
 
-dup 0 <= if
+if dup 0 <= do
     "ERROR: could not read your name\n" eputs
     1 exit
 end 
 
 // remove the last new line
-name over + 1 - , '\n' = if
+if name over + 1 - , '\n' = do
     1 -
 end
 
