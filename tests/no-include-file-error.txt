@@ -4,6 +4,6 @@
 :i returncode 1
 :b stdout 0
 
-:b stderr 96
-./tests/no-include-file-error.porth:1:1: ERROR: expected path to include file but found nothing
+:b stderr 100
+./tests/no-include-file-error.porth:1:1: ERROR: expected path to the include file but found nothing
 
