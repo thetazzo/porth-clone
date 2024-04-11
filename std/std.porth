@@ -28,6 +28,8 @@ macro O_RDONLY 0 end
 macro CLOCK_MONOTONIC 1 end
 macro TIMER_ABSTIME   1 end
 
+macro sizeof(stat) 144 end
+
 // wrappers for syscalls
 macro write  SYS_write                    syscall3 end
 macro read   SYS_read                     syscall3 end
@@ -42,16 +44,20 @@ macro mod % end
 macro div / end
 
 macro nth_argv
-    8 * argv + ,64 cast(ptr)
+    8 * argv + @64 cast(ptr)
 end
+
+// old memory access (depricated)
+macro .64 swap !64 end
+macro ,64 @64 end
 
 // increments value a the pointer
 macro inc64
-    dup ,64 1 + .64
+    dup @64 1 + swap !64
 end
 
 macro dec64
-    dup ,64 1 - .64
+    dup @64 1 - swap !64
 end
 
 // helpers

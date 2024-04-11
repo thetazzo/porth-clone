@@ -9,7 +9,7 @@ macro ans tmp 8 N * + end
 2 while dup N <= do
     // clean up the tmp table
     0 while dup N < do
-        tmp over 8 * + 0 .64
+        tmp over 8 * + 0 swap !64
         1 +
     end drop
 
@@ -26,13 +26,13 @@ macro ans tmp 8 N * + end
     // print the table
     0 while dup N < do
         if
-          dup 8 * acc + ,64
-          over 8 * tmp + ,64
+          dup 8 * acc + @64
+          over 8 * tmp + @64
           < 
         do
             dup 8 * acc +   
-            over 8 * tmp + ,64
-            .64
+            over 8 * tmp + @64
+            swap !64
         end
         1 +
     end drop
@@ -41,16 +41,16 @@ macro ans tmp 8 N * + end
 end drop
 
 // initalizing answer
-ans 1 .64
+1 ans !64
 
 0 while dup N < do
     // index
-    acc over 8 * + ,64 while dup 0 > do
-        over ans ,64 * ans swap .64
+    acc over 8 * + @64 while dup 0 > do
+        over ans @64 * ans !64
         1 -
     end drop
 
     1 +
 end drop
 
-ans ,64 print
+ans @64 print
