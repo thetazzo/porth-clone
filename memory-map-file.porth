@@ -1,0 +1,94 @@
+// Using `mmap` we will read the file at the path provided as the command line argument into the memory
+
+include "std.porth"
+
+macro fd mem end
+macro statbuf fd 8 + end
+macro content statbuf sizeof(stat) + end
+macro line content sizeof(Str) + end
+macro word line sizeof(Str) + end
+
+macro streq 
+    if
+        2dup Str.count @64
+        swap Str.count @64
+        =
+    do
+        Str.data @64
+        swap dup Str.count @64
+        swap Str.data @64 swap
+        while
+            if dup 0 > do
+                
+            else
+                false
+            end
+        do
+            
+        end
+    else
+        false
+    end
+end
+
+if argc 2 < do
+    "Usage: " eputs 0 nth_argv cstr-to-pstr eputs " <file>\n" eputs
+    "ERROR: no input file was provided" eputs
+    1 exit
+end
+
+"File name: " puts 1 nth_argv cstr-to-pstr puts "\n" puts
+
+O_RDONLY   // flags
+1 nth_argv // pathname
+AT_FDCWD   // dirfd
+openat
+
+if dup 0 < do
+    "ERROR: could not open file `" eputs 1 nth_argv cstr-to-pstr eputs "` not found\n" eputs
+    1 exit
+end
+
+// store file descriptor on the memory
+fd !64
+
+if statbuf fd @64 fstat 0 < do
+    "ERROR: could not determine the size of the file `" eputs 1 nth_argv cstr-to-pstr eputs "`\n" eputs
+    1 exit
+end
+
+//       void *mmap(void addr[.length], size_t length, int prot, int flags, int fd, off_t offset);
+
+// read the field of the `statbuf` and write it into `Str.count` of the `content`
+statbuf stat.st_size @64 content Str.count !64
+
+0                         // offset
+fd @64                    // fd
+MAP_PRIVATE               // flags
+PROT_READ                 // protc
+statbuf stat.st_size @64  // length
+NULL                      // addr
+mmap
+
+// save output of mmap onto `Str.data` of the `content` memory
+content Str.data !64
+
+if content Str.data @64 0 < do
+    "ERROR: could not memory map file `" eputs 1 nth_argv cstr-to-pstr eputs "`\n" eputs
+    1 exit
+end
+
+// print each parsed line of the input file
+while content Str.count @64 0 > do
+    line content str-chop-line
+    while line Str.count @64 0 > do
+        line str-trim-left
+        word line str-chop-word
+        "|" puts word @Str puts "|\n" puts
+//        if word @64 "+" cstreq do
+//            "FUCK YOU\n" puts
+//        elif word @64 "-" cstreq do
+//            "Hello Semen\n" puts
+//        end
+    end
+end

@@ -27,6 +27,7 @@ examples/cat
 examples/gol
 examples/reverse-linked-list
 examples/fizz-buzz
+examples/open-file
 examples/seq
 tests/arithmetics
 tests/bitwise-operations
@@ -44,3 +45,4 @@ tests/else-less-if
 tests/if-else
 tests/here
 tests/cstr
+memory-map-file
