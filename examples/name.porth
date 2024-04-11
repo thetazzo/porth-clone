@@ -13,7 +13,7 @@ if dup 0 <= do
 end 
 
 // remove the last new line
-if name over + 1 - , '\n' = do
+if name over + 1 - @8 '\n' = do
     1 -
 end
 
