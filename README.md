@@ -151,201 +151,116 @@ Example:
 
 This program pushes integer `69` onto the stack (since the ASCII code of letter `E` is `69`) and prints it with the `print` operation.
 
-### Built-in Words
+### Intrinsics (Built-in Words)
+
+* signature is constructed as such ``<inputs> -- <outputs>`` where inputs refer to the values on the stack before intrinsic execution and outputs the values after execution
 
 #### Stack Manipulation
 
-* `dup` - duplicate an element on top of the stack
-```
-a = pop()
-push(a)
-push(a)
-```
-* `swap` - swaps top 2 elements on the stack
-```
-a = pop();
-b = pop();
-push(a);
-push(b);
-```
-* `over` - copy the below element over the top element
-```
-a = pop()
-b = pop()
-push(b)
-push(a)
-push(b)
-```
-* `drop` - remove the top element on the stack
-```
-pop()
-```
-* `print` - print the element on top of the stack to *stdout* and remove it form the stack
-```
-a = pop()
-print(a)
-```
-
-* `rot` - rotate top 3 elements on the stack
-```
-a = pop()
-b = pop()
-c = pop()
-push(b)
-push(a)
-push(c)
-```
+| Name    | Signature        | Description                                                                                  |
+| ---     | ---              | ---                                                                                          |
+| `dup`   | `a -- a a`     | duplicate an element on top of the stack.                                                    |
+| `swap`  | `a b -- b a`     | swap 2 elements on the top of the stack.                                                     |
+| `drop`  | `a b -- a`       | drops the top element of the stack.                                                          |
+| `print` | `a b -- a`       | print the element on top of the stack in a free form to stdout and remove it from the stack. |
+| `over`  | `a b -- a b a`   | copy the element below the top of the stack                                                  |
+| `rot`   | `a b c -- b c a` | rotate the top three stack elements.                                                         |
 
 #### Comparison
-* `=` - checks if the two elements on top of the stack are equal. Removes the elements from the stack and pushes `1` if they are equal or `0` if they are not
-```
-a = pop()
-b = pop()
-push(int(a == b))
-```
-* `>` - checks if the element below the top is greater than the top
-```
-a = pop()
-b = pop()
-push(int(a > b));
-```
-* `<` - checks if the element below the top is smaller than the top
-```
-a = pop()
-b = pop()
-push(int(a < b));
-```
 
-#### Arithmetics
-* `+` - sums the two elements that are on the top on the stack
-```
-a = pop()
-b = pop()
-push(a + b)
-```
-* `-` - subtracts the top element on the stack from the element below the top
-```
-a = pop()
-b = pop()
-push(b - a)
-```
-* `*` - multiplies the top element on the stack with the one below the top
-```
-a = pop()
-b = pop()
-push(a * b)
-```
-* `divmod`
-```
-a = pop()
-b = pop()
-push(b // a)
-push(b % a)
-```
+| Name | Signature                              | Description                                                  |
+| ---  | ---                                    | ---                                                          |
+| `= ` | `[a: int] [b: int] -- [a == b : bool]` | checks if two elements on top of the stack are equal.        |
+| `!=` | `[a: int] [b: int] -- [a != b : bool]` | checks if two elements on top of the stack are not equal.    |
+| `> ` | `[a: int] [b: int] -- [a > b  : bool]` | applies the greater comparison on top two elements.          |
+| `< ` | `[a: int] [b: int] -- [a < b  : bool]` | applies the less comparison on top two elements.             |
+| `>=` | `[a: int] [b: int] -- [a >= b : bool]` | applies the greater or equal comparison on top two elements  |
+| `<=` | `[a: int] [b: int] -- [a <= b : bool]` | applies the greater or equal comparison on top two elements. |
 
-#### Bitwise operations
-* `shr` - 
-```
-a = pop()
-b = pop()
-push(b >> a)
-```
-* `shl` -
-```
-a = pop()
-b = pop()
-push(b << a)
-```
-* `or` -
-```
-a = pop()
-b = pop()
-push(b | a)
-```
-* `and` -
-```
-a = pop()
-b = pop()
-push(b & a)
-```
-* `not` -
-```
-a = pop()
-push(~a)
-```
+#### Arithmetic
 
-#### Control Flow
-* `if <condition> do <then-branch> else <else-branch> end` - pops the element on top of the stack and if the element is not `0` the `<then-branch>` is executed, otherwise the `<else-branch>` executes
-* `while <condition> do <body> end` - keeps executing both `<condition>` and `body` until `<condition>` results in `0` on top of the stack. Checking the result of the `<condition>` removes it from the stack
+| Name     | Signature                                        | Description                                                                                                              |
+| ---      | ---                                              | ---                                                                                                                      |
+| `+`      | `[a: int] [b: int] -- [a + b: int]`              | sums up two elements on the top of the stack.                                                                            |
+| `-`      | `[a: int] [b: int] -- [a - b: int]`              | subtracts two elements on the top of the stack                                                                           |
+| `*`      | `[a: int] [b: int] -- [a * b: int]`              | multiples two elements on top of the stack                                                                               |
+| `divmod` | `[a: int] [b: int] -- [a / b: int] [a % b: int]` | perform [Euclidean division](https://en.wikipedia.org/wiki/Euclidean_division) between two elements on top of the stack. |
+
+#### Bitwise
+
+| Name  | Signature                            | Description                   |
+| ---   | ---                                  | ---                           |
+| `shr` | `[a: int] [b: int] -- [a >> b: int]` | right **unsigned** bit shift. |
+| `shl` | `[a: int] [b: int] -- [a << b: int]` | light bit shift.              |
+| `or`  | `[a: int] [b: int] -- [a \| b: int]` | bit `or`.                     |
+| `and` | `[a: int] [b: int] -- [a & b: int]`  | bit `and`.                    |
+| `not` | `[a: int] -- [~a: int]`              | bit `not`.                    |
 
 #### Memory
-* `mem` - pushes the address of the beggining of the memory where you can read and write onto the stack
-* `.` - store the given byte at the given address on the stack
-```
-byte = pop()
-addr = pop()
-store(addr, byte)
-```
-* `,` - load a byte from the given address on the stack
-```
-addr = pop()
-byte = load(addr)
-push(byte)
-```
-* `.64` - store an 8-byte word at the given address on the stack
-```
-word = pop()
-addr = pop()
-store(addr, byte)
-```
-* `,64` - load an 8-byte word from the given address on the stack
-```
-word = pop()
-byte = load(word)
-push(byte)
-```
+
+| Name         | Signature                      | Description                                                                                    |
+| ---          | ---                            | ---                                                                                            |
+| `mem`        | `-- [mem: ptr]`                | pushes the address of the beginning of the memory where you can read and write onto the stack. |
+| `!8`         | `[byte: int] [place: ptr] -- ` | store a given byte at the address on the stack.                                                |
+| `@8`         | `[place: ptr] -- [byte: int]`  | load a byte from the address on the stack. Synonym to `,`.                                     |
+| `!64`        | `[place: ptr] [byte: int] --`  | store an 8-byte word at the address on the stack.                                              |
+| `@64`        | `[place: ptr] -- [byte: int]`  | load an 8-byte word from the address on the stack. Synonym to `,64`.                           |
+| `cast(int)`  | `[a: any] -- [a: int]`         | cast the element on top of the stack to `int`                                                  |
+| `cast(bool)` | `[a: any] -- [a: bool]`        | cast the element on top of the stack to `bool`                                                 |
+| `cast(ptr)`  | `[a: any] -- [a: ptr]`         | cast the element on top of the stack to `ptr`                                                  |
 
 #### System
-* `syscall1` - perform a syscall with 1 argument
+
+- `syscall<n>` - perform a syscall with n arguments where n is in range `[0..6]`. (`syscall1`, `syscall2`, etc)
 ```
 syscall_number = pop()
-for i in range(1):
+<move syscall_number to the corresponding register>
+for i in range(n):
     arg = pop()
     <move arg to i-th register according to the call convention>
 <perform the syscall>
 ```
-* `syscall3` - perform a syscall with 3 arguments
+
+#### Misc
+
+- `here (-- [len: int] [str: ptr])` - pushes a string `"<file-path>:<row>:<col>"` where `<file-path>` is the path to the file where `here` is located, `<row>` is the row on which `here` is located and `<col>` is the column from which `here` starts. It is useful for reporting developer errors:
+
+```pascal
+include "std.porth"
+
+here puts ": TODO: not implemented\n" puts 1 exit
 ```
-syscall_number = pop()
-for i in range(3):
-    arg = pop()
-    <move arg to i-th register according to the call convention>
-<perform the syscall>
-```
+- `argc (-- [argc: int])`
+- `argv (-- [argv: ptr])`
+
+### Control Flow
+
+- `if <condition> do <then-branch> else <else-branch> end` - pops the element on top of the stack and if the element is not `0` executes the `<then-branch>`, otherwise `<else-branch>`.
+- `while <condition> do <body> end` - keeps executing both `<condition>` and `<body>` until `<condition>` produces `0` at the top of the stack. Checking the result of the `<condition>` removes it from the stack.
 
 ### Macros
 
-* Define a new word `write` that expands into a sequence of tokens `1 1 syscall3` during the compilation
+Define a new word `write` that expands into a sequence of tokens `stdout SYS_write syscall3` during the compilation.
+
 ```
-macro write 
-    1 1 syscall3
+macro write
+    stdout SYS_write syscall3
 end
 ```
 
 ### Include
-* Include tokes form anothe `.porth` file by using the `include <file_path>`, where `<file_path>` is a string literal of the relative path to the included file
+
+Include tokens of file `file.porth`
+
 ```
-include "std.porth"
+include "file.porth"
 ```
 
-### Misc
+### Type Checking
 
-* `here` - a string `"<file-path>:<row>:<col>"` is pushed onto the stack. Where `<file-path>` is the path to the file where `here` is located, `<row>` is the row on which `here` is located and `col` is the colum on which `here` is starts. Useful for reporting developer errors
-```pascal
-include "std.porth"
+TBD
 
-here puts ": TODO: not impmeneted\n" puts 1 exit
-```
+<!-- TODO: Document Type Checking process -->
 
 ---
 
