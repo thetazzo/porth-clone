@@ -159,13 +159,23 @@ end
 // =========================================
 
 macro sizeof(Str) 16  end
-macro Str.count 0 +  end
-macro Str.data  8 +  end
+macro Str.count  0 +  end
+macro Str.data   8 +  end
+macro @Str.count Str.count @64 end
+macro @Str.data  Str.data  @64 cast(ptr) end
+macro !Str.count Str.count !64 end
+macro !Str.data  Str.data  !64  end
 
 // "pushing the structure onto the stack"
 macro @Str
-    dup Str.count @64
-    swap Str.data @64
+    dup  @Str.count 
+    swap @Str.data 
+end
+
+// poping the "string structure" of the stack
+macro !Str // n ptr s
+    dup Str.data rot swap !64
+    !Str.count 
 end
 
 // chop a single char from the left side
@@ -178,8 +188,8 @@ end
 // remove ' ' (space) characters while the input string starts with them
 macro str-trim-left // input --
     while 
-        if dup Str.count @64 0 > do
-            dup Str.data @64 cast(ptr) @8 ' ' =
+        if dup @Str.count 0 > do
+            dup @Str.data @8 ' ' =
         else
             false
         end
@@ -195,8 +205,8 @@ macro str-chop-line // line input --
     // line->count = 0
     over Str.count 0 swap !64
     while 
-        if dup Str.count @64 0 > do
-            dup Str.data @64 cast(ptr) @8 '\n' !=
+        if dup @Str.count 0 > do
+            dup @Str.data @8 '\n' !=
         else
             false
         end
@@ -205,7 +215,7 @@ macro str-chop-line // line input --
         // increment count of the `line`
         swap dup Str.count inc64 swap
     end
-    if dup Str.count @64 0 > do
+    if dup @Str.count 0 > do
         dup str-chop-left
     end
     2drop
@@ -214,12 +224,12 @@ end
 // TODO: merge chop word and chop line into a single macro
 macro str-chop-word // word input --
     // word->data = input->data
-    2dup Str.data @64 swap Str.data !64
+    2dup @Str.data swap Str.data !64
     // word->count = 0
     over Str.count 0 swap !64
     while 
-        if dup Str.count @64 0 > do
-            dup Str.data @64 cast(ptr) @8 ' ' !=
+        if dup @Str.count 0 > do
+            dup @Str.data @8 ' ' !=
         else
             false
         end
@@ -228,83 +238,7 @@ macro str-chop-word // word input --
         // increment count of the `word`
         swap dup Str.count inc64 swap
     end
-    if dup Str.count @64 0 > do
-        dup str-chop-left
-    end
-    2drop
-end
-
-macro sizeof(Str) 16  end
-macro Str.count 0 +  end
-macro Str.data  8 +  end
-
-// "pushing the structure onto the stack"
-macro @Str
-    dup Str.count @64
-    swap Str.data @64
-end
-
-// chop a single char from the left side
-macro str-chop-left // str --
-    dup Str.count dec64
-    dup Str.data inc64
-    drop
-end
-
-// remove ' ' (space) characters while the input string starts with them
-macro str-trim-left // input --
-    while 
-        if dup Str.count @64 0 > do
-            dup Str.data @64 cast(ptr) @8 ' ' =
-        else
-            false
-        end
-    do
-        dup str-chop-left
-    end
-    drop
-end
-
-macro str-chop-line // line input --
-    // line->data = input->data
-    2dup Str.data @64 swap Str.data !64
-    // line->count = 0
-    over Str.count 0 swap !64
-    while 
-        if dup Str.count @64 0 > do
-            dup Str.data @64 cast(ptr) @8 '\n' !=
-        else
-            false
-        end
-    do
-        dup str-chop-left
-        // increment count of the `line`
-        swap dup Str.count inc64 swap
-    end
-    if dup Str.count @64 0 > do
-        dup str-chop-left
-    end
-    2drop
-end
-
-// TODO: merge chop word and chop line into a single macro
-macro str-chop-word // word input --
-    // word->data = input->data
-    2dup Str.data @64 swap Str.data !64
-    // word->count = 0
-    over Str.count 0 swap !64
-    while 
-        if dup Str.count @64 0 > do
-            dup Str.data @64 cast(ptr) @8 ' ' !=
-        else
-            false
-        end
-    do
-        dup str-chop-left
-        // increment count of the `word`
-        swap dup Str.count inc64 swap
-    end
-    if dup Str.count @64 0 > do
+    if dup @Str.count 0 > do
         dup str-chop-left
     end
     2drop
