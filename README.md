@@ -159,55 +159,55 @@ This program pushes integer `69` onto the stack (since the ASCII code of letter 
 
 | Name    | Signature        | Description                                                                                  |
 | ---     | ---              | ---                                                                                          |
-| `dup`   | `a -- a a`     | duplicate an element on top of the stack.                                                    |
-| `swap`  | `a b -- b a`     | swap 2 elements on the top of the stack.                                                     |
-| `drop`  | `a b -- a`       | drops the top element of the stack.                                                          |
-| `print` | `a b -- a`       | print the element on top of the stack in a free form to stdout and remove it from the stack. |
+| `dup`   | `a -- a a`       | duplicate the element on top of the stack                                                    |
+| `swap`  | `a b -- b a`     | swap 2 elements on the top of the stack                                                      |
+| `drop`  | `a b -- a`       | removes the top element of the stack                                                         |
+| `print` | `a b -- a`       | print the element on top of the stack in a free form to stdout and remove it from the stack  |
 | `over`  | `a b -- a b a`   | copy the element below the top of the stack                                                  |
-| `rot`   | `a b c -- b c a` | rotate the top three stack elements.                                                         |
+| `rot`   | `a b c -- b c a` | rotate the top three elements on the stack                                                   |
 
 #### Comparison
 
 | Name | Signature                              | Description                                                  |
 | ---  | ---                                    | ---                                                          |
-| `= ` | `[a: int] [b: int] -- [a == b : bool]` | checks if two elements on top of the stack are equal.        |
-| `!=` | `[a: int] [b: int] -- [a != b : bool]` | checks if two elements on top of the stack are not equal.    |
-| `> ` | `[a: int] [b: int] -- [a > b  : bool]` | applies the greater comparison on top two elements.          |
-| `< ` | `[a: int] [b: int] -- [a < b  : bool]` | applies the less comparison on top two elements.             |
+| `= ` | `[a: int] [b: int] -- [a == b : bool]` | checks if two elements on top of the stack are equal         |
+| `!=` | `[a: int] [b: int] -- [a != b : bool]` | checks if two elements on top of the stack are not equal     |
+| `> ` | `[a: int] [b: int] -- [a > b  : bool]` | applies the greater comparison on top two elements           |
+| `< ` | `[a: int] [b: int] -- [a < b  : bool]` | applies the less comparison on top two elements              |
 | `>=` | `[a: int] [b: int] -- [a >= b : bool]` | applies the greater or equal comparison on top two elements  |
-| `<=` | `[a: int] [b: int] -- [a <= b : bool]` | applies the greater or equal comparison on top two elements. |
+| `<=` | `[a: int] [b: int] -- [a <= b : bool]` | applies the greater or equal comparison on top two elements  |
 
 #### Arithmetic
 
 | Name     | Signature                                        | Description                                                                                                              |
 | ---      | ---                                              | ---                                                                                                                      |
-| `+`      | `[a: int] [b: int] -- [a + b: int]`              | sums up two elements on the top of the stack.                                                                            |
+| `+`      | `[a: int] [b: int] -- [a + b: int]`              | sums up two elements on the top of the stack                                                                             |
 | `-`      | `[a: int] [b: int] -- [a - b: int]`              | subtracts two elements on the top of the stack                                                                           |
 | `*`      | `[a: int] [b: int] -- [a * b: int]`              | multiples two elements on top of the stack                                                                               |
-| `divmod` | `[a: int] [b: int] -- [a / b: int] [a % b: int]` | perform [Euclidean division](https://en.wikipedia.org/wiki/Euclidean_division) between two elements on top of the stack. |
+| `divmod` | `[a: int] [b: int] -- [a / b: int] [a % b: int]` | perform [Euclidean division](https://en.wikipedia.org/wiki/Euclidean_division) between two elements on top of the stack  |
 
 #### Bitwise
 
 | Name  | Signature                            | Description                   |
 | ---   | ---                                  | ---                           |
-| `shr` | `[a: int] [b: int] -- [a >> b: int]` | right **unsigned** bit shift. |
-| `shl` | `[a: int] [b: int] -- [a << b: int]` | light bit shift.              |
-| `or`  | `[a: int] [b: int] -- [a \| b: int]` | bit `or`.                     |
-| `and` | `[a: int] [b: int] -- [a & b: int]`  | bit `and`.                    |
-| `not` | `[a: int] -- [~a: int]`              | bit `not`.                    |
+| `shr` | `[a: int] [b: int] -- [a >> b: int]` | right **unsigned** bit shift  |
+| `shl` | `[a: int] [b: int] -- [a << b: int]` | light bit shift               |
+| `or`  | `[a: int] [b: int] -- [a \| b: int]` | bit `or`                      |
+| `and` | `[a: int] [b: int] -- [a & b: int]`  | bit `and`                     |
+| `not` | `[a: int] -- [~a: int]`              | bit `not`                     |
 
 #### Memory
 
-| Name         | Signature                      | Description                                                                                    |
-| ---          | ---                            | ---                                                                                            |
-| `mem`        | `-- [mem: ptr]`                | pushes the address of the beginning of the memory where you can read and write onto the stack. |
-| `!8`         | `[byte: int] [place: ptr] -- ` | store a given byte at the address on the stack.                                                |
-| `@8`         | `[place: ptr] -- [byte: int]`  | load a byte from the address on the stack. Synonym to `,`.                                     |
-| `!64`        | `[place: ptr] [byte: int] --`  | store an 8-byte word at the address on the stack.                                              |
-| `@64`        | `[place: ptr] -- [byte: int]`  | load an 8-byte word from the address on the stack. Synonym to `,64`.                           |
-| `cast(int)`  | `[a: any] -- [a: int]`         | cast the element on top of the stack to `int`                                                  |
-| `cast(bool)` | `[a: any] -- [a: bool]`        | cast the element on top of the stack to `bool`                                                 |
-| `cast(ptr)`  | `[a: any] -- [a: ptr]`         | cast the element on top of the stack to `ptr`                                                  |
+| Name         | Signature                      | Description                                                                                     |
+| ---          | ---                            | ---                                                                                             |
+| `mem`        | `-- [mem: ptr]`                | pushes the address of the beginning of the memory where you can read and write onto the stack   |
+| `!8`         | `[byte: int] [place: ptr] -- ` | store a given byte at the address on the stack                                                  |
+| `@8`         | `[place: ptr] -- [byte: int]`  | load a byte from the address on the stack. Synonym to `,`                                       |
+| `!64`        | `[place: ptr] [byte: int] --`  | store an 8-byte word at the address on the stack                                                |
+| `@64`        | `[place: ptr] -- [byte: int]`  | load an 8-byte word from the address on the stack. Synonym to `,64`                             |
+| `cast(int)`  | `[a: any] -- [a: int]`         | cast the element on top of the stack to `int`                                                   |
+| `cast(bool)` | `[a: any] -- [a: bool]`        | cast the element on top of the stack to `bool`                                                  |
+| `cast(ptr)`  | `[a: any] -- [a: ptr]`         | cast the element on top of the stack to `ptr`                                                   |
 
 #### System
 
