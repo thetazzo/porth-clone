@@ -59,6 +59,7 @@ end
 
 "File name: " puts 1 nth_argv cstr-to-pstr puts "\n" puts
 
+// open the file
 O_RDONLY   // flags
 1 nth_argv // pathname
 AT_FDCWD   // dirfd
@@ -69,9 +70,10 @@ if dup 0 < do
     1 exit
 end
 
-// store file descriptor on the memory!
+// store file descriptor to a global variable on the memory!
 fd !64
 
+// get the size of the file
 if statbuf fd @64 fstat 0 < do
     "ERROR: could not determine the size of the file `" eputs 1 nth_argv cstr-to-pstr eputs "`\n" eputs
     1 exit
@@ -80,8 +82,10 @@ end
 //       void *mmap(void addr[.length], size_t length, int prot, int flags, int fd, off_t offset);
 
 // read the field of the `statbuf` and write it into `Str.count` of the `content`
-statbuf stat.st_size @64 content Str.count !64
+// save the size of the file into the count of the content
+statbuf @stat.st_size content !Str.count 
 
+// memory map the file
 0                         // offset
 fd @64                    // fd
 MAP_PRIVATE               // flags
@@ -89,9 +93,9 @@ PROT_READ                 // protc
 statbuf stat.st_size @64  // length
 NULL                      // addr
 mmap
-
 // save output of mmap onto `Str.data` of the `content` memory
 content Str.data !64
+
 
 if content Str.data @64 0 < do
     "ERROR: could not memory map file `" eputs 1 nth_argv cstr-to-pstr eputs "`\n" eputs
