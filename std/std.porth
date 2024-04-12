@@ -43,6 +43,7 @@ macro stat.st_uid 28 + end
 macro stat.st_gid 32 + end
 macro stat.st_rdev 40 + end
 macro stat.st_size 48 + end
+macro @stat.st_size stat.st_size @64 end // stat size accessor macro
 macro stat.st_blksize 56 + end
 macro stat.st_blocks 64 + end
 macro stat.st_atim 72 + end
