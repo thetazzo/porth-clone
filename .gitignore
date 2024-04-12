@@ -30,6 +30,7 @@ examples/fizz-buzz
 examples/seq
 examples/file-read-chop-line
 examples/memory-map-file
+examples/read-file-stats
 tests/arithmetics
 tests/bitwise-operations
 tests/comments
