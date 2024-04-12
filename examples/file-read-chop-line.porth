@@ -1,5 +1,3 @@
-// Using `mmap` we will read the file at the path provided as the command line argument into the memory
-
 include "std.porth"
 
 macro fd mem end
@@ -7,29 +5,6 @@ macro statbuf fd 8 + end
 macro content statbuf sizeof(stat) + end
 macro line content sizeof(Str) + end
 macro word line sizeof(Str) + end
-
-macro streq 
-    if
-        2dup Str.count @64
-        swap Str.count @64
-        =
-    do
-        Str.data @64
-        swap dup Str.count @64
-        swap Str.data @64 swap
-        while
-            if dup 0 > do
-                
-            else
-                false
-            end
-        do
-            
-        end
-    else
-        false
-    end
-end
 
 if argc 2 < do
     "Usage: " eputs 0 nth_argv cstr-to-pstr eputs " <file>\n" eputs
@@ -49,7 +24,7 @@ if dup 0 < do
     1 exit
 end
 
-// store file descriptor on the memory
+// store file descriptor on the memory!
 fd !64
 
 if statbuf fd @64 fstat 0 < do
@@ -78,17 +53,14 @@ if content Str.data @64 0 < do
     1 exit
 end
 
-// print each parsed line of the input file
+// handle each line in the file
 while content Str.count @64 0 > do
     line content str-chop-line
+    // handle each word in the line
     while line Str.count @64 0 > do
         line str-trim-left
         word line str-chop-word
-        "|" puts word @Str puts "|\n" puts
-//        if word @64 "+" cstreq do
-//            "FUCK YOU\n" puts
-//        elif word @64 "-" cstreq do
-//            "Hello Semen\n" puts
-//        end
+        word @Str puts
     end
+    "\n" puts
 end

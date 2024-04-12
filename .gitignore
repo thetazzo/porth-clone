@@ -29,6 +29,7 @@ examples/reverse-linked-list
 examples/fizz-buzz
 examples/open-file
 examples/seq
+examples/file-read-chop-line
 tests/arithmetics
 tests/bitwise-operations
 tests/comments

@@ -1,0 +1,120 @@
+// Using `mmap` we will read the file at the path provided as the command line argument into the memory
+
+include "std.porth"
+
+macro sizeof(u64) 8 end
+macro PUTD_BUFFER_CAP 32     end
+macro putd-buffer mem end
+
+macro putd // u64 --
+    if dup 0 = do
+      "0" puts
+    else
+      putd-buffer PUTD_BUFFER_CAP +
+      while over 0 > do
+        1 - dup rot
+        10 divmod
+        rot swap '0' + . swap
+      end
+  
+      dup
+      putd-buffer PUTD_BUFFER_CAP + swap - swap puts
+    end
+    drop
+end
+
+macro fd mem end
+macro statbuf fd 8 + end
+macro content statbuf sizeof(stat) + end
+macro line content sizeof(Str) + end
+macro word line sizeof(Str) + end
+macro line_number word sizeof(Str) + end
+macro streq_a line_number sizeof(u64) + end
+macro streq_b streq_a sizeof(Str) + end
+
+macro str-copy // dst src
+    @Str rot !Str
+end
+
+macro streq // n1 s1 n2 s2
+    streq_a !Str
+    streq_b !Str
+    if streq_a @Str.count streq_b @Str.count = do
+        0 while
+            if dup streq_a @Str.count < do
+                dup streq_a @Str.data + @8 
+                over streq_b @Str.data + @8 
+                =
+            else false end
+        do 1 + end
+        streq_a @Str.count >= 
+    else false end
+end
+
+if argc 2 < do
+    "Usage: " eputs 0 nth_argv cstr-to-pstr eputs " <file>\n" eputs
+    "ERROR: no input file was provided" eputs
+    1 exit
+end
+
+"File name: " puts 1 nth_argv cstr-to-pstr puts "\n" puts
+
+O_RDONLY   // flags
+1 nth_argv // pathname
+AT_FDCWD   // dirfd
+openat
+
+if dup 0 < do
+    "ERROR: could not open file `" eputs 1 nth_argv cstr-to-pstr eputs "` not found\n" eputs
+    1 exit
+end
+
+// store file descriptor on the memory!
+fd !64
+
+if statbuf fd @64 fstat 0 < do
+    "ERROR: could not determine the size of the file `" eputs 1 nth_argv cstr-to-pstr eputs "`\n" eputs
+    1 exit
+end
+
+//       void *mmap(void addr[.length], size_t length, int prot, int flags, int fd, off_t offset);
+
+// read the field of the `statbuf` and write it into `Str.count` of the `content`
+statbuf stat.st_size @64 content Str.count !64
+
+0                         // offset
+fd @64                    // fd
+MAP_PRIVATE               // flags
+PROT_READ                 // protc
+statbuf stat.st_size @64  // length
+NULL                      // addr
+mmap
+
+// save output of mmap onto `Str.data` of the `content` memory
+content Str.data !64
+
+if content Str.data @64 0 < do
+    "ERROR: could not memory map file `" eputs 1 nth_argv cstr-to-pstr eputs "`\n" eputs
+    1 exit
+end
+
+// parse lines of the input file
+0 line_number !64
+while content Str.count @64 0 > do
+    line content str-chop-line
+    while line Str.count @64 0 > do
+        line str-trim-left
+        word line str-chop-word
+        1 nth_argv cstr-to-pstr puts ": " puts line_number @64 putd ": " puts
+        if word @Str "+" streq do
+            "Compilation of PLUS\n" puts
+        elif word @Str "-" streq do
+            "Compilation of MINUS\n" puts
+        elif word @Str "print" streq do
+            "Compilation of PRINT\n" puts
+        else
+            "Parsing a word as a number: `" puts word @Str puts "`\n" puts
+        end
+    end
+    line_number inc64
+end
