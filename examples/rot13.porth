@@ -3,18 +3,20 @@ include "std.porth"
 macro BUFF_CAP 1024 end
 macro buffer mem end
 
+
+"Type something here: " puts
 while BUFF_CAP buffer stdin read dup 0 > do
     0 while 2dup > do
-        dup buffer + ,
+        dup buffer + @8
 
         if dup 'a' >= over 'z' <= and do
             2dup 'a' - 13 + 26 mod 'a' +
-            swap buffer + swap .
+            swap buffer + !8
         end
 
         if dup 'A' >= over 'Z' <= and do
             2dup 'A' - 13 + 26 mod 'A' +
-            swap buffer + swap .
+            swap buffer + !8
         end
 
         drop
@@ -22,5 +24,7 @@ while BUFF_CAP buffer stdin read dup 0 > do
         1 +
     end drop
 
+    "Rot13 result: " puts
     buffer puts
+    "Type something here: " puts
 end drop

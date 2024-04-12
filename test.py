@@ -82,7 +82,7 @@ class RunStats:
     com_failed: int = 0
     ignored: int = 0
 
-def run_test_for_file(file_path: str, stats: RunStats = RunStats(), failed_tests: List[str] = []):
+def run_test_for_file(file_path: str, stats: RunStats = RunStats(), failed_tests: List[str] = [], ignored_tests: List[str] = []):
 
     assert path.isfile(file_path)
     assert file_path.endswith(PORTH_EXT)
@@ -129,6 +129,7 @@ def run_test_for_file(file_path: str, stats: RunStats = RunStats(), failed_tests
         if com.returncode != 0:
             stats.com_failed += 1
         stats.ignored += 1
+        ignored_tests.append(file_path)
 
 def run_test_for_folder(folder: str):
     stats = RunStats()
@@ -136,16 +137,24 @@ def run_test_for_folder(folder: str):
     com_failed = 0
     test_count = 0
     failed_tests: List[str] = []
+    ignored_tests: List[str] = []
     for entry in os.scandir(folder):
         if entry.is_file() and entry.path.endswith(PORTH_EXT):
-            run_test_for_file(entry.path, stats, failed_tests)
+            run_test_for_file(entry.path, stats, failed_tests, ignored_tests)
             test_count += 1
     print()
     print("Executed %d tests" % test_count) 
     print("Simulation failed: %d, Compilation failed: %d, Ignored: %d" % (stats.sim_failed, stats.com_failed, stats.ignored))
-    print("--------------------------------------")
-    for ft in failed_tests:
-        print(ft)
+    if len(failed_tests) > 0:
+        print("--------------------------------------")
+        print("Failed tests:")
+        for ft in failed_tests:
+            print(ft)
+    if len(ignored_tests) > 0:
+        print("--------------------------------------")
+        print("Ignored tests:")
+        for it in ignored_tests:
+            print(it)
     if stats.sim_failed != 0 or stats.com_failed != 0:
         exit(1)
 

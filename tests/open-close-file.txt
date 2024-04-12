@@ -1,0 +1,12 @@
+:i argc 1
+:b arg0 28
+./examples/hello-world.porth
+:b stdin 0
+
+:i returncode 0
+:b stdout 88
+Opened file: `./examples/hello-world.porth`
+Closed file: `./examples/hello-world.porth`
+
+:b stderr 0
+

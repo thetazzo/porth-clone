@@ -19,10 +19,37 @@ macro sizeof(Op) 16  end
 
 // memory layout
 macro putd-buffer mem end
-macro sim-stack-count putd-buffer PUTD_BUFFER_CAP + end 
+
+macro file_path_cstr putd-buffer PUTD_BUFFER_CAP + end
+macro fd file_path_cstr 8 + end
+macro statbuf fd 8 + end
+
+macro content statbuf sizeof(stat) + end
+macro line content sizeof(Str) + end
+macro word line sizeof(Str) + end
+macro streq_a word sizeof(Str) + end
+macro streq_b streq_a sizeof(Str) + end
+macro parse_int_a streq_b sizeof(Str) + end
+
+macro sim-stack-count parse_int_a sizeof(Str) + end 
 macro sim-stack sim-stack-count 8 + end
 macro ops-count sim-stack SIM_STACK_CAP 8 * + end  
 macro ops ops-count 8 + end
+
+macro streq // n1 s1 n2 s2
+    streq_a !Str
+    streq_b !Str
+    if streq_a @Str.count streq_b @Str.count = do
+        0 while
+            if dup streq_a @Str.count < do
+                dup streq_a @Str.data + @8 
+                over streq_b @Str.data + @8 
+                =
+            else false end
+        do 1 + end
+        streq_a @Str.count >= 
+    else false end
+end
 
 macro sim-stack-push // u64 --
     if sim-stack-count @64 SIM_STACK_CAP >= do
@@ -64,6 +91,16 @@ macro putd // u64 --
       putd-buffer PUTD_BUFFER_CAP + swap - swap puts
     end
     drop
+end
+
+macro parse_int // n1 s1 - 
+    parse_int_a !Str
+    0 0 while dup parse_int_a @Str.count < do
+        dup parse_int_a @Str.data + @8 '0' -
+        rot 10 * +
+        swap
+        1 +
+    end drop
 end
 
 macro print-opz // --
@@ -174,26 +211,67 @@ macro compile-opz // --
     "mem: resb " puts MEM_CAPACITY putd "\n" puts
 end
 
-macro program69 // -- 
-    OP_PUSH_INT 34 push-op
-    OP_PUSH_INT 35 push-op
-    OP_PLUS     0  push-op
-    OP_PRINT    0  push-op
-end
+macro parse_file_path
+    // open the file
+    O_RDONLY   // flags
+    file_path_cstr @64 cast(ptr) // pathname
+    AT_FDCWD   // dirfd
+    openat
 
-macro program123 // --
-    OP_PUSH_INT 1 push-op
-    OP_PRINT    0  push-op
-    OP_PUSH_INT 2 push-op
-    OP_PRINT    0  push-op
-    OP_PUSH_INT 3 push-op
-    OP_PRINT    0  push-op
+    // validate successful opening of the file
+    if dup 0 < do
+        "ERROR: could not open file `" eputs file_path_cstr @64 cast(ptr) cstr-to-pstr eputs "` not found\n" eputs
+        1 exit
+    end
+
+    // save file descriptor to a global variable
+    fd !64
+
+    if statbuf fd @64 fstat 0 < do
+        "ERROR: could not determine the size of the file `" eputs file_path_cstr @64 cast(ptr) cstr-to-pstr eputs "`\n" eputs
+        1 exit
+    end
+
+    // save the size of the file into the count of the content
+    statbuf @stat.st_size content !Str.count 
+
+    // memory map the file
+    0                         // offset
+    fd @64                    // fd
+    MAP_PRIVATE               // flags
+    PROT_READ                 // protc
+    statbuf stat.st_size @64  // length
+    NULL                      // addr
+    mmap
+    // save output of mmap onto `Str.data` of the `content` memory
+    content !Str.data
+
+    // validate success of the `mmap` syscall ~ validate memory mapping was successful
+    if content @Str.data cast(int) 0 < do
+        "ERROR: could not memory map file `" eputs file_path_cstr @64 cast(ptr) cstr-to-pstr eputs "`\n" eputs
+        1 exit
+    end
+
+    while content Str.count @64 0 > do
+        line content str-chop-line
+        while line Str.count @64 0 > do
+            line str-trim-left
+            word line str-chop-word
+            if word @Str "+" streq do
+                OP_PLUS 0 push-op
+            elif word @Str "print" streq do
+                OP_PRINT 0 push-op
+            else
+                OP_PUSH_INT word @Str parse_int push-op
+            end
+        end
+    end
 end
 
 macro print_usage 
     dup "Usage: porth <SUBCOMMAND>\n" rot fputs
     dup "  SUBCOMMAND:\n" rot fputs
-    dup "    sim            Simulate the program\n" rot fputs
+    dup "    sim <file>     Simulate the program\n" rot fputs
     dup "    com            Compile the program\n" rot fputs
     dup "    print          Print ops of the program\n" rot fputs
     dup "    help           Print this help to the stderr ane exit with 0 code\n" rot fputs
@@ -210,12 +288,28 @@ macro main
         1 exit
     end
 
-    program123
     1 nth_argv
-
     if dup "com"c cstreq do
+        if argc 3 < do
+            stderr print_usage
+            "ERROR: No input file provided for the `com` subcommand" eputs
+            1 exit
+        end
+        2 nth_argv file_path_cstr !64
+
+        parse_file_path
+
         compile-opz
     elif dup "sim"c cstreq do
+        if argc 3 < do
+            stderr print_usage
+            "ERROR: No input file provided for the `sim` subcommand" eputs
+            1 exit
+        end
+        2 nth_argv file_path_cstr !64
+
+        parse_file_path
+
         simulate-opz
     elif dup "print"c cstreq do
         print-opz

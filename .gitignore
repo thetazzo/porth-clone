@@ -15,6 +15,8 @@ euler/problem-03
 euler/problem-04
 euler/problem-05
 euler/problem-06
+euler/problem-07
+euler/problem-08
 examples/hello-world
 examples/rule-110
 examples/fib
@@ -26,6 +28,9 @@ examples/gol
 examples/reverse-linked-list
 examples/fizz-buzz
 examples/seq
+examples/file-read-chop-line
+examples/memory-map-file
+examples/read-file-stats
 tests/arithmetics
 tests/bitwise-operations
 tests/comments
@@ -42,3 +47,4 @@ tests/else-less-if
 tests/if-else
 tests/here
 tests/cstr
+tests/open-close-file

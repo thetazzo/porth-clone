@@ -1,0 +1,9 @@
+:i argc 0
+:b stdin 0
+
+:i returncode 1
+:b stdout 0
+
+:b stderr 90
+./tests/while-fail.porth:1:1: ERROR: unhandled data on the ctx.stack: [<DataType.INT: 1>]
+

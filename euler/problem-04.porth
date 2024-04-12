@@ -17,8 +17,8 @@ macro ans mem end
 
         if 2dup = do 
             // a b
-            if dup ans ,64 > do
-                ans over .64 
+            if dup ans @64 > do
+                ans over swap !64 
             end
         end
 
@@ -28,4 +28,4 @@ macro ans mem end
     end drop
     1 +
 end drop
-ans ,64 print
+ans @64 print

@@ -1,0 +1,59 @@
+include "std.porth"
+
+macro PUTD_BUFFER_CAP 32     end
+macro putd-buffer mem end
+
+macro putd // u64 --
+    if dup 0 = do
+      "0" puts
+    else
+      putd-buffer PUTD_BUFFER_CAP +
+      while over 0 > do
+        1 - dup rot
+        10 divmod
+        rot swap '0' + . swap
+      end
+  
+      dup
+      putd-buffer PUTD_BUFFER_CAP + swap - swap puts
+    end
+    drop
+end
+
+if argc 2 < do
+    "Usage: " eputs 0 nth_argv cstr-to-pstr eputs " <file>\n" eputs
+    "ERROR: No input file provided\n" eputs
+    1 exit
+end
+
+// memory layout
+macro fd mem end            // file descriptor memory begin
+macro statbuf fd 8 + end    // stat structure  memory begin
+
+// open the file
+O_RDONLY   // flags
+1 nth_argv // pathname
+AT_FDCWD   // dirfd
+openat
+
+// validate file was opened successfully
+if dup 0 < do
+    "ERROR: could not open file `" eputs 1 nth_argv cstr-to-pstr eputs "` not found\n" eputs
+    1 exit
+end
+
+// store file descriptor to a global variable on the memory!
+fd !64
+
+// get and validate the size of the file
+if statbuf fd @64 fstat 0 < do
+    "ERROR: could not determine the size of the file `" eputs 1 nth_argv cstr-to-pstr eputs "`\n" eputs
+    1 exit
+end
+
+// print the file size stat
+"Size of file `" puts
+1 nth_argv cstr-to-pstr puts
+"` is " puts
+statbuf @stat.st_size putd
+" bytes\n" puts
