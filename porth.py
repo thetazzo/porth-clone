@@ -62,6 +62,7 @@ class Intrinsic(IntEnum):
     STORE=auto()
     STORE64=auto()
     CAST_PTR=auto()
+    CAST_INT=auto()
     ARGC=auto()
     ARGV=auto()
     HERE=auto()
@@ -394,6 +395,9 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 elif op.operand == Intrinsic.CAST_PTR:
                     # Ignore the type casting. It's only useful for type_check_program() phase
                     ip += 1
+                elif op.operand == Intrinsic.CAST_INT:
+                    # Ignore the type casting. It's only useful for type_check_program() phase
+                    ip += 1
                 elif op.operand == Intrinsic.SYSCALL0:
                     syscall_number = stack.pop();
                     if syscall_number == 39: # SYS_getpid
@@ -530,7 +534,7 @@ def type_check_program(program: Program):
             ctx.stack.append((DataType.PTR, op.token))
             ctx.ip += 1
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 37, "Exhaustive intrinsic handling in type_check_program()"
+            assert len(Intrinsic) == 38, "Exhaustive intrinsic handling in type_check_program()"
             assert isinstance(op.operand, Intrinsic), "This could be a bug in compilation step"
             if op.operand == Intrinsic.PLUS:
                 assert len(DataType) == 3, "Exhaustive type handling in PLUS intrinsic"
@@ -841,10 +845,14 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 1:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_token = ctx.stack.pop()
-
                 ctx.stack.append((DataType.PTR, a_token))
+            elif op.operand == Intrinsic.CAST_INT:
+                if len(ctx.stack) < 1:
+                    print_missing_op_args(op)
+                    exit(1)
+                a_type, a_token = ctx.stack.pop()
+                ctx.stack.append((DataType.INT, a_token))
             elif op.operand == Intrinsic.ARGC:
                 ctx.stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.ARGV:
@@ -1043,7 +1051,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 assert isinstance(op.operand, int), "There is a bug in the parsing step (probably)"
                 out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 37, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
+                assert len(Intrinsic) == 38, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
                 if op.operand == Intrinsic.PLUS:
                     out.write(";;  -- plus --\n")
                     out.write("    pop rax\n")
@@ -1212,6 +1220,10 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop rbx\n");
                     out.write("    mov [rax], rbx\n");
                 elif op.operand == Intrinsic.CAST_PTR:
+                    # ignore because casting is only useful in type checking
+                    pass
+                elif op.operand == Intrinsic.CAST_INT:
+                    # ignore because casting is only useful in type checking
                     pass
                 elif op.operand == Intrinsic.ARGC:
                     out.write(";;  -- argc --\n")
@@ -1317,7 +1329,7 @@ KEYWORD_NAMES= {
     'include': Keyword.INCLUDE,
 }
 
-assert len(Intrinsic) == 37, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
+assert len(Intrinsic) == 38, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
 INTRINSIC_BY_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
@@ -1346,6 +1358,7 @@ INTRINSIC_BY_NAMES = {
     '!64': Intrinsic.STORE64,
     '@64': Intrinsic.LOAD64,
     'cast(ptr)': Intrinsic.CAST_PTR,
+    'cast(int)': Intrinsic.CAST_INT,
     'argc': Intrinsic.ARGC,
     'argv': Intrinsic.ARGV,
     'here': Intrinsic.HERE,
