@@ -220,7 +220,7 @@ macro parse_file_path
 
     // validate successful opening of the file
     if dup 0 < do
-        "ERROR: could not open file `" eputs file_path_cstr @64 cast(ptr) cstr-to-pstr eputs "` not found\n" eputs
+        "ERROR: could not open file `" eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "` not found\n" eputs
         1 exit
     end
 
@@ -228,7 +228,7 @@ macro parse_file_path
     fd !64
 
     if statbuf fd @64 fstat 0 < do
-        "ERROR: could not determine the size of the file `" eputs file_path_cstr @64 cast(ptr) cstr-to-pstr eputs "`\n" eputs
+        "ERROR: could not determine the size of the file `" eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "`\n" eputs
         1 exit
     end
 
@@ -248,7 +248,7 @@ macro parse_file_path
 
     // validate success of the `mmap` syscall ~ validate memory mapping was successful
     if content @Str.data cast(int) 0 < do
-        "ERROR: could not memory map file `" eputs file_path_cstr @64 cast(ptr) cstr-to-pstr eputs "`\n" eputs
+        "ERROR: could not memory map file `" eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "`\n" eputs
         1 exit
     end
 
