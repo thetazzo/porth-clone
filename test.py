@@ -106,7 +106,7 @@ def run_test_for_file(file_path: str, stats: RunStats = RunStats(), failed_tests
             print("    stdout: \n%s" % sim.stdout.decode("utf-8"))
             print("    stderr: \n%s" % sim.stderr.decode("utf-8"))
             stats.sim_failed += 1
-            if file_path not in file_path:
+            if file_path not in failed_tests:
                 failed_tests.append(file_path)
 
         com = cmd_run_echoed([sys.executable, "./porth.py", "com", "-r", "-s", file_path, *tc.argv], input=tc.stdin, capture_output=True)
@@ -122,14 +122,14 @@ def run_test_for_file(file_path: str, stats: RunStats = RunStats(), failed_tests
             print("    stdout: \n%s" % com.stdout.decode("utf-8"))
             print("    stderr: \n%s" % com.stderr.decode("utf-8"))
             stats.com_failed += 1
-            if file_path not in file_path:
+            if file_path not in failed_tests:
                 failed_tests.append(file_path)
     else: 
         print("[WARNING] Could not find any input/output data for %s. Skipping ..." % file_path)
         com = cmd_run_echoed([sys.executable, "./porth.py", "com", file_path])
         if com.returncode != 0:
             stats.com_failed += 1
-            if file_path not in file_path:
+            if file_path not in failed_tests:
                 failed_tests.append(file_path)
         stats.ignored += 1
         ignored_tests.append(file_path)
