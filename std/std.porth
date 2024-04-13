@@ -82,14 +82,6 @@ macro nth_argv
     8 * argv + @64 cast(ptr)
 end
 
-// old memory access (depricated)
-macro .64 swap !64 end
-macro ,64 @64 end
-macro ! !8 end
-macro @ @8 end
-macro . swap ! end
-macro , @ end
-
 // increments value a the pointer
 macro inc64
     dup @64 1 + swap !64
