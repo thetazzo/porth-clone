@@ -84,7 +84,7 @@ macro putd // u64 --
       while over 0 > do
         1 - dup rot
         10 divmod
-        rot swap '0' + . swap
+        rot swap '0' + swap !8 swap
       end
   
       dup
