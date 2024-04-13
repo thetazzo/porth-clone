@@ -10,4 +10,4 @@ macro acc mem end
     end
     swap over +
 end 2drop
-acc ,64 print
+acc @64 print

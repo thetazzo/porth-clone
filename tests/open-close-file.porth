@@ -1,7 +1,7 @@
 include "std.porth"
 
 if argc 2 < do
-    "Usage: " eputs 0 nth_argv cstr-to-pstr eputs " <file_path>\n" eputs
+    "Usage: " eputs 0 nth_argv cstr-to-str eputs " <file_path>\n" eputs
     "ERROR: no input file provided" eputs
     1 exit
 end
@@ -12,12 +12,12 @@ AT_FDCWD   // dirfd
 openat
 
 if dup 0 < do
-    "ERROR: could not open file: `" eputs 1 nth_argv cstr-to-pstr eputs "`\n" eputs
+    "ERROR: could not open file: `" eputs 1 nth_argv cstr-to-str eputs "`\n" eputs
     1 exit
 end
 
-"Opened file: `" puts 1 nth_argv cstr-to-pstr puts "`\n" puts
+"Opened file: `" puts 1 nth_argv cstr-to-str puts "`\n" puts
 
 close drop
 
-"Closed file: `" puts 1 nth_argv cstr-to-pstr puts "`\n" puts
+"Closed file: `" puts 1 nth_argv cstr-to-str puts "`\n" puts

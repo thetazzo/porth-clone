@@ -7,12 +7,12 @@ macro line content sizeof(Str) + end
 macro word line sizeof(Str) + end
 
 if argc 2 < do
-    "Usage: " eputs 0 nth_argv cstr-to-pstr eputs " <file>\n" eputs
+    "Usage: " eputs 0 nth_argv cstr-to-str eputs " <file>\n" eputs
     "ERROR: no input file was provided" eputs
     1 exit
 end
 
-"File name: " puts 1 nth_argv cstr-to-pstr puts "\n" puts
+"File name: " puts 1 nth_argv cstr-to-str puts "\n" puts
 
 O_RDONLY   // flags
 1 nth_argv // pathname
@@ -20,7 +20,7 @@ AT_FDCWD   // dirfd
 openat
 
 if dup 0 < do
-    "ERROR: could not open file `" eputs 1 nth_argv cstr-to-pstr eputs "` not found\n" eputs
+    "ERROR: could not open file `" eputs 1 nth_argv cstr-to-str eputs "` not found\n" eputs
     1 exit
 end
 
@@ -28,7 +28,7 @@ end
 fd !64
 
 if statbuf fd @64 fstat 0 < do
-    "ERROR: could not determine the size of the file `" eputs 1 nth_argv cstr-to-pstr eputs "`\n" eputs
+    "ERROR: could not determine the size of the file `" eputs 1 nth_argv cstr-to-str eputs "`\n" eputs
     1 exit
 end
 
@@ -49,7 +49,7 @@ mmap
 content Str.data !64
 
 if content Str.data @64 0 < do
-    "ERROR: could not memory map file `" eputs 1 nth_argv cstr-to-pstr eputs "`\n" eputs
+    "ERROR: could not memory map file `" eputs 1 nth_argv cstr-to-str eputs "`\n" eputs
     1 exit
 end
 

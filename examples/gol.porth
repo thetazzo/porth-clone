@@ -46,7 +46,7 @@ end
 
 macro display_row
     0 while dup COLS < do
-      if 2dup + , 0 = do
+      if 2dup + @8 0 = do
         display over + '.' swap !8
       else
         display over + '#' swap !8

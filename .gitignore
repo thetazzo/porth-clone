@@ -48,3 +48,4 @@ tests/if-else
 tests/here
 tests/cstr
 tests/open-close-file
+tests/empty
