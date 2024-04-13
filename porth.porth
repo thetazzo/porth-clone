@@ -9,13 +9,13 @@ macro OP_PUSH_INT 0 end
 macro OP_PLUS     1 end
 macro OP_PRINT    2 end
 
-// struct Op {
-//      type: u63,
-//      operand: u64,
-// }
-macro Op.type    nop end
-macro Op.operand 8 + end
-macro sizeof(Op) 16  end
+macro sizeof(Op)  16  end
+macro Op.typ      0 + end
+macro Op.operand  8 + end
+macro @Op.typ     Op.typ @64 end
+macro @Op.operand Op.operand @64 end
+macro !Op.typ     Op.typ !64 end
+macro !Op.operand Op.operand !64 end
 
 // memory layout
 macro putd-buffer mem end
@@ -72,7 +72,7 @@ end
 macro push-op // type operand --
     ops-count @64 sizeof(Op) * ops +
     dup Op.operand rot swap !64
-    Op.type !64
+    !Op.typ 
     ops-count inc64
 end
 
@@ -107,8 +107,8 @@ macro print-opz // --
     0 while dup ops-count @64 < do
         // ptr
         dup sizeof(Op) * ops +
-        "Type:    " puts dup Op.type @64 print 
-        "Operand: " puts Op.operand @64 print
+        "Type:    " puts dup @Op.typ print 
+        "Operand: " puts @Op.operand print
         "------------------\n" puts
         1 +
     end drop
@@ -120,14 +120,14 @@ macro simulate-opz
         dup sizeof(Op) * ops +
 
         // ptr
-        if dup Op.type @64 OP_PUSH_INT = do
-            dup Op.operand @64 sim-stack-push
-        else if dup Op.type @64 OP_PLUS = do
+        if dup @Op.typ OP_PUSH_INT = do
+            dup @Op.operand sim-stack-push
+        else if dup @Op.typ OP_PLUS = do
             sim-stack-pop
             sim-stack-pop
             +
             sim-stack-push
-        else if dup Op.type @64 OP_PRINT = do
+        else if dup @Op.typ OP_PRINT = do
             sim-stack-pop print
         else 
             here eputs ": unreachable\n" eputs 1 exit
@@ -183,17 +183,17 @@ macro compile-opz // --
         dup sizeof(Op) * ops +
 
         // ptr
-        if dup Op.type @64 OP_PUSH_INT = do
+        if dup @Op.typ OP_PUSH_INT = do
             ";;  -- push int " puts dup Op.operand @64 putd " --\n" puts
             "    mov rax, " puts dup Op.operand @64 putd "\n" puts
             "    push rax\n" puts
-        elif dup Op.type @64 OP_PLUS = do
+        elif dup @Op.typ OP_PLUS = do
             ";;  -- plus --\n" puts
             "    pop rax\n" puts
             "    pop rbx\n" puts
             "    add rax, rbx\n" puts
             "    push rax\n" puts
-        elif dup Op.type @64 OP_PRINT = do
+        elif dup @Op.typ OP_PRINT = do
             ";;  -- print --\n" puts
             "    pop rdi\n" puts
             "    call print\n" puts
