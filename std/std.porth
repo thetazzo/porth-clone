@@ -112,7 +112,7 @@ end
 // NOTE: it counts event the new line \n
 macro cstrlen
     dup
-    while dup @ 0 != do 1 + end
+    while dup @8 0 != do 1 + end
     swap -
 end
 
@@ -123,8 +123,8 @@ end
 // Comparing NULL terminated strings
 macro cstreq
     while
-        if over @ 0 != over @ 0 != and do
-            over @ over @ =
+        if over @8 0 != over @8 0 != and do
+            over @8 over @8 =
         else
             false
         end
@@ -132,7 +132,7 @@ macro cstreq
         1 +
         swap 1 + 
     end
-    @ 0 = swap @ 0 = and
+    @8 0 = swap @8 0 = and
 end
 
 macro fputs
