@@ -109,6 +109,12 @@ macro 2dup
     over over
 end
 
+// custom logical not intrinsic since the `not` intrinsic is bitwise
+// allows inverting a boolean
+macro lnot
+    cast(int) 1 - cast(bool)
+end
+
 macro todo
     "TODO: not implemented" stderr write
     1 exit
