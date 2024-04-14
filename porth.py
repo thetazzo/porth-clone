@@ -62,9 +62,9 @@ class Intrinsic(IntEnum):
     OVER=auto()
     ROT=auto()
     MEM=auto()
-    LOAD=auto()
+    LOAD8=auto()
     LOAD64=auto()
-    STORE=auto()
+    STORE8=auto()
     STORE64=auto()
     CAST_PTR=auto()
     CAST_INT=auto()
@@ -355,12 +355,12 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 elif op.operand == Intrinsic.MEM:
                     stack.append(mem_buf_ptr)
                     ip += 1
-                elif op.operand == Intrinsic.LOAD:
+                elif op.operand == Intrinsic.LOAD8:
                     addr = stack.pop()
                     byte = mem[addr]
                     stack.append(byte)
                     ip += 1
-                elif op.operand == Intrinsic.STORE:
+                elif op.operand == Intrinsic.STORE8:
                     store_addr = stack.pop()
                     store_value = stack.pop()
                     mem[store_addr] = store_value & 0xFF
@@ -805,8 +805,8 @@ def type_check_program(program: Program):
                 ctx.stack.append(c)
             elif op.operand == Intrinsic.MEM:
                 ctx.stack.append((DataType.PTR, op.token))
-            elif op.operand == Intrinsic.LOAD:
-                assert len(DataType) == 3, "Exhaustive type handling in LOAD intrinsic"
+            elif op.operand == Intrinsic.LOAD8:
+                assert len(DataType) == 3, "Exhaustive type handling in LOAD8 intrinsic"
                 if len(ctx.stack) < 1:
                     print_missing_op_args(op)
                     exit(1)
@@ -814,10 +814,10 @@ def type_check_program(program: Program):
                 if a_type == DataType.PTR:
                     ctx.stack.append((DataType.INT, op.token))
                 else:
-                    compiler_error_with_expansion_stack(op.token, "invalid argument type for LOAD intrinsic: %s" % a_type)
+                    compiler_error_with_expansion_stack(op.token, "invalid argument type for LOAD8 intrinsic: %s" % a_type)
                     exit(1)
-            elif op.operand == Intrinsic.STORE:
-                assert len(DataType) == 3, "Exhaustive type handling in STORE intrinsic"
+            elif op.operand == Intrinsic.STORE8:
+                assert len(DataType) == 3, "Exhaustive type handling in STORE8 intrinsic"
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
@@ -826,7 +826,7 @@ def type_check_program(program: Program):
                 if a_type == DataType.PTR and b_type == DataType.INT:
                     pass
                 else:
-                    compiler_error_with_expansion_stack(op.token, "invalid argument type for STORE intrinsic")
+                    compiler_error_with_expansion_stack(op.token, "invalid argument type for STORE8 intrinsic")
                     exit(1)
             elif op.operand == Intrinsic.LOAD64:
                 assert len(DataType) == 3, "Exhaustive type handling in LOAD64 intrinsic"
@@ -1203,13 +1203,13 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 elif op.operand == Intrinsic.MEM:
                     out.write(";;  -- mem --\n")
                     out.write("    push mem\n")
-                elif op.operand == Intrinsic.LOAD:
+                elif op.operand == Intrinsic.LOAD8:
                     out.write(";;  -- load --\n")
                     out.write("    pop rax\n")
                     out.write("    xor rbx, rbx\n")
                     out.write("    mov bl, [rax]\n")
                     out.write("    push rbx\n")
-                elif op.operand == Intrinsic.STORE:
+                elif op.operand == Intrinsic.STORE8:
                     out.write(";;  -- store --\n")
                     out.write("    pop rax\n");
                     out.write("    pop rbx\n");
@@ -1362,8 +1362,8 @@ INTRINSIC_BY_NAMES = {
     'over': Intrinsic.OVER,
     'rot' : Intrinsic.ROT,
     'mem': Intrinsic.MEM,
-    '!8': Intrinsic.STORE,
-    '@8': Intrinsic.LOAD,
+    '!8': Intrinsic.STORE8,
+    '@8': Intrinsic.LOAD8,
     '!64': Intrinsic.STORE64,
     '@64': Intrinsic.LOAD64,
     'cast(ptr)': Intrinsic.CAST_PTR,
