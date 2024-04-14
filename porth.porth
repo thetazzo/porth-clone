@@ -7,7 +7,9 @@ macro SIM_STACK_CAP   1024   end
 // operation codes
 macro OP_PUSH_INT 0 end
 macro OP_PLUS     1 end
-macro OP_PRINT    2 end
+macro OP_MINUS    2 end
+macro OP_PRINT    3 end
+macro COUNT_OPZ   4 end
 
 macro sizeof(Op)  16  end
 macro Op.typ      0 + end
@@ -103,11 +105,30 @@ macro parse_int // n1 s1 -
     end drop
 end
 
+macro print-op-typ
+    if COUNT_OPZ 4 != do
+        here eputs ": Assertion Failed: Exhaustive handling of Op types in print-op-typ\n" eputs
+        1 exit
+    end
+    if dup OP_PUSH_INT = do
+        "OP_PUSH_INT" puts
+    elif dup OP_PLUS   = do
+        "OP_PLUS" puts
+    elif dup OP_MINUS   = do
+        "OP_MINUS" puts
+    elif dup OP_PRINT   = do
+        "OP_PRINT" puts
+    else
+        here eputs ": unknown op type\n" eputs 
+    end
+    drop
+end
+
 macro print-opz // --
     0 while dup ops-count @64 < do
         // ptr
         dup sizeof(Op) * ops +
-        "Type:    " puts dup @Op.typ print 
+        "Type:    " puts dup @Op.typ print-op-typ "\n" puts 
         "Operand: " puts @Op.operand print
         "------------------\n" puts
         1 +
@@ -119,19 +140,30 @@ macro simulate-opz
         // ptr type
         dup sizeof(Op) * ops +
 
+        if COUNT_OPZ 4 != do
+            here eputs ": Assertion Failed: Exhaustive handling of Op types in print-op-typ\n" eputs
+            1 exit
+        end
+
         // ptr
         if dup @Op.typ OP_PUSH_INT = do
             dup @Op.operand sim-stack-push
-        else if dup @Op.typ OP_PLUS = do
+        elif dup @Op.typ OP_PLUS = do
             sim-stack-pop
             sim-stack-pop
             +
             sim-stack-push
-        else if dup @Op.typ OP_PRINT = do
+        elif dup @Op.typ OP_MINUS = do
+            sim-stack-pop
+            sim-stack-pop
+            swap
+            -
+            sim-stack-push
+        elif dup @Op.typ OP_PRINT = do
             sim-stack-pop print
         else 
             here eputs ": unreachable\n" eputs 1 exit
-        end end end // TOOD: introduce a better construction to avoid this mess
+        end 
         drop
         1 +
     end drop
@@ -193,6 +225,12 @@ macro compile-opz // --
             "    pop rbx\n" puts
             "    add rax, rbx\n" puts
             "    push rax\n" puts
+        elif dup @Op.typ OP_MINUS = do
+            ";;  -- minus --\n" puts
+            "    pop rax\n" puts
+            "    pop rbx\n" puts
+            "    sub rbx, rax\n" puts
+            "    push rbx\n" puts
         elif dup @Op.typ OP_PRINT = do
             ";;  -- print --\n" puts
             "    pop rdi\n" puts
@@ -252,6 +290,11 @@ macro parse_file_path
         1 exit
     end
 
+    if COUNT_OPZ 4 != do
+        here eputs ": Assertion Failed: Exhaustive handling of Op types in print-op-typ\n" eputs
+        1 exit
+    end
+
     while content Str.count @64 0 > do
         line content str-chop-line
         while line Str.count @64 0 > do
@@ -259,6 +302,8 @@ macro parse_file_path
             word line str-chop-word
             if word @Str "+" streq do
                 OP_PLUS 0 push-op
+            elif word @Str "-" streq do
+                OP_MINUS 0 push-op
             elif word @Str "print" streq do
                 OP_PRINT 0 push-op
             else
@@ -312,6 +357,15 @@ macro main
 
         simulate-opz
     elif dup "print"c cstreq do
+        if argc 3 < do
+            stderr print_usage
+            "ERROR: No input file provided for the `print` subcommand" eputs
+            1 exit
+        end
+        
+        2 nth_argv file_path_cstr !64
+
+        parse_file_path
         print-opz
     elif dup "help"c cstreq do
         stdout print_usage
