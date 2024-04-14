@@ -109,6 +109,12 @@ macro 2dup
     over over
 end
 
+macro is-digit
+    dup '0' >=
+    swap '9' <=
+    and
+end
+
 // custom logical not intrinsic since the `not` intrinsic is bitwise
 // allows inverting a boolean
 macro lnot
