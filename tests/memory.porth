@@ -17,6 +17,15 @@ mem 2 + dup @8 1 + swap !8
 // print "bcd" to stdout
 4 mem stdout write print
 
+// 16 bit word
+255 mem !8
+255 mem 1 + !8
+mem @16 drop
+
+// print UINT16_MAX (Largest 16 bit word)
+65535 mem !16
+mem @16 print
+
 // prtint UINT32_MAX (Largest 32 bit word)
 4294967295 mem !32
 mem @32 print

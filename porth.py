@@ -63,9 +63,11 @@ class Intrinsic(IntEnum):
     ROT=auto()
     MEM=auto()
     LOAD8=auto()
+    LOAD16=auto()
     LOAD32=auto()
     LOAD64=auto()
     STORE8=auto()
+    STORE16=auto()
     STORE32=auto()
     STORE64=auto()
     CAST_PTR=auto()
@@ -244,7 +246,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 else:
                     ip += 1
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 41, "Exhaustive handling of intrinsic in simulate_little_endian_linux()"
+                assert len(Intrinsic) == 43, "Exhaustive handling of intrinsic in simulate_little_endian_linux()"
                 if op.operand == Intrinsic.PLUS:
                     a = stack.pop()
                     b = stack.pop()
@@ -366,6 +368,15 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                     store_addr = stack.pop()
                     store_value = stack.pop()
                     mem[store_addr] = store_value & 0xFF
+                    ip += 1
+                elif op.operand == Intrinsic.LOAD16:
+                    load_addr = stack.pop()
+                    stack.append(int.from_bytes(mem[load_addr:load_addr+2], byteorder="little"))
+                    ip += 1
+                elif op.operand == Intrinsic.STORE16:
+                    store_addr = stack.pop();
+                    store_value = stack.pop()
+                    mem[store_addr:store_addr+2] = store_value.to_bytes(length=2, byteorder="little", signed=(store_value < 0))
                     ip += 1
                 elif op.operand == Intrinsic.LOAD32:
                     load_addr = stack.pop()
@@ -549,7 +560,7 @@ def type_check_program(program: Program):
             ctx.stack.append((DataType.PTR, op.token))
             ctx.ip += 1
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 41, "Exhaustive intrinsic handling in type_check_program()"
+            assert len(Intrinsic) == 43, "Exhaustive intrinsic handling in type_check_program()"
             assert isinstance(op.operand, Intrinsic), "This could be a bug in compilation step"
             if op.operand == Intrinsic.PLUS:
                 assert len(DataType) == 3, "Exhaustive type handling in PLUS intrinsic"
@@ -833,6 +844,29 @@ def type_check_program(program: Program):
                 else:
                     compiler_error_with_expansion_stack(op.token, "invalid argument type for STORE8 intrinsic")
                     exit(1)
+            elif op.operand == Intrinsic.LOAD16:
+                assert len(DataType) == 3, "Exhaustive type handling in LOAD16 intrinsic"
+                if len(ctx.stack) < 1:
+                    print_missing_op_args(op)
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
+                if a_type == DataType.PTR:
+                    ctx.stack.append((DataType.INT, op.token))
+                else:
+                    compiler_error_with_expansion_stack(op.token, "invalid argument type for LOAD16 intrinsic: %s" % a_type)
+                    exit(1)
+            elif op.operand == Intrinsic.STORE16:
+                assert len(DataType) == 3, "Exhaustive type handling in STORE16 intrinsic"
+                if len(ctx.stack) < 2:
+                    print_missing_op_args(op)
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
+                if (b_type == DataType.INT or b_type == DataType.PTR) and a_type == DataType.PTR:
+                    pass
+                else:
+                    compiler_error_with_expansion_stack(op.token, "invalid argument type for STORE16 intrinsic: %s" % [b_type, a_type])
+                    exit(1)
             elif op.operand == Intrinsic.LOAD32:
                 assert len(DataType) == 3, "Exhaustive type handling in LOAD32 intrinsic"
                 if len(ctx.stack) < 1:
@@ -1085,7 +1119,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 assert isinstance(op.operand, int), "There is a bug in the parsing step (probably)"
                 out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 41, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
+                assert len(Intrinsic) == 43, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
                 if op.operand == Intrinsic.PLUS:
                     out.write(";;  -- plus --\n")
                     out.write("    pop rax\n")
@@ -1242,6 +1276,17 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop rax\n");
                     out.write("    pop rbx\n");
                     out.write("    mov [rax], bl\n");
+                elif op.operand == Intrinsic.LOAD16:
+                    out.write(";;  -- load16 --\n")
+                    out.write("    pop rax\n")
+                    out.write("    xor rbx, rbx\n")
+                    out.write("    mov rbx, [rax]\n")
+                    out.write("    push rbx\n")
+                elif op.operand == Intrinsic.STORE16:
+                    out.write(";;  -- store16 --\n")
+                    out.write("    pop rax\n");
+                    out.write("    pop rbx\n");
+                    out.write("    mov [rax], rbx\n");
                 elif op.operand == Intrinsic.LOAD32:
                     out.write(";;  -- load32 --\n")
                     out.write("    pop rax\n")
@@ -1377,7 +1422,7 @@ KEYWORD_NAMES= {
     'include': Keyword.INCLUDE,
 }
 
-assert len(Intrinsic) == 41, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
+assert len(Intrinsic) == 43, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
 INTRINSIC_BY_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
@@ -1402,10 +1447,12 @@ INTRINSIC_BY_NAMES = {
     'rot' : Intrinsic.ROT,
     'mem': Intrinsic.MEM,
     '@8': Intrinsic.LOAD8,
+    '@16': Intrinsic.LOAD16,
     '@32': Intrinsic.LOAD32,
     '@64': Intrinsic.LOAD64,
     '!8': Intrinsic.STORE8,
     '!32': Intrinsic.STORE32,
+    '!16': Intrinsic.STORE16,
     '!64': Intrinsic.STORE64,
     'cast(ptr)': Intrinsic.CAST_PTR,
     'cast(int)': Intrinsic.CAST_INT,
