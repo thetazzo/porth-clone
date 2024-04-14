@@ -9,7 +9,9 @@ macro OP_PUSH_INT 0 end
 macro OP_PLUS     1 end
 macro OP_MINUS    2 end
 macro OP_PRINT    3 end
-macro COUNT_OPZ   4 end
+macro OP_DUP      4 end
+macro OP_DROP     5 end
+macro COUNT_OPZ   6 end
 
 macro sizeof(Op)  16  end
 macro Op.typ      0 + end
@@ -116,7 +118,7 @@ macro try_to_parse_word_as_int_or_fail_as_unknown_word // n1 s1 - ret
 end
 
 macro print-op-typ
-    if COUNT_OPZ 4 != do
+    if COUNT_OPZ 6 != do
         here eputs ": Assertion Failed: Exhaustive handling of Op types in print-op-typ\n" eputs
         1 exit
     end
@@ -128,6 +130,10 @@ macro print-op-typ
         "OP_MINUS" puts
     elif dup OP_PRINT   = do
         "OP_PRINT" puts
+    elif dup OP_DUP   = do
+        "OP_DUP" puts
+    elif dup OP_DROP   = do
+        "OP_DROP" puts
     else
         here eputs ": unknown op type\n" eputs 
     end
@@ -150,7 +156,7 @@ macro simulate-opz
         // ptr type
         dup sizeof(Op) * ops +
 
-        if COUNT_OPZ 4 != do
+        if COUNT_OPZ 6 != do
             here eputs ": Assertion Failed: Exhaustive handling of Op types in print-op-typ\n" eputs
             1 exit
         end
@@ -171,6 +177,16 @@ macro simulate-opz
             sim-stack-push
         elif dup @Op.typ OP_PRINT = do
             sim-stack-pop print
+        elif dup @Op.typ OP_PRINT = do
+            sim-stack-pop print
+        elif dup @Op.typ OP_DUP = do
+            sim-stack-pop
+            dup
+            sim-stack-push
+            sim-stack-push
+        elif dup @Op.typ OP_DROP = do
+            sim-stack-pop
+            drop
         else 
             here eputs ": unreachable\n" eputs 1 exit
         end 
@@ -221,6 +237,10 @@ macro compile-opz // --
     "    mov [args_ptr], rsp\n" puts
 
     0 while dup ops-count @64 < do
+        if COUNT_OPZ 6 != do
+            here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
+            1 exit
+        end
         // ptr type
         dup sizeof(Op) * ops +
 
@@ -245,6 +265,14 @@ macro compile-opz // --
             ";;  -- print --\n" puts
             "    pop rdi\n" puts
             "    call print\n" puts
+        elif dup @Op.typ OP_DUP = do
+            ";;  -- dup --\n" puts
+            "    pop rax\n" puts
+            "    push rax\n" puts
+            "    push rax\n" puts
+        elif dup @Op.typ OP_DROP = do
+            ";;  -- drop --\n" puts
+            "    pop rax\n" puts
         else 
             here eputs ": unreachable\n" eputs 1 exit
         end
@@ -300,11 +328,6 @@ macro parse_file_path_cstr_into_opz
         1 exit
     end
 
-    if COUNT_OPZ 4 != do
-        here eputs ": Assertion Failed: Exhaustive handling of Op types in print-op-typ\n" eputs
-        1 exit
-    end
-
     1 line_number !64
     while content @Str.count 0 > do
       line content str-chop-line
@@ -313,7 +336,7 @@ macro parse_file_path_cstr_into_opz
          line str-trim-left
          word line str-chop-word
   
-         if COUNT_OPZ 4 != do
+         if COUNT_OPZ 6 != do
            here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
            1 exit
          end
@@ -324,6 +347,10 @@ macro parse_file_path_cstr_into_opz
            OP_MINUS 0 push-op
          elif word @Str "print" streq do
            OP_PRINT 0 push-op
+         elif word @Str "dup" streq do
+           OP_DUP 0 push-op
+         elif word @Str "drop" streq do
+           OP_DROP 0 push-op
          else
            OP_PUSH_INT try_to_parse_word_as_int_or_fail_as_unknown_word push-op
          end
