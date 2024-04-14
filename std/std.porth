@@ -83,6 +83,14 @@ macro nth_argv
 end
 
 // increments value a the pointer
+macro inc32
+    dup @32 1 + swap !32
+end
+
+macro dec32
+    dup @32 1 - swap !32
+end
+
 macro inc64
     dup @64 1 + swap !64
 end
