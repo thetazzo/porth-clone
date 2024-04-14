@@ -29,11 +29,12 @@ macro statbuf fd 8 + end
 macro content statbuf sizeof(stat) + end
 macro line content sizeof(Str) + end
 macro word line sizeof(Str) + end
-macro streq_a word sizeof(Str) + end
+macro line_number word sizeof(Str) + end
+macro line_start line_number 8 + end
+macro streq_a line_start 8 + end
 macro streq_b streq_a sizeof(Str) + end
-macro parse_int_a streq_b sizeof(Str) + end
 
-macro sim-stack-count parse_int_a sizeof(Str) + end 
+macro sim-stack-count streq_b sizeof(Str) + end 
 macro sim-stack sim-stack-count 8 + end
 macro ops-count sim-stack SIM_STACK_CAP 8 * + end  
 macro ops ops-count 8 + end
@@ -95,13 +96,22 @@ macro putd // u64 --
     drop
 end
 
-macro parse_int // n1 s1 - 
-    parse_int_a !Str
-    0 0 while dup parse_int_a @Str.count < do
-        dup parse_int_a @Str.data + @8 '0' -
-        rot 10 * +
-        swap
-        1 +
+macro try_to_parse_word_as_int_or_fail_as_unknown_word // n1 s1 - ret
+    0 0 while dup word @Str.count < do
+      dup word @Str.data + @8
+  
+      if dup is-digit lnot do
+        file_path_cstr @64 cast(ptr) cstr-to-str eputs
+        ":" puts line_number @64 putd
+        ":" puts word @Str.data cast(int) line_start @64 - 1 + putd
+        ": ERROR: `" eputs word @Str eputs "` is an unknown word\n" eputs
+        1 exit
+      end
+  
+      '0' -
+      rot 10 * +
+      swap
+      1 +
     end drop
 end
 
@@ -249,7 +259,7 @@ macro compile-opz // --
     "mem: resb " puts MEM_CAPACITY putd "\n" puts
 end
 
-macro parse_file_path
+macro parse_file_path_cstr_into_opz
     // open the file
     O_RDONLY   // flags
     file_path_cstr @64 cast(ptr) // pathname
@@ -295,22 +305,32 @@ macro parse_file_path
         1 exit
     end
 
-    while content Str.count @64 0 > do
-        line content str-chop-line
-        while line Str.count @64 0 > do
-            line str-trim-left
-            word line str-chop-word
-            if word @Str "+" streq do
-                OP_PLUS 0 push-op
-            elif word @Str "-" streq do
-                OP_MINUS 0 push-op
-            elif word @Str "print" streq do
-                OP_PRINT 0 push-op
-            else
-                OP_PUSH_INT word @Str parse_int push-op
-            end
-        end
+    1 line_number !64
+    while content @Str.count 0 > do
+      line content str-chop-line
+      line @Str.data line_start !64
+      while line @Str.count 0 > do
+         line str-trim-left
+         word line str-chop-word
+  
+         if COUNT_OPZ 4 != do
+           here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
+           1 exit
+         end
+  
+         if word @Str "+" streq do
+           OP_PLUS 0 push-op
+         elif word @Str "-" streq do
+           OP_MINUS 0 push-op
+         elif word @Str "print" streq do
+           OP_PRINT 0 push-op
+         else
+           OP_PUSH_INT try_to_parse_word_as_int_or_fail_as_unknown_word push-op
+         end
+      end
+      line_number inc64
     end
+    // TODO: parse_file_path does not clean up resources after itself
 end
 
 macro print_usage 
@@ -342,7 +362,7 @@ macro main
         end
         2 nth_argv file_path_cstr !64
 
-        parse_file_path
+        parse_file_path_cstr_into_opz
 
         compile-opz
     elif dup "sim"c cstreq do
@@ -353,7 +373,7 @@ macro main
         end
         2 nth_argv file_path_cstr !64
 
-        parse_file_path
+        parse_file_path_cstr_into_opz
 
         simulate-opz
     elif dup "print"c cstreq do
@@ -365,7 +385,8 @@ macro main
         
         2 nth_argv file_path_cstr !64
 
-        parse_file_path
+        parse_file_path_cstr_into_opz
+
         print-opz
     elif dup "help"c cstreq do
         stdout print_usage
