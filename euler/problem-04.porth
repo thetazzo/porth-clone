@@ -2,7 +2,7 @@ include "std.porth"
 
 // Find the largest palindrome that is made from the product of two 3-digit nuumbers
 
-macro ans mem end
+memory ans sizeof(u64) end
 
 100 while dup 1000 < do
     100 while dup 1000 < do
