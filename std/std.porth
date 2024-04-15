@@ -82,6 +82,10 @@ macro nth_argv
     8 * argv + @64 cast(ptr)
 end
 
+macro sizeof(u64) 8 end
+macro sizeof(u32) 4 end
+macro sizeof(ptr) sizeof(u64) end
+
 // increments value a the pointer
 macro inc32
     dup @32 1 + swap !32
@@ -109,12 +113,6 @@ macro 2dup
     over over
 end
 
-macro is-digit
-    dup '0' >=
-    swap '9' <=
-    and
-end
-
 // custom logical not intrinsic since the `not` intrinsic is bitwise
 // allows inverting a boolean
 macro lnot
@@ -140,31 +138,39 @@ macro cstr-to-str
     dup cstrlen swap
 end
 
-// Comparing NULL terminated strings
-macro cstreq
-    while
-        if over @8 0 != over @8 0 != and do
-            over @8 over @8 =
-        else
-            false
-        end
-    do
-        1 +
-        swap 1 + 
-    end
-    @8 0 = swap @8 0 = and
-end
-
+// write something 
 macro fputs
     write drop
 end
 
+// write something to `stderr`
 macro eputs
     stderr fputs
 end
 
+// write something to `stdout`
 macro puts
     stdout fputs
+end
+
+macro PUTD_BUFFER_CAP 32 end
+memory putd-buffer PUTD_BUFFER_CAP end
+// write somme number to `stdout`
+macro putd // u64 --
+    if dup 0 = do
+      "0" puts
+    else
+      putd-buffer PUTD_BUFFER_CAP +
+      while over 0 > do
+        1 - dup rot
+        10 divmod
+        rot swap '0' + swap !8 swap
+      end
+  
+      dup
+      putd-buffer PUTD_BUFFER_CAP + swap - swap puts
+    end
+    drop
 end
 
 // =========================================
@@ -250,6 +256,44 @@ macro str-chop-word // word input --
     2drop
 end
 
+// Comparing NULL terminated strings
+macro cstreq
+    while
+        if over @8 0 != over @8 0 != and do
+            over @8 over @8 =
+        else
+            false
+        end
+    do
+        1 +
+        swap 1 + 
+    end
+    @8 0 = swap @8 0 = and
+end
+
+memory streq_a sizeof(Str) end
+memory streq_b sizeof(Str) end
+macro streq // n1 s1 n2 s2
+    streq_a !Str
+    streq_b !Str
+    if streq_a @Str.count streq_b @Str.count = do
+        0 while
+            if dup streq_a @Str.count < do
+                dup streq_a @Str.data + @8 
+                over streq_b @Str.data + @8 
+                =
+            else false end
+        do 1 + end
+        streq_a @Str.count >= 
+    else false end
+end
+
+macro is-digit
+    dup '0' >=
+    swap '9' <=
+    and
+end
+
 // Deprecated Words
 macro .64 swap !64 end
 macro ,64 @64 end
@@ -257,3 +301,5 @@ macro ! !8 end
 macro @ @8 end
 macro . swap ! end
 macro , @ end
+macro cstr-to-pstr cstr-to-str end
+memory mem 640000 end
