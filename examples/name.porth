@@ -3,7 +3,7 @@ include "std.porth"
 macro NAME_CAP 256 end
 "What is your name?\n" puts
 
-macro name mem end
+memory name NAME_CAP end
 
 NAME_CAP name stdin read
 

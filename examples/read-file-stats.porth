@@ -7,8 +7,8 @@ if argc 2 < do
 end
 
 // memory layout
-macro fd mem end            // file descriptor memory begin
-macro statbuf fd 8 + end    // stat structure  memory begin
+memory fd sizeof(u64) end            // file descriptor memory begin
+memory statbuf sizeof(stat) end    // stat structure  memory begin
 
 // open the file
 O_RDONLY   // flags
