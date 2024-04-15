@@ -257,3 +257,5 @@ macro ! !8 end
 macro @ @8 end
 macro . swap ! end
 macro , @ end
+macro cstr-to-pstr cstr-to-str end
+memory mem 640000 end
