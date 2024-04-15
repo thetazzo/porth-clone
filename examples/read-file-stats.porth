@@ -1,25 +1,5 @@
 include "std.porth"
 
-macro PUTD_BUFFER_CAP 32     end
-macro putd-buffer mem end
-
-macro putd // u64 --
-    if dup 0 = do
-      "0" puts
-    else
-      putd-buffer PUTD_BUFFER_CAP +
-      while over 0 > do
-        1 - dup rot
-        10 divmod
-        rot swap '0' + swap !8 swap
-      end
-  
-      dup
-      putd-buffer PUTD_BUFFER_CAP + swap - swap puts
-    end
-    drop
-end
-
 if argc 2 < do
     "Usage: " eputs 0 nth_argv cstr-to-str eputs " <file>\n" eputs
     "ERROR: No input file provided\n" eputs
