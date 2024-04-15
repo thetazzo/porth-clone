@@ -1,6 +1,5 @@
 include "std.porth"
 
-macro PUTD_BUFFER_CAP 32     end
 macro MEM_CAPACITY    640000 end
 macro SIM_STACK_CAP   1024   end
 
@@ -21,40 +20,21 @@ macro @Op.operand Op.operand @64 end
 macro !Op.typ     Op.typ !64 end
 macro !Op.operand Op.operand !64 end
 
-// memory layout
-macro putd-buffer mem end
+macro OPS_CAP 1024 end
 
-macro file_path_cstr putd-buffer PUTD_BUFFER_CAP + end
-macro fd file_path_cstr 8 + end
-macro statbuf fd 8 + end
-
-macro content statbuf sizeof(stat) + end
-macro line content sizeof(Str) + end
-macro word line sizeof(Str) + end
-macro line_number word sizeof(Str) + end
-macro line_start line_number 8 + end
-macro streq_a line_start 8 + end
-macro streq_b streq_a sizeof(Str) + end
-
-macro sim-stack-count streq_b sizeof(Str) + end 
-macro sim-stack sim-stack-count 8 + end
-macro ops-count sim-stack SIM_STACK_CAP 8 * + end  
-macro ops ops-count 8 + end
-
-macro streq // n1 s1 n2 s2
-    streq_a !Str
-    streq_b !Str
-    if streq_a @Str.count streq_b @Str.count = do
-        0 while
-            if dup streq_a @Str.count < do
-                dup streq_a @Str.data + @8 
-                over streq_b @Str.data + @8 
-                =
-            else false end
-        do 1 + end
-        streq_a @Str.count >= 
-    else false end
-end
+// memory layout variables
+memory file_path_cstr  sizeof(ptr)                 end
+memory fd              sizeof(u64)                 end
+memory statbuf         sizeof(stat)                end
+memory content         sizeof(Str)                 end
+memory line            sizeof(Str)                 end
+memory word            sizeof(Str)                 end
+memory line_number     sizeof(u64)                 end
+memory line_start      sizeof(ptr)                 end
+memory sim-stack-count sizeof(u64)                 end 
+memory sim-stack       sizeof(u64) SIM_STACK_CAP * end
+memory ops-count       sizeof(u64)                 end
+memory ops             sizeof(Op)  OPS_CAP *       end
 
 macro sim-stack-push // u64 --
     if sim-stack-count @64 SIM_STACK_CAP >= do
@@ -79,23 +59,6 @@ macro push-op // type operand --
     dup rot swap !Op.operand
     !Op.typ 
     ops-count inc64
-end
-
-macro putd // u64 --
-    if dup 0 = do
-      "0" puts
-    else
-      putd-buffer PUTD_BUFFER_CAP +
-      while over 0 > do
-        1 - dup rot
-        10 divmod
-        rot swap '0' + swap !8 swap
-      end
-  
-      dup
-      putd-buffer PUTD_BUFFER_CAP + swap - swap puts
-    end
-    drop
 end
 
 macro try_to_parse_word_as_int_or_fail_as_unknown_word // n1 s1 - ret

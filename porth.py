@@ -1523,6 +1523,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
             if token.value in INTRINSIC_BY_NAMES:
                 program.ops.append(Op(typ=OpType.INTRINSIC, token=token, operand=INTRINSIC_BY_NAMES[token.value]))
                 ip += 1
+            # perfom macro exansion
             elif token.value in macros:
                 if token.expanded_count >= expansion_limit:
                     compiler_error_with_expansion_stack(token, "the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
@@ -1671,14 +1672,13 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     compiler_error_with_expansion_stack(token, "expected memory name to be %s but found %s" % (token_name(TokenType.WORD), token_name(token.typ)))
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
-                
                 memory_name = token.value
                 if memory_name in memories:
-                    assert False, "TODO: redefinition of memory region report"
+                    assert False, "TODO: redefinition of a memory region"
                 if memory_name in INTRINSIC_BY_NAMES:
                     assert False, "TODO: redefinition of an intrinsic"
                 if memory_name in macros:
-                    assert False, "TODO: redefinition of an macro"
+                    assert False, "TODO: redefinition of a macro"
                 mem_size_stack: List[int] = []
                 while len(rtokens) > 0:
                     token = rtokens.pop()
@@ -1686,11 +1686,12 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                         if token.value == Keyword.END:
                             break
                         else:
-                            assert False, "TODO: unsupported Keyword in memory definition"
+                            assert False, "TODO: unsupported keyword in memory definition"
                     elif token.typ == TokenType.INT:
                         assert isinstance(token.value, int)
                         mem_size_stack.append(token.value)
                     elif token.typ == TokenType.WORD:
+                        # TODO: check of stack underflows in memory definition
                         if token.value == INTRINSIC_NAMES[Intrinsic.PLUS]:
                             a = mem_size_stack.pop()
                             b = mem_size_stack.pop()
@@ -1699,15 +1700,22 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                             a = mem_size_stack.pop()
                             b = mem_size_stack.pop()
                             mem_size_stack.append(a * b)
+                        # perform macro exansion
+                        elif token.value in macros:
+                            if token.expanded_count >= expansion_limit:
+                                compiler_error_with_expansion_stack(token, "the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
+                                exit(1)
+                            assert isinstance(token.value, str)
+                            rtokens += reversed(expand_macro(macros[token.value], token))
                         else:
-                            assert False, "TODO: unsupported word in memory definition"
+                            assert False, f"TODO: unsupported word in memory definition `{token.value}`"
                     else:
                         assert False, "TODO: unsupported token in memory definition"
-                    if len(mem_size_stack) != 1:
-                        assert False, "TODO: memory definition expects only one integer"
-                    memory_size = mem_size_stack.pop()
-                    memories[memory_name] = program.memory_capacity
-                    program.memory_capacity += memory_size
+                if len(mem_size_stack) != 1:
+                    assert False, "TODO: memory definition expects only one integer"
+                memory_size = mem_size_stack.pop()
+                memories[memory_name] = program.memory_capacity
+                program.memory_capacity += memory_size
             elif token.value == Keyword.MACRO:
                 if len(rtokens) == 0:
                     compiler_error_with_expansion_stack(token, "expected macro name but found nothing")
