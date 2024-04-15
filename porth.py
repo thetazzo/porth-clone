@@ -360,14 +360,13 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                     stack.append(mem_buf_ptr)
                     ip += 1
                 elif op.operand == Intrinsic.LOAD8:
-                    addr = stack.pop()
-                    byte = mem[addr]
-                    stack.append(byte)
+                    load_addr = stack.pop()
+                    stack.append(int.from_bytes(mem[load_addr:load_addr+1], byteorder="little"))
                     ip += 1
                 elif op.operand == Intrinsic.STORE8:
-                    store_addr = stack.pop()
+                    store_addr = stack.pop();
                     store_value = stack.pop()
-                    mem[store_addr] = store_value & 0xFF
+                    mem[store_addr:store_addr+1] = store_value.to_bytes(length=1, byteorder="little", signed=(store_value < 0))
                     ip += 1
                 elif op.operand == Intrinsic.LOAD16:
                     load_addr = stack.pop()
