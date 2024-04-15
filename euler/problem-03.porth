@@ -4,7 +4,7 @@ include "std.porth"
 
 macro Number 600851475143 end
 
-Number 2 while over 1 > do
+Number 3 while over 1 > do
     if 2dup mod 0 = do
         swap over / swap
     else 
