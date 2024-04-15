@@ -2,53 +2,15 @@
 
 include "std.porth"
 
-macro sizeof(u64) 8 end
-macro PUTD_BUFFER_CAP 32     end
-macro putd-buffer mem end
-
-macro putd // u64 --
-    if dup 0 = do
-      "0" puts
-    else
-      putd-buffer PUTD_BUFFER_CAP +
-      while over 0 > do
-        1 - dup rot
-        10 divmod
-        rot swap '0' + swap !8 swap
-      end
-  
-      dup
-      putd-buffer PUTD_BUFFER_CAP + swap - swap puts
-    end
-    drop
-end
-
 macro fd mem end
 macro statbuf fd 8 + end
 macro content statbuf sizeof(stat) + end
 macro line content sizeof(Str) + end
 macro word line sizeof(Str) + end
 macro line_number word sizeof(Str) + end
-macro streq_a line_number sizeof(u64) + end
-macro streq_b streq_a sizeof(Str) + end
 
 macro str-copy // dst src
     @Str rot !Str
-end
-
-macro streq // n1 s1 n2 s2
-    streq_a !Str
-    streq_b !Str
-    if streq_a @Str.count streq_b @Str.count = do
-        0 while
-            if dup streq_a @Str.count < do
-                dup streq_a @Str.data + @8 
-                over streq_b @Str.data + @8 
-                =
-            else false end
-        do 1 + end
-        streq_a @Str.count >= 
-    else false end
 end
 
 if argc 2 < do
