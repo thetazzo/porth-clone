@@ -604,3 +604,4 @@ proc is-digit
 end
 
 macro putd stdout fputd end
+macro eputd strerr fputd end
