@@ -203,7 +203,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
 
     ip = 0
     while ip < len(program.ops):
-        assert len(OpType) == 14, "Exhaustive op handling in simulate_little_endian_linux"
+        assert len(OpType) == 15, "Exhaustive op handling in simulate_little_endian_linux"
         op = program.ops[ip]
         try:
             if op.typ == OpType.PUSH_INT:
@@ -262,6 +262,8 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
             elif op.typ == OpType.SKIP_PROC:
                 assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
                 ip = op.operand
+            elif op.typ == OpType.PREP_PROC:
+                ip += 1
             elif op.typ == OpType.RET:
                 ip = ret_stack.pop()
             elif op.typ == OpType.CALL:
@@ -570,7 +572,7 @@ def type_check_program(program: Program):
             contexts.pop()
             continue
         op = program.ops[ctx.ip]
-        assert len(OpType) == 11, "Exhaustive ops handling in type_check_program()"
+        assert len(OpType) == 15, f"Exhaustive ops handling in type_check_program(): (expected: {len(OpType)})"
         if op.typ == OpType.PUSH_INT:
             ctx.stack.append((DataType.INT, op.token))
             ctx.ip += 1
@@ -594,7 +596,6 @@ def type_check_program(program: Program):
                     exit(1)
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == DataType.INT and b_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                 elif a_type == DataType.INT and b_type == DataType.PTR:
@@ -611,7 +612,6 @@ def type_check_program(program: Program):
                     exit(1)
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and (a_type == DataType.INT or a_type == DataType.PTR):
                     ctx.stack.append((DataType.INT, op.token))
                 elif b_type == DataType.PTR and a_type == DataType.INT:
@@ -626,7 +626,6 @@ def type_check_program(program: Program):
                     exit(1)
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                 else:
@@ -639,7 +638,6 @@ def type_check_program(program: Program):
                     exit(1)
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                     ctx.stack.append((DataType.INT, op.token))
@@ -653,7 +651,6 @@ def type_check_program(program: Program):
                     exit(1)
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -664,10 +661,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -678,10 +673,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -692,10 +685,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -706,10 +697,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -720,10 +709,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -734,10 +721,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                 else:
@@ -748,10 +733,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                 else:
@@ -762,10 +745,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                 elif a_type == b_type and a_type == DataType.BOOL:
@@ -1051,7 +1032,7 @@ def type_check_program(program: Program):
                 contexts.append(Context(stack=copy(ctx.stack), ip=op.operand))
                 ctx = contexts[-1]
         else:
-            assert False, "unreachable"
+            assert False, f"unreachable ({[op.typ]})"
 
 def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
     strs: List[bytes] = []
