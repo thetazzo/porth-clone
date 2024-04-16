@@ -11,6 +11,7 @@ memory fd sizeof(u64) end            // file descriptor memory begin
 memory statbuf sizeof(stat) end    // stat structure  memory begin
 
 // open the file
+0          // mode
 O_RDONLY   // flags
 1 nth_argv // pathname
 AT_FDCWD   // dirfd

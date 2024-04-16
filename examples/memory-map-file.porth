@@ -22,6 +22,7 @@ end
 "File name: " puts 1 nth_argv cstr-to-str puts "\n" puts
 
 // open the file
+0          // mode
 O_RDONLY   // flags
 1 nth_argv // pathname
 AT_FDCWD   // dirfd
