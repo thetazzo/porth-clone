@@ -1424,7 +1424,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
         out.write("mem: resb %d\n" % program.memory_capacity) # reserve space for program memory
 
 assert len(Keyword) == 9, "Exhaustive KEYWORD_NAMES definition: %d" % len(Keyword) 
-KEYWORD_NAMES= {
+KEYWORD_BY_NAMES: Dict[str, Keyword]= {
     'if': Keyword.IF,
     'elif': Keyword.ELIF,
     'else': Keyword.ELSE,
@@ -1435,9 +1435,10 @@ KEYWORD_NAMES= {
     'include': Keyword.INCLUDE,
     'memory': Keyword.MEMORY,
 }
+KEYWORD_NAMES: Dict[Keyword, str] = {v: k for k, v in KEYWORD_BY_NAMES.items()}
 
 assert len(Intrinsic) == 42, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
-INTRINSIC_BY_NAMES = {
+INTRINSIC_BY_NAMES: Dict[str, Intrinsic]= {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
     '*': Intrinsic.MUL,
@@ -1481,8 +1482,7 @@ INTRINSIC_BY_NAMES = {
     'syscall5': Intrinsic.SYSCALL5,
     'syscall6': Intrinsic.SYSCALL6,
 }
-
-INTRINSIC_NAMES = {v: k for k, v in INTRINSIC_BY_NAMES.items()}
+INTRINSIC_NAMES: Dict[Intrinsic, str] = {v: k for k, v in INTRINSIC_BY_NAMES.items()}
 
 @dataclass
 class Macro:
@@ -1704,10 +1704,12 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                 while len(rtokens) > 0:
                     token = rtokens.pop()
                     if token.typ == TokenType.KEYWORD:
+                        assert isinstance(token.value, Keyword)
                         if token.value == Keyword.END:
                             break
                         else:
-                            assert False, "TODO: unsupported keyword in memory definition"
+                            compiler_error_with_expansion_stack(token, f"unsupported keyword `{KEYWORD_NAMES[token.value]}` in memory definition")
+                            exit(1)
                     elif token.typ == TokenType.INT:
                         assert isinstance(token.value, int)
                         mem_size_stack.append(token.value)
@@ -1853,8 +1855,8 @@ def lex_lines(file_path: str, lines: List[str]) -> Generator[Token, None, None]:
                 try:
                     yield Token(TokenType.INT, text_of_token, loc, int(text_of_token))
                 except ValueError:
-                    if text_of_token in KEYWORD_NAMES:
-                        yield Token(TokenType.KEYWORD, text_of_token, loc, KEYWORD_NAMES[text_of_token])
+                    if text_of_token in KEYWORD_BY_NAMES:
+                        yield Token(TokenType.KEYWORD, text_of_token, loc, KEYWORD_BY_NAMES[text_of_token])
                     else:
                         if text_of_token.startswith("//"):
                             break
