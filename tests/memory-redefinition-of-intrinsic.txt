@@ -4,6 +4,6 @@
 :i returncode 1
 :b stdout 0
 
-:b stderr 156
-./tests/memory-redefinition-of-intrinsic.porth:1:8: ERROR: redefinition of an intrinsic word `drop`. Please choose a different name for your memory region.
+:b stderr 100
+./tests/memory-redefinition-of-intrinsic.porth:1:8: ERROR: redefinition of an intrinsic word `drop`
 
