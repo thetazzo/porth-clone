@@ -533,35 +533,16 @@ macro str-trim-left // input --
     drop
 end
 
-macro str-chop-line // line input --
+memory str-chop-by-delim-tmp sizeof(u64) end
+macro str-chop-by-delim // delim line input 
+    rot str-chop-by-delim-tmp !64
     // line->data = input->data
     2dup @Str.data swap !Str.data 
     // line->count = 0
     over 0 swap !Str.count
     while 
         if dup @Str.count 0 > do
-            dup @Str.data @8 '\n' !=
-        else false end
-    do
-        dup str-chop-one-left
-        // increment count of the `line`
-        swap dup Str.count inc64 swap
-    end
-    if dup @Str.count 0 > do
-        dup str-chop-one-left
-    end
-    2drop
-end
-
-// TODO: merge chop word and chop line into a single macro
-macro str-chop-word // word input --
-    // word->data = input->data
-    2dup @Str.data swap !Str.data 
-    // word->count = 0
-    over 0 swap !Str.count
-    while 
-        if dup @Str.count 0 > do
-            dup @Str.data @8 ' ' !=
+            dup @Str.data @8 str-chop-by-delim-tmp @64 !=
         else false end
     do
         dup str-chop-one-left

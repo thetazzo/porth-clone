@@ -56,11 +56,11 @@ end
 
 // handle each line in the file
 while content Str.count @64 0 > do
-    line content str-chop-line
+    '\n' line content str-chop-by-delim
     // handle each word in the line
     while line Str.count @64 0 > do
         line str-trim-left
-        word line str-chop-word
+        ' ' word line str-chop-by-delim
         word @Str puts
     end
     "\n" puts

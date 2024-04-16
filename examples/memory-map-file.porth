@@ -68,10 +68,10 @@ end
 // parse lines of the input file
 0 line_number !64
 while content Str.count @64 0 > do
-    line content str-chop-line
+    '\n' line content str-chop-by-delim
     while line Str.count @64 0 > do
         line str-trim-left
-        word line str-chop-word
+        ' ' word line str-chop-by-delim
         1 nth_argv cstr-to-str puts ": " puts line_number @64 putd ": " puts
         if word @Str "+" streq do
             "Compilation of PLUS\n" puts
