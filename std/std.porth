@@ -1,3 +1,13 @@
+// Deprecated Words
+macro .64 swap !64 end
+macro ,64 @64 end
+macro ! !8 end
+macro @ @8 end
+macro . swap ! end
+macro , @ end
+macro cstr-to-pstr cstr-to-str end
+memory mem 640000 end
+
 macro NULL 0 end
 
 macro nop end
@@ -444,28 +454,28 @@ end
 // the first element on the stack contains the length pf the string literal
 // the second element on the stack contains the full length including \0
 // NOTE: it counts event the new line \n
-macro cstrlen
+proc cstrlen
     dup
     while dup @8 0 != do 1 + end
     swap -
 end
 
-macro cstr-to-str
+proc cstr-to-str
     dup cstrlen swap
 end
 
 // write something 
-macro fputs
+proc fputs
     write drop
 end
 
 // write something to `stderr`
-macro eputs
+proc eputs
     stderr fputs
 end
 
 // write something to `stdout`
-macro puts
+proc puts
     stdout fputs
 end
 
@@ -473,7 +483,7 @@ macro PUTD_BUFFER_CAP 32 end
 memory putd-buffer PUTD_BUFFER_CAP end
 memory putd-fd sizeof(u64) end
 // write somme number to `stdout`
-macro fputd // value fd --
+proc fputd // value fd --
     putd-fd !64
     if dup 0 = do
       "0" putd-fd @64 fputs
@@ -516,13 +526,13 @@ macro !Str // count data dst -
 end
 
 // chop a single char from the left side
-macro str-chop-one-left // str --
+proc str-chop-one-left // str --
     dup Str.count dec64
     Str.data inc64
 end
 
 // remove ' ' (space) characters while the input string starts with them
-macro str-trim-left // input --
+proc str-trim-left // input --
     while 
         if dup @Str.count 0 > do
             dup @Str.data @8 ' ' =
@@ -534,7 +544,7 @@ macro str-trim-left // input --
 end
 
 memory str-chop-by-delim-tmp sizeof(u64) end
-macro str-chop-by-delim // delim line input 
+proc str-chop-by-delim // delim line input 
     rot str-chop-by-delim-tmp !64
     // line->data = input->data
     2dup @Str.data swap !Str.data 
@@ -556,7 +566,7 @@ macro str-chop-by-delim // delim line input
 end
 
 // Comparing NULL terminated strings
-macro cstreq
+proc cstreq
     while
         if over @8 0 != over @8 0 != and do
             over @8 over @8 =
@@ -572,7 +582,7 @@ end
 
 memory streq_a sizeof(Str) end
 memory streq_b sizeof(Str) end
-macro streq // n1 s1 n2 s2
+proc streq // n1 s1 n2 s2
     streq_a !Str
     streq_b !Str
     if streq_a @Str.count streq_b @Str.count = do
@@ -587,20 +597,10 @@ macro streq // n1 s1 n2 s2
     else false end
 end
 
-macro is-digit
+proc is-digit
     dup '0' >=
     swap '9' <=
     and
 end
 
 macro putd stdout fputd end
-
-// Deprecated Words
-macro .64 swap !64 end
-macro ,64 @64 end
-macro ! !8 end
-macro @ @8 end
-macro . swap ! end
-macro , @ end
-macro cstr-to-pstr cstr-to-str end
-memory mem 640000 end
