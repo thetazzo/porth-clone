@@ -52,3 +52,6 @@ tests/here
 tests/cstr
 tests/open-close-file
 tests/empty
+tests/if-else-fail
+tests/while-procs
+

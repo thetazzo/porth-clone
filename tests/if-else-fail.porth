@@ -1,2 +1,2 @@
 
-if 34 35 + 69 = do 69 print else 420 end
+34 35 + 69 = if 69 print else 420 end

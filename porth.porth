@@ -55,16 +55,16 @@ proc cmd_echoed // argv
 
     fork
 
-    if dup 0 = do
+    dup 0 = if 
         drop
         dup @64 cast(ptr) empty_envp
         rot rot
         execve
-        if dup 0 < do
+        dup 0 < if 
             "[ERROR] could not exec external program\n" eputs
             1 exit
         end
-    elif dup 0 > do
+    orelse dup 0 > if
         drop
         NULL 0 wstatus -1 wait4 drop
     else
@@ -90,7 +90,7 @@ memory ops-count       sizeof(u64)                 end
 memory ops             sizeof(Op)  OPS_CAP *       end
 
 proc sim-stack-push // u64 --
-    if sim-stack-count @64 SIM_STACK_CAP >= do
+    sim-stack-count @64 SIM_STACK_CAP >= if 
         here eputs ": ERROR: sim stack overflow in simulation mode\n" eputs 1 exit 
     end
 
@@ -100,7 +100,7 @@ proc sim-stack-push // u64 --
 end
 
 proc sim-stack-pop // -- u64
-    if sim-stack-count @64 0 = do 
+    sim-stack-count @64 0 = if  
         here eputs ": ERROR: sim stack underflow in simulation mode\n" eputs 1 exit
     end
     sim-stack-count dec64
@@ -118,7 +118,7 @@ proc try_to_parse_word_as_int_or_fail_as_unknown_word // n1 s1 - ret
     0 0 while dup word @Str.count < do
       dup word @Str.data + @8
   
-      if dup is-digit lnot do
+      dup is-digit lnot if 
         file_path_cstr @64 cast(ptr) cstr-to-str eputs
         ":" puts line_number @64 putd
         ":" puts word @Str.data cast(int) line_start @64 - 1 + putd
@@ -134,23 +134,23 @@ proc try_to_parse_word_as_int_or_fail_as_unknown_word // n1 s1 - ret
 end
 
 proc print-op-typ
-    if COUNT_OPZ 7 != do
+    COUNT_OPZ 7 != if 
         here eputs ": Assertion Failed: Exhaustive handling of Op types in print-op-typ\n" eputs
         1 exit
     end
-    if dup OP_PUSH_INT = do
+    dup OP_PUSH_INT = if 
         "OP_PUSH_INT" puts
-    elif dup OP_PLUS   = do
+    orelse dup OP_PLUS   = if
         "OP_PLUS" puts
-    elif dup OP_MINUS   = do
+    orelse dup OP_MINUS   = if
         "OP_MINUS" puts
-    elif dup OP_MUL   = do
+    orelse dup OP_MUL   = if
         "OP_MUL" puts
-    elif dup OP_PRINT   = do
+    orelse dup OP_PRINT   = if
         "OP_PRINT" puts
-    elif dup OP_DUP   = do
+    orelse dup OP_DUP   = if
         "OP_DUP" puts
-    elif dup OP_DROP   = do
+    orelse dup OP_DROP   = if
         "OP_DROP" puts
     else
         here eputs ": unknown op type\n" eputs 
@@ -174,40 +174,40 @@ proc simulate-opz
         // ptr type
         dup sizeof(Op) * ops +
 
-        if COUNT_OPZ 7 != do
+        COUNT_OPZ 7 != if 
             here eputs ": Assertion Failed: Exhaustive handling of Op types in print-op-typ\n" eputs
             1 exit
         end
 
         // ptr
-        if dup @Op.typ OP_PUSH_INT = do
+        dup @Op.typ OP_PUSH_INT = if 
             dup @Op.operand sim-stack-push
-        elif dup @Op.typ OP_PLUS = do
+        orelse dup @Op.typ OP_PLUS = if
             sim-stack-pop
             sim-stack-pop
             +
             sim-stack-push
-        elif dup @Op.typ OP_MINUS = do
+        orelse dup @Op.typ OP_MINUS = if
             sim-stack-pop
             sim-stack-pop
             swap
             -
             sim-stack-push
-        elif dup @Op.typ OP_MUL = do
+        orelse dup @Op.typ OP_MUL = if
             sim-stack-pop
             sim-stack-pop
             *
             sim-stack-push
-        elif dup @Op.typ OP_PRINT = do
+        orelse dup @Op.typ OP_PRINT = if
             sim-stack-pop print
-        elif dup @Op.typ OP_PRINT = do
+        orelse dup @Op.typ OP_PRINT = if
             sim-stack-pop print
-        elif dup @Op.typ OP_DUP = do
+        orelse dup @Op.typ OP_DUP = if
             sim-stack-pop
             dup
             sim-stack-push
             sim-stack-push
-        elif dup @Op.typ OP_DROP = do
+        orelse dup @Op.typ OP_DROP = if
             sim-stack-pop
             drop
         else 
@@ -226,7 +226,7 @@ proc compile-opz // --
     openat
     !out_fd
 
-    if @out_fd 0 < do
+    @out_fd 0 < if
         "[ERROR] could not open `output.asm` \n" eputs
         1 exit
     end
@@ -271,7 +271,7 @@ proc compile-opz // --
     "    mov [args_ptr], rsp\n"              @out_fd fputs
 
     0 while dup ops-count @64 < do
-        if COUNT_OPZ 7 != do
+        COUNT_OPZ 7 != if
             here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
             1 exit
         end
@@ -279,38 +279,38 @@ proc compile-opz // --
         dup sizeof(Op) * ops +
 
         // ptr
-        if dup @Op.typ OP_PUSH_INT = do
+        dup @Op.typ OP_PUSH_INT = if
             ";;  -- push int " @out_fd fputs dup Op.operand @64 @out_fd fputd " --\n" @out_fd fputs
             "    mov rax, " @out_fd fputs dup Op.operand @64 @out_fd fputd "\n" @out_fd fputs
             "    push rax\n" @out_fd fputs
-        elif dup @Op.typ OP_PLUS = do
+        orelse dup @Op.typ OP_PLUS = if
             ";;  -- plus --\n"   @out_fd fputs
             "    pop rax\n"      @out_fd fputs
             "    pop rbx\n"      @out_fd fputs
             "    add rax, rbx\n" @out_fd fputs
             "    push rax\n"     @out_fd fputs
-        elif dup @Op.typ OP_MINUS = do
+        orelse dup @Op.typ OP_MINUS = if
             ";;  -- minus --\n"  @out_fd fputs
             "    pop rax\n"      @out_fd fputs
             "    pop rbx\n"      @out_fd fputs
             "    sub rbx, rax\n" @out_fd fputs
             "    push rbx\n"     @out_fd fputs
-        elif dup @Op.typ OP_MUL = do
+        orelse dup @Op.typ OP_MUL = if
             ";;  -- mul --\n"    @out_fd fputs
             "    pop rax\n"      @out_fd fputs
             "    pop rbx\n"      @out_fd fputs
             "    mul rbx\n"      @out_fd fputs
             "    push rax\n"     @out_fd fputs
-        elif dup @Op.typ OP_PRINT = do
+        orelse dup @Op.typ OP_PRINT = if
             ";;  -- print --\n"  @out_fd fputs
             "    pop rdi\n"      @out_fd fputs
             "    call print\n"   @out_fd fputs
-        elif dup @Op.typ OP_DUP = do
+        orelse dup @Op.typ OP_DUP = if
             ";;  -- dup --\n"    @out_fd fputs
             "    pop rax\n"      @out_fd fputs
             "    push rax\n"     @out_fd fputs
             "    push rax\n"     @out_fd fputs
-        elif dup @Op.typ OP_DROP = do
+        orelse dup @Op.typ OP_DROP = if
             ";;  -- drop --\n"   @out_fd fputs
             "    pop rax\n"      @out_fd fputs
         else 
@@ -342,7 +342,7 @@ proc parse_file_path_cstr_into_opz
     openat
 
     // validate successful opening of the file
-    if dup 0 < do
+    dup 0 < if
         "ERROR: could not open file `" eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "` not found\n" eputs
         1 exit
     end
@@ -350,7 +350,7 @@ proc parse_file_path_cstr_into_opz
     // save file descriptor to a global variable
     fd !64
 
-    if statbuf fd @64 fstat 0 < do
+    statbuf fd @64 fstat 0 < if
         "ERROR: could not determine the size of the file `" eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "`\n" eputs
         1 exit
     end
@@ -370,7 +370,7 @@ proc parse_file_path_cstr_into_opz
     content !Str.data
 
     // validate success of the `mmap` syscall ~ validate memory mapping was successful
-    if content @Str.data cast(int) 0 < do
+    content @Str.data cast(int) 0 < if
         "ERROR: could not memory map file `" eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "`\n" eputs
         1 exit
     end
@@ -383,22 +383,22 @@ proc parse_file_path_cstr_into_opz
          line str-trim-left
          ' ' word line str-chop-by-delim
   
-         if COUNT_OPZ 7 != do
+         COUNT_OPZ 7 != if
            here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
            1 exit
          end
   
-         if word @Str "+" streq do
+         word @Str "+" streq if
            OP_PLUS 0 push-op
-         elif word @Str "-" streq do
+         orelse word @Str "-" streq if
            OP_MINUS 0 push-op
-         elif word @Str "*" streq do
+         orelse word @Str "*" streq if
            OP_MUL 0 push-op
-         elif word @Str "print" streq do
+         orelse word @Str "print" streq if
            OP_PRINT 0 push-op
-         elif word @Str "dup" streq do
+         orelse word @Str "dup" streq if
            OP_DUP 0 push-op
-         elif word @Str "drop" streq do
+         orelse word @Str "drop" streq if
            OP_DROP 0 push-op
          else
            OP_PUSH_INT try_to_parse_word_as_int_or_fail_as_unknown_word push-op
@@ -423,15 +423,15 @@ end
 
 // entrypoint of the program
 proc main 
-    if argc 2 < do
+    argc 2 < if
         stderr print_usage
         here eputs ": ERROR: subcommands is not provided\n" eputs
         1 exit
     end
 
     1 nth_argv
-    if dup "com"c cstreq do
-        if argc 3 < do
+    dup "com"c cstreq if
+        argc 3 < if
             stderr print_usage
             "ERROR: No input file provided for the `com` subcommand" eputs
             1 exit
@@ -441,8 +441,8 @@ proc main
         parse_file_path_cstr_into_opz
 
         compile-opz
-    elif dup "sim"c cstreq do
-        if argc 3 < do
+    orelse dup "sim"c cstreq if
+        argc 3 < if
             stderr print_usage
             "ERROR: No input file provided for the `sim` subcommand" eputs
             1 exit
@@ -452,8 +452,8 @@ proc main
         parse_file_path_cstr_into_opz
 
         simulate-opz
-    elif dup "print"c cstreq do
-        if argc 3 < do
+    orelse dup "print"c cstreq if
+        argc 3 < if
             stderr print_usage
             "ERROR: No input file provided for the `print` subcommand" eputs
             1 exit
@@ -464,7 +464,7 @@ proc main
         parse_file_path_cstr_into_opz
 
         print-opz
-    elif dup "help"c cstreq do
+    orelse dup "help"c cstreq if
         stdout print_usage
         0 exit
     else

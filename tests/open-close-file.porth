@@ -1,6 +1,6 @@
 include "std.porth"
 
-if argc 2 < do
+argc 2 < if 
     "Usage: " eputs 0 nth_argv cstr-to-str eputs " <file_path>\n" eputs
     "ERROR: no input file provided" eputs
     1 exit
@@ -12,7 +12,7 @@ O_RDONLY   // flags
 AT_FDCWD   // dirfd
 openat
 
-if dup 0 < do
+dup 0 < if 
     "ERROR: could not open file: `" eputs 1 nth_argv cstr-to-str eputs "`\n" eputs
     1 exit
 end

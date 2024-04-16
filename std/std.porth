@@ -485,7 +485,7 @@ memory putd-fd sizeof(u64) end
 // write somme number to `stdout`
 proc fputd // value fd --
     putd-fd !64
-    if dup 0 = do
+    dup 0 = if
       "0" putd-fd @64 fputs
     else
       putd-buffer PUTD_BUFFER_CAP +
@@ -534,7 +534,7 @@ end
 // remove ' ' (space) characters while the input string starts with them
 proc str-trim-left // input --
     while 
-        if dup @Str.count 0 > do
+        dup @Str.count 0 > if
             dup @Str.data @8 ' ' =
         else false end
     do
@@ -551,7 +551,7 @@ proc str-chop-by-delim // delim line input
     // line->count = 0
     over 0 swap !Str.count
     while 
-        if dup @Str.count 0 > do
+        dup @Str.count 0 > if
             dup @Str.data @8 str-chop-by-delim-tmp @64 !=
         else false end
     do
@@ -559,7 +559,7 @@ proc str-chop-by-delim // delim line input
         // increment count of the `word`
         swap dup Str.count inc64 swap
     end
-    if dup @Str.count 0 > do
+    dup @Str.count 0 > if
         dup str-chop-one-left
     end
     2drop
@@ -568,7 +568,7 @@ end
 // Comparing NULL terminated strings
 proc cstreq
     while
-        if over @8 0 != over @8 0 != and do
+        over @8 0 != over @8 0 != and if
             over @8 over @8 =
         else
             false
@@ -585,9 +585,9 @@ memory streq_b sizeof(Str) end
 proc streq // n1 s1 n2 s2
     streq_a !Str
     streq_b !Str
-    if streq_a @Str.count streq_b @Str.count = do
+    streq_a @Str.count streq_b @Str.count = if
         0 while
-            if dup streq_a @Str.count < do
+            dup streq_a @Str.count < if
                 dup streq_a @Str.data + @8 
                 over streq_b @Str.data + @8 
                 =

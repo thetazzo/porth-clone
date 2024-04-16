@@ -4,24 +4,40 @@
 * Developed for education purposes
 * It is supposed to be a stack-based language which is a clone of Forth
 
-### Example
+## Examples
 
-* Hello World
+Hello, World:
+
 ```pascal
 include "std.porth"
 
-"Hello World!\n" puts
+"Hello, World\n" puts
 ```
 
-* A program that prints numbers from 0 to 69
+Simple program that prints numbers from 0 to 99 in an ascending order:
+
 ```pascal
 include "std.porth"
 
-69 0 while 2dup >= do
-    dup print
-    1 +
+100 0 while 2dup > do
+    dup print 1 +
 end 2drop
 ```
+
+## Quick Start
+
+### Simulation
+
+Simulation simply interprets the program.
+
+```console
+$ cat program.porth
+34 35 + print
+$ ./porth.py sim program.porth
+69
+```
+
+**It is strongly recommended to use [PyPy](https://www.pypy.org/) for the Simulation Mode since CPython is too slow for that. Try to simulate [./euler/problem04.porth](./euler/problem04.porth) using CPython and compare it with PyPy and [Compilation Mode](https://github.com/tsoding/porth/blob/e8254c6091357f28795d052d77a921319a8d284b/README.md#compilation).**
 
 ### Compilation
 
@@ -40,42 +56,53 @@ $ ./program
 
 ### Testing
 
-Test cases are located in [./tests/](./tests/) folder. The `*.txt` files are the expected outputs of the corresponding programs.
+Test cases are located in [./tests/](./tests/) folder. The `*.txt` files contain inputs (command line arguments, stdin) and expected outputs (exit code, stdout, stderr) of the corresponding programs.
 
 Run [./test.py](./test.py) script to execute the programs and assert their outputs:
 
 ```console
-$ ./test.py
+$ ./test.py run
 ```
 
-To updated expected output files run the `record` subcommand:
+To updated expected outputs of the programs run the `update` subcommand:
 
 ```console
-$ ./test.py record
+$ ./test.py update
 ```
 
-The [./examples/](./examples/) contains programs that are ment for showcasing the language rather then testing it, but we still can them for testing just like the stuff in [./tests/](./tests/):
+To update expected command line arguments and stdin of a specific program run the `update input <path/to/program.porth>` subcommand:
 
 ```console
-$ ./test.py -f ./examples/
-$ ./test.py -f ./examples/ record
+$ ./test.py update input ./tests/argv.porth new cmd args
+[INFO] Provide the stdin for the test case. Press ^D when you are done...
+Hello, World
+^D
+[INFO] Saving input to ./tests/argv.txt
 ```
 
----
+The [./examples/](./examples/) folder contains programs that are ment for showcasing the language rather then testing it, but we still can use them for testing just like the stuff in the [./tests/](./tests/) folder:
 
-### Rule 110
-* Proving the language is turing complete or whatever
 ```console
-$ ./porth.py sim ./examples/rule-110.porth
-$ ./porth.py com ./examples/rule-110.porth
-$ ./examples/rule-110
+$ ./test.py run ./examples/
+$ ./test.py update input ./examples/name.porth
+$ ./test.py update output ./examples/
 ```
 
----
+For more info see `./test.py help`
 
-## Documentation
+### Usage
 
-### Data types
+If you wanna use the Porth compiler separately from its codebase you only need two things:
+- [./porth.py](./porth.py) - the compiler itself,
+- [./std/](./std/) - the standard library.
+
+By default the compiler searches files to include in `./` and `./std/`. You can add more search paths via the `-I` flag before the subcommand: `./porth.py -I <custom-path> com ...`. See `./porth.py help` for more info.
+
+## Language Reference
+
+This is what the language supports so far. **Since the language is a work in progress everything in this section is the subject to change.**
+
+### Literals
 
 #### Integer
 
@@ -153,65 +180,63 @@ This program pushes integer `69` onto the stack (since the ASCII code of letter 
 
 ### Intrinsics (Built-in Words)
 
-* signature is constructed as such ``<inputs> -- <outputs>`` where inputs refer to the values on the stack before intrinsic execution and outputs the values after execution
-
 #### Stack Manipulation
 
 | Name    | Signature        | Description                                                                                  |
 | ---     | ---              | ---                                                                                          |
-| `dup`   | `a -- a a`       | duplicate the element on top of the stack                                                    |
-| `swap`  | `a b -- b a`     | swap 2 elements on the top of the stack                                                      |
-| `drop`  | `a b -- a`       | removes the top element of the stack                                                         |
-| `print` | `a b -- a`       | print the element on top of the stack in a free form to stdout and remove it from the stack  |
+| `dup`   | `a -- a a`       | duplicate an element on top of the stack.                                                    |
+| `swap`  | `a b -- b a`     | swap 2 elements on the top of the stack.                                                     |
+| `drop`  | `a b -- a`       | drops the top element of the stack.                                                          |
+| `print` | `a b -- a`       | print the element on top of the stack in a free form to stdout and remove it from the stack. |
 | `over`  | `a b -- a b a`   | copy the element below the top of the stack                                                  |
-| `rot`   | `a b c -- b c a` | rotate the top three elements on the stack                                                   |
+| `rot`   | `a b c -- b c a` | rotate the top three stack elements.                                                         |
 
 #### Comparison
 
 | Name | Signature                              | Description                                                  |
 | ---  | ---                                    | ---                                                          |
-| `= ` | `[a: int] [b: int] -- [a == b : bool]` | checks if two elements on top of the stack are equal         |
-| `!=` | `[a: int] [b: int] -- [a != b : bool]` | checks if two elements on top of the stack are not equal     |
-| `> ` | `[a: int] [b: int] -- [a > b  : bool]` | applies the greater comparison on top two elements           |
-| `< ` | `[a: int] [b: int] -- [a < b  : bool]` | applies the less comparison on top two elements              |
+| `= ` | `[a: int] [b: int] -- [a == b : bool]` | checks if two elements on top of the stack are equal.        |
+| `!=` | `[a: int] [b: int] -- [a != b : bool]` | checks if two elements on top of the stack are not equal.    |
+| `> ` | `[a: int] [b: int] -- [a > b  : bool]` | applies the greater comparison on top two elements.          |
+| `< ` | `[a: int] [b: int] -- [a < b  : bool]` | applies the less comparison on top two elements.             |
 | `>=` | `[a: int] [b: int] -- [a >= b : bool]` | applies the greater or equal comparison on top two elements  |
-| `<=` | `[a: int] [b: int] -- [a <= b : bool]` | applies the greater or equal comparison on top two elements  |
+| `<=` | `[a: int] [b: int] -- [a <= b : bool]` | applies the greater or equal comparison on top two elements. |
 
 #### Arithmetic
 
 | Name     | Signature                                        | Description                                                                                                              |
 | ---      | ---                                              | ---                                                                                                                      |
-| `+`      | `[a: int] [b: int] -- [a + b: int]`              | sums up two elements on the top of the stack                                                                             |
+| `+`      | `[a: int] [b: int] -- [a + b: int]`              | sums up two elements on the top of the stack.                                                                            |
 | `-`      | `[a: int] [b: int] -- [a - b: int]`              | subtracts two elements on the top of the stack                                                                           |
 | `*`      | `[a: int] [b: int] -- [a * b: int]`              | multiples two elements on top of the stack                                                                               |
-| `divmod` | `[a: int] [b: int] -- [a / b: int] [a % b: int]` | perform [Euclidean division](https://en.wikipedia.org/wiki/Euclidean_division) between two elements on top of the stack  |
+| `divmod` | `[a: int] [b: int] -- [a / b: int] [a % b: int]` | perform [Euclidean division](https://en.wikipedia.org/wiki/Euclidean_division) between two elements on top of the stack. |
 
 #### Bitwise
 
 | Name  | Signature                            | Description                   |
 | ---   | ---                                  | ---                           |
-| `shr` | `[a: int] [b: int] -- [a >> b: int]` | right **unsigned** bit shift  |
-| `shl` | `[a: int] [b: int] -- [a << b: int]` | light bit shift               |
-| `or`  | `[a: int] [b: int] -- [a \| b: int]` | bit `or`                      |
-| `and` | `[a: int] [b: int] -- [a & b: int]`  | bit `and`                     |
-| `not` | `[a: int] -- [~a: int]`              | bit `not`                     |
+| `shr` | `[a: int] [b: int] -- [a >> b: int]` | right **unsigned** bit shift. |
+| `shl` | `[a: int] [b: int] -- [a << b: int]` | light bit shift.              |
+| `or`  | `[a: int] [b: int] -- [a \| b: int]` | bit `or`.                     |
+| `and` | `[a: int] [b: int] -- [a & b: int]`  | bit `and`.                    |
+| `not` | `[a: int] -- [~a: int]`              | bit `not`.                    |
 
 #### Memory
 
-| Name         | Signature                      | Description                                                                                     |
-| ---          | ---                            | ---                                                                                             |
-| `mem`        | `-- [mem: ptr]`                | pushes the address of the beginning of the memory where you can read and write onto the stack   |
-| `!8`         | `[byte: int] [place: ptr] -- ` | store a given byte at the address on the stack                                                  |
-| `@8`         | `[place: ptr] -- [byte: int]`  | load a byte from the address on the stack                                                       |
-| `!16`        | `[place: int] [byte: ptr] --`  | store a 2-byte word at the address on the stack.                                               |
-| `@16`        | `[place: ptr] [byte: int] --`  | load a 2-byte word from the address on the stack.                                               |
-| `!32`        | `[place: int] [byte: ptr] --`  | store a 4-byte word at the address on the stack.                                               |
-| `@32`        | `[place: ptr] [byte: int] --`  | load an 4-byte word from the address on the stack.                                               |
-| `!64`        | `[place: int] [byte: ptr] --`  | store an 8-byte word at the address on the stack                                                |
-| `@64`        | `[place: ptr] -- [byte: int]`  | load an 8-byte word from the address on the stack                                               |
-| `cast(int)`  | `[a: any] -- [a: int]`         | cast the element on top of the stack to `int`                                                   |
-| `cast(bool)` | `[a: any] -- [a: bool]`        | cast the element on top of the stack to `bool`                                                  |
-| `cast(ptr)`  | `[a: any] -- [a: ptr]`         | cast the element on top of the stack to `ptr`                                                   |
+| Name         | Signature                      | Description                                                                                    |
+| ---          | ---                            | ---                                                                                            |
+| `mem`        | `-- [mem: ptr]`                | pushes the address of the beginning of the memory where you can read and write onto the stack. |
+| `!8`         | `[byte: int] [place: ptr] -- ` | store a given byte at the address on the stack.                                                |
+| `@8`         | `[place: ptr] -- [byte: int]`  | load a byte from the address on the stack.                                                     |
+| `!16`        | `[byte: int] [place: ptr] --`  | store an 2-byte word at the address on the stack.                                              |
+| `@16`        | `[place: ptr] -- [byte: int]`  | load an 2-byte word from the address on the stack.                                             |
+| `!32`        | `[byte: int] [place: ptr] --`  | store an 4-byte word at the address on the stack.                                              |
+| `@32`        | `[place: ptr] -- [byte: int]`  | load an 4-byte word from the address on the stack.                                             |
+| `!64`        | `[byte: int] [place: ptr] --`  | store an 8-byte word at the address on the stack.                                              |
+| `@64`        | `[place: ptr] -- [byte: int]`  | load an 8-byte word from the address on the stack.                                             |
+| `cast(int)`  | `[a: any] -- [a: int]`         | cast the element on top of the stack to `int`                                                  |
+| `cast(bool)` | `[a: any] -- [a: bool]`        | cast the element on top of the stack to `bool`                                                 |
+| `cast(ptr)`  | `[a: any] -- [a: ptr]`         | cast the element on top of the stack to `ptr`                                                  |
 
 #### System
 
@@ -239,7 +264,7 @@ here puts ": TODO: not implemented\n" puts 1 exit
 
 ### Control Flow
 
-- `if <condition> do <then-branch> else <else-branch> end` - pops the element on top of the stack and if the element is not `0` executes the `<then-branch>`, otherwise `<else-branch>`.
+- `<condition> if <then-branch> else <else-branch> end` - pops the element on top of the stack and if the element is not `0` executes the `<then-branch>`, otherwise `<else-branch>`.
 - `while <condition> do <body> end` - keeps executing both `<condition>` and `<body>` until `<condition>` produces `0` at the top of the stack. Checking the result of the `<condition>` removes it from the stack.
 
 ### Macros
@@ -265,6 +290,26 @@ include "file.porth"
 TBD
 
 <!-- TODO: Document Type Checking process -->
+
+### Conventions
+
+#### Structures
+
+TBD
+
+<!-- TODO: Document Structure Conventions -->
+
+#### Arrays
+
+TBD
+
+<!-- TODO: Document Arrays Conventions -->
+
+#### Memory Layout
+
+TBD
+
+<!-- TODO: Document Memory Laytout Conventions -->
 
 ---
 

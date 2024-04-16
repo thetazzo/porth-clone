@@ -6,7 +6,7 @@ memory content sizeof(Str) end
 memory line sizeof(Str) end
 memory word sizeof(Str) end
 
-if argc 2 < do
+argc 2 < if 
     "Usage: " eputs 0 nth_argv cstr-to-str eputs " <file>\n" eputs
     "ERROR: no input file was provided" eputs
     1 exit
@@ -20,7 +20,7 @@ O_RDONLY   // flags
 AT_FDCWD   // dirfd
 openat
 
-if dup 0 < do
+dup 0 < if 
     "ERROR: could not open file `" eputs 1 nth_argv cstr-to-str eputs "` not found\n" eputs
     1 exit
 end
@@ -28,7 +28,7 @@ end
 // store file descriptor on the memory!
 fd !64
 
-if statbuf fd @64 fstat 0 < do
+statbuf fd @64 fstat 0 < if 
     "ERROR: could not determine the size of the file `" eputs 1 nth_argv cstr-to-str eputs "`\n" eputs
     1 exit
 end
@@ -49,7 +49,7 @@ mmap
 // save output of mmap onto `Str.data` of the `content` memory
 content Str.data !64
 
-if content Str.data @64 0 < do
+content Str.data @64 0 < if 
     "ERROR: could not memory map file `" eputs 1 nth_argv cstr-to-str eputs "`\n" eputs
     1 exit
 end

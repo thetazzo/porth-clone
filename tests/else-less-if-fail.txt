@@ -5,5 +5,5 @@
 :b stdout 0
 
 :b stderr 92
-./tests/else-less-if-fail.porth:1:27: ERROR: Not enough arguments for the `print` intrinsic
+./tests/else-less-if-fail.porth:1:25: ERROR: Not enough arguments for the `print` intrinsic
 
