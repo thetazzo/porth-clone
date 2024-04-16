@@ -32,4 +32,5 @@ jobs:
           ./pypy3.10-v7.3.15-linux64/bin/pypy3 --version
       - name: run tests
         run: |
-          mypy ./test.py full
+          ./pypy3.10-v7.3.15-linux64/bin/pypy3 ./test.py full
+
