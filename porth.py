@@ -527,11 +527,14 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
         print(mem[:20])
 
 def print_missing_op_args(op: Op):
+    assert len(OpType) == 11, f"Exhaustive ops handling in print_missing_op_args() (expected:{len(OpType)}). Keep n mind that not all of the ops should be handled in here. Only those that consume elements from the stack."
     if op.typ == OpType.INTRINSIC:
         assert isinstance(op.operand, Intrinsic)
         compiler_error_with_expansion_stack(op.token, "Not enough arguments for the `%s` intrinsic" % INTRINSIC_NAMES[op.operand]) 
     elif op.typ == OpType.IF:
         compiler_error_with_expansion_stack(op.token, "Not enough arguments for the IF-block") 
+    elif op.typ == OpType.DO:
+        compiler_error_with_expansion_stack(op.token, "Not enough arguments for the DO-block") 
     else:
         assert False, "unsupported type of operation"
 
