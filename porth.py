@@ -558,11 +558,12 @@ DataStack=List[Tuple[DataType, Token]]
 @dataclass
 class Context:
     stack: DataStack
+    ret_stack: List[OpAddr]
     ip: OpAddr
 
 def type_check_program(program: Program):
     visited_dos: Dict[OpAddr, DataStack] = {}
-    contexts: List[Context] = [Context(stack=[], ip=0)]
+    contexts: List[Context] = [Context(stack=[], ret_stack=[], ip=0)]
     while len(contexts) > 0:
         ctx = contexts[-1];
         if ctx.ip >= len(program.ops):
@@ -586,6 +587,17 @@ def type_check_program(program: Program):
         elif op.typ == OpType.PUSH_MEM:
             ctx.stack.append((DataType.PTR, op.token))
             ctx.ip += 1
+        elif op.typ == OpType.SKIP_PROC:
+            assert isinstance(op.operand, OpAddr)
+            ctx.ip = op.operand
+        elif op.typ == OpType.PREP_PROC:
+            ctx.ip += 1
+        elif op.typ == OpType.CALL:
+            ctx.ret_stack.append(ctx.ip + 1)
+            assert isinstance(op.operand, OpAddr)
+            ctx.ip = op.operand
+        elif op.typ == OpType.RET:
+            ctx.ip = ctx.ret_stack.pop()
         elif op.typ == OpType.INTRINSIC:
             assert len(Intrinsic) == 42, "Exhaustive intrinsic handling in type_check_program()"
             assert isinstance(op.operand, Intrinsic), "This could be a bug in compilation step"
@@ -1029,7 +1041,7 @@ def type_check_program(program: Program):
             else:
                 visited_dos[ctx.ip] = copy(ctx.stack)
                 ctx.ip += 1
-                contexts.append(Context(stack=copy(ctx.stack), ip=op.operand))
+                contexts.append(Context(stack=copy(ctx.stack), ret_stack=copy(ctx.ret_stack), ip=op.operand))
                 ctx = contexts[-1]
         else:
             assert False, f"unreachable ({[op.typ]})"
