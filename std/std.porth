@@ -391,6 +391,7 @@ macro clock_nanosleep SYS_clock_nanosleep syscall4 end
 macro fork SYS_fork syscall0 end
 macro getpid SYS_getpid syscall0 end
 macro execve SYS_execve syscall3 end
+macro wait4 SYS_wait4 syscall4 end
 
 macro / divmod drop end
 macro % divmod swap drop end
