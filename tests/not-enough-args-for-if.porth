@@ -1,5 +1,5 @@
 include "std.porth"
 
-if do
+if 
     "42069\n" puts
 end

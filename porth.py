@@ -1013,7 +1013,7 @@ def type_check_program(program: Program):
             if len(ctx.stack) < 1:
                 print_missing_op_args(op)
                 exit(1)
-            a_typ, a_token = stack.pop()
+            a_typ, a_token = ctx.stack.pop()
             if a_typ != DataType.BOOL:
                 compiler_error_with_expansion_stack(op.token, "Invalid argument for the if condition. Expected BOOL.")
                 exit(1)
