@@ -1,7 +1,7 @@
 include "std.porth"
 
 macro check_less
-    if < do "Yes\n" else "No\n" end puts
+    < if  "Yes\n" else "No\n" end puts
 end
 
 1 2 check_less
@@ -10,7 +10,7 @@ end
 macro even_fibs
     // 0 1 
     0 1 while over 100000 < do
-        if over 2 mod 0 = do
+        over 2 mod 0 = if 
             over print
         end
         swap 1 + swap
