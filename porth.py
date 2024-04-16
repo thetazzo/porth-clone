@@ -18,7 +18,7 @@ EXPANSION_DIAGNOSTIC_LIMIT=10
 SIM_NULL_POINTER_PADDING = 1 # a bit of padding at the begginig of the memory to make 0 an invalid address
 SIM_STR_CAPACITY = 640_000
 SIM_ARGV_CAPACITY = 640_000
-
+x86_64_RET_STACK_CAP=4096
 debug=False
 
 Loc=Tuple[str, int, int]
@@ -33,6 +33,7 @@ class Keyword(Enum):
     MACRO=auto()
     INCLUDE=auto()
     MEMORY=auto()
+    PROC=auto()
 
 class DataType(IntEnum):
     INT=auto()
@@ -95,6 +96,10 @@ class OpType(IntEnum):
     END=auto()
     WHILE=auto()
     DO=auto()
+    SKIP_PROC=auto()
+    PREP_PROC=auto()
+    RET=auto()
+    CALL=auto()
 
 class TokenType(Enum):
     WORD=auto()
@@ -167,6 +172,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
     CLOCK_MONOTONIC=1
 
     stack: List[int] = []
+    ret_stack: List[OpAddr] = []
     mem = bytearray(SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY + program.memory_capacity)
 
     str_buf_ptr  = SIM_NULL_POINTER_PADDING
@@ -197,7 +203,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
 
     ip = 0
     while ip < len(program.ops):
-        assert len(OpType) == 11, "Exhaustive op handling in simulate_little_endian_linux"
+        assert len(OpType) == 15, "Exhaustive op handling in simulate_little_endian_linux"
         op = program.ops[ip]
         try:
             if op.typ == OpType.PUSH_INT:
@@ -233,7 +239,6 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 assert isinstance(op.operand, MemAddr), "This could be a bug in the parsing step"
                 stack.append(mem_buf_ptr + op.operand)
                 ip += 1
-
             elif op.typ == OpType.IF:
                 ip += 1
             elif op.typ == OpType.ELIF:
@@ -254,6 +259,17 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                     ip = op.operand
                 else:
                     ip += 1
+            elif op.typ == OpType.SKIP_PROC:
+                assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
+                ip = op.operand
+            elif op.typ == OpType.PREP_PROC:
+                ip += 1
+            elif op.typ == OpType.RET:
+                ip = ret_stack.pop()
+            elif op.typ == OpType.CALL:
+                assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
+                ret_stack.append(ip + 1)
+                ip = op.operand
             elif op.typ == OpType.INTRINSIC:
                 assert len(Intrinsic) == 42, "Exhaustive handling of intrinsic in simulate_little_endian_linux()"
                 if op.operand == Intrinsic.PLUS:
@@ -478,7 +494,6 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                     arg2 = stack.pop()
                     arg3 = stack.pop()
                     arg4 = stack.pop()
-
                     if syscall_number == 230: # SYS_clock_nanosleep
                         clock_id = arg1
                         flags = arg2
@@ -527,7 +542,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
         print(mem[:20])
 
 def print_missing_op_args(op: Op):
-    assert len(OpType) == 11, f"Exhaustive ops handling in print_missing_op_args() (expected:{len(OpType)}). Keep n mind that not all of the ops should be handled in here. Only those that consume elements from the stack."
+    assert len(OpType) == 15, f"Exhaustive ops handling in print_missing_op_args() (expected:{len(OpType)}). Keep n mind that not all of the ops should be handled in here. Only those that consume elements from the stack."
     if op.typ == OpType.INTRINSIC:
         assert isinstance(op.operand, Intrinsic)
         compiler_error_with_expansion_stack(op.token, "Not enough arguments for the `%s` intrinsic" % INTRINSIC_NAMES[op.operand]) 
@@ -543,11 +558,13 @@ DataStack=List[Tuple[DataType, Token]]
 @dataclass
 class Context:
     stack: DataStack
+    ret_stack: List[OpAddr]
     ip: OpAddr
 
 def type_check_program(program: Program):
+    assert False, "TODO: type checking is broken at the moment. Run with --unsafe flag!"
     visited_dos: Dict[OpAddr, DataStack] = {}
-    contexts: List[Context] = [Context(stack=[], ip=0)]
+    contexts: List[Context] = [Context(stack=[], ret_stack=[], ip=0)]
     while len(contexts) > 0:
         ctx = contexts[-1];
         if ctx.ip >= len(program.ops):
@@ -557,7 +574,7 @@ def type_check_program(program: Program):
             contexts.pop()
             continue
         op = program.ops[ctx.ip]
-        assert len(OpType) == 11, "Exhaustive ops handling in type_check_program()"
+        assert len(OpType) == 15, f"Exhaustive ops handling in type_check_program(): (expected: {len(OpType)})"
         if op.typ == OpType.PUSH_INT:
             ctx.stack.append((DataType.INT, op.token))
             ctx.ip += 1
@@ -571,6 +588,17 @@ def type_check_program(program: Program):
         elif op.typ == OpType.PUSH_MEM:
             ctx.stack.append((DataType.PTR, op.token))
             ctx.ip += 1
+        elif op.typ == OpType.SKIP_PROC:
+            assert isinstance(op.operand, OpAddr)
+            ctx.ip = op.operand
+        elif op.typ == OpType.PREP_PROC:
+            ctx.ip += 1
+        elif op.typ == OpType.CALL:
+            ctx.ret_stack.append(ctx.ip + 1)
+            assert isinstance(op.operand, OpAddr)
+            ctx.ip = op.operand
+        elif op.typ == OpType.RET:
+            ctx.ip = ctx.ret_stack.pop()
         elif op.typ == OpType.INTRINSIC:
             assert len(Intrinsic) == 42, "Exhaustive intrinsic handling in type_check_program()"
             assert isinstance(op.operand, Intrinsic), "This could be a bug in compilation step"
@@ -581,7 +609,6 @@ def type_check_program(program: Program):
                     exit(1)
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == DataType.INT and b_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                 elif a_type == DataType.INT and b_type == DataType.PTR:
@@ -598,7 +625,6 @@ def type_check_program(program: Program):
                     exit(1)
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and (a_type == DataType.INT or a_type == DataType.PTR):
                     ctx.stack.append((DataType.INT, op.token))
                 elif b_type == DataType.PTR and a_type == DataType.INT:
@@ -613,7 +639,6 @@ def type_check_program(program: Program):
                     exit(1)
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                 else:
@@ -626,7 +651,6 @@ def type_check_program(program: Program):
                     exit(1)
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                     ctx.stack.append((DataType.INT, op.token))
@@ -640,7 +664,6 @@ def type_check_program(program: Program):
                     exit(1)
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -651,10 +674,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -665,10 +686,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -679,10 +698,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -693,10 +710,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -707,10 +722,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.BOOL, op.token))
                 else:
@@ -721,10 +734,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                 else:
@@ -735,10 +746,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                 else:
@@ -749,10 +758,8 @@ def type_check_program(program: Program):
                 if len(ctx.stack) < 2:
                     print_missing_op_args(op)
                     exit(1)
-
                 a_type, a_loc = ctx.stack.pop()
                 b_type, b_loc = ctx.stack.pop()
-
                 if a_type == b_type and a_type == DataType.INT:
                     ctx.stack.append((DataType.INT, op.token))
                 elif a_type == b_type and a_type == DataType.BOOL:
@@ -1035,10 +1042,10 @@ def type_check_program(program: Program):
             else:
                 visited_dos[ctx.ip] = copy(ctx.stack)
                 ctx.ip += 1
-                contexts.append(Context(stack=copy(ctx.stack), ip=op.operand))
+                contexts.append(Context(stack=copy(ctx.stack), ret_stack=copy(ctx.ret_stack), ip=op.operand))
                 ctx = contexts[-1]
         else:
-            assert False, "unreachable"
+            assert False, f"unreachable ({[op.typ]})"
 
 def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
     strs: List[bytes] = []
@@ -1081,9 +1088,11 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
         out.write("global _start\n")
         out.write("_start:\n")
         out.write("    mov [args_ptr], rsp\n")
+        out.write("    mov rax, ret_stack_end\n")
+        out.write("    mov [ret_stack_rsp], rax\n")
         for ip in range(len(program.ops)):
             op = program.ops[ip]
-            assert len(OpType) == 11, "Exhaustive ops handling in generate_nasm_linux_x86_64: %d" % len(OpType)
+            assert len(OpType) == 15, "Exhaustive ops handling in generate_nasm_linux_x86_64: %d" % len(OpType)
             out.write("addr_%d:\n" % ip)
             if op.typ == OpType.PUSH_INT:
                 out.write(";;  -- push int --\n")
@@ -1134,6 +1143,27 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 out.write("    test rax, rax\n")
                 assert isinstance(op.operand, int), "There is a bug in the parsing step (probably)"
                 out.write("    jz addr_%d\n" % op.operand)
+            elif op.typ == OpType.SKIP_PROC:
+                out.write(";;  -- skip proc --\n")
+                assert isinstance(op.operand, OpAddr), "There is a bug in the parsing step (probably)"
+                out.write("    jmp addr_%d\n" % op.operand)
+            elif op.typ == OpType.PREP_PROC:
+                out.write(";;  -- prep proc --\n")
+                out.write("    mov [ret_stack_rsp], rsp\n")
+                out.write("    mov rsp, rax\n")
+            elif op.typ == OpType.RET:
+                out.write(";;  -- ret --\n")
+                out.write("    mov rax, rsp\n")
+                out.write("    mov rsp, [ret_stack_rsp]\n")
+                out.write("    ret\n")
+            elif op.typ == OpType.CALL:
+                assert isinstance(op.operand, OpAddr), "There is a bug in the parsing step (probably)"
+                out.write(";;  -- call --\n")
+                out.write("    mov rax, rsp\n") 
+                out.write("    mov rsp, [ret_stack_rsp]\n")
+                out.write("    call addr_%d\n" % op.operand)
+                out.write("    mov [ret_stack_rsp], rsp\n")
+                out.write("    mov rsp, rax\n")
             elif op.typ == OpType.INTRINSIC:
                 assert len(Intrinsic) == 42, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
                 if op.operand == Intrinsic.PLUS:
@@ -1421,9 +1451,12 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
         out.write(";;  -- not yet allocated data --\n")
         out.write("segment .bss\n")                # segment of statically allocated declared variables that have no value assigned to them yet
         out.write("args_ptr: resq 1\n")            # reserve space for arguments(argv)
+        out.write("ret_stack_rsp: resq 1\n") 
+        out.write("ret_stack: resb %d\n" % x86_64_RET_STACK_CAP) 
+        out.write("ret_stack_end:\n")
         out.write("mem: resb %d\n" % program.memory_capacity) # reserve space for program memory
 
-assert len(Keyword) == 9, "Exhaustive KEYWORD_NAMES definition: %d" % len(Keyword) 
+assert len(Keyword) == 10, "Exhaustive KEYWORD_NAMES definition: %d" % len(Keyword) 
 KEYWORD_BY_NAMES: Dict[str, Keyword]= {
     'if': Keyword.IF,
     'elif': Keyword.ELIF,
@@ -1434,6 +1467,7 @@ KEYWORD_BY_NAMES: Dict[str, Keyword]= {
     'macro': Keyword.MACRO,
     'include': Keyword.INCLUDE,
     'memory': Keyword.MEMORY,
+    'proc': Keyword.PROC,
 }
 KEYWORD_NAMES: Dict[Keyword, str] = {v: k for k, v in KEYWORD_BY_NAMES.items()}
 
@@ -1516,7 +1550,12 @@ class Memory:
     offset: MemAddr
     loc: Loc
 
-def check_word_redefinition(token: Token, memories: Dict[str, Memory], macros: Dict[str, Macro]):
+@dataclass
+class Proc:
+    addr: OpAddr
+    loc: Loc
+
+def check_word_redefinition(token: Token, memories: Dict[str, Memory], macros: Dict[str, Macro], procs: Dict[str, Proc]):
     assert token.typ == TokenType.WORD
     assert isinstance(token.value, str)
     name: str = token.value
@@ -1531,7 +1570,10 @@ def check_word_redefinition(token: Token, memories: Dict[str, Memory], macros: D
         compiler_error_with_expansion_stack(token, "redefinition of already existing macro `%s`" % name)
         compiler_note_(macros[name].loc, "The first definition is located here")
         exit(1)
-
+    if name in procs:
+        compiler_error_with_expansion_stack(token, "redefinition of already existing procedure `%s`" % name)
+        compiler_note_(procs[name].loc, "The first definition is located here")
+        exit(1)
 
 def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], expansion_limit: int) -> Program:
     stack: List[OpAddr] = []
@@ -1539,6 +1581,8 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
     rtokens: List[Token] = list(reversed(tokens))
     macros: Dict[str, Macro] = {}
     memories: Dict[str, Memory] = {}
+    procs: Dict[str, Proc] = {}
+    current_proc: Optional[OpAddr] = None
     ip: OpAddr = 0;
     while len(rtokens) > 0:
         token = rtokens.pop()
@@ -1556,6 +1600,9 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                 rtokens += reversed(expand_macro(macros[token.value], token))
             elif token.value in memories:
                 program.ops.append(Op(typ=OpType.PUSH_MEM, token=token, operand=memories[token.value].offset))
+                ip += 1
+            elif token.value in procs:
+                program.ops.append(Op(typ=OpType.CALL, token=token, operand=procs[token.value].addr))
                 ip += 1
             else:
                 compiler_error_with_expansion_stack(token, "unknown word `%s`" % token.value)
@@ -1577,7 +1624,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
             program.ops.append(Op(typ=OpType.PUSH_INT, operand=token.value, token=token));
             ip += 1
         elif token.typ == TokenType.KEYWORD:
-            assert len(Keyword) == 9, "Exhaustive keywords handling in parse_program_from_tokens()"
+            assert len(Keyword) == 10, "Exhaustive keywords handling in parse_program_from_tokens()"
             if token.value == Keyword.IF:
                 program.ops.append(Op(typ=OpType.IF, token=token))
                 stack.append(ip)
@@ -1623,12 +1670,13 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     compiler_error_with_expansion_stack(program.ops[pre_do_ip].token, '`else` can only close `do`-blocks that are preceded by `if` or `elif`')
                     exit(1)
             elif token.value == Keyword.END:
-                program.ops.append(Op(typ=OpType.END, token=token))
                 block_ip = stack.pop()
                 if program.ops[block_ip].typ == OpType.ELSE:
+                    program.ops.append(Op(typ=OpType.END, token=token))
                     program.ops[block_ip].operand = ip
                     program.ops[ip].operand = ip + 1
                 elif program.ops[block_ip].typ == OpType.DO:
+                    program.ops.append(Op(typ=OpType.END, token=token))
                     assert program.ops[block_ip].operand is not None
                     pre_do_ip = program.ops[block_ip].operand
                     assert isinstance(pre_do_ip, OpAddr)
@@ -1645,8 +1693,12 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     else:
                         compiler_error_with_expansion_stack(program.ops[pre_do_ip].token, '`end` can only close `do` blocks that are preceded by `if`, `while` or `elif`')
                         exit(1)
+                elif program.ops[block_ip].typ == OpType.SKIP_PROC:
+                    program.ops.append(Op(typ=OpType.RET, token=token))
+                    program.ops[block_ip].operand = ip + 1
+                    current_proc = None
                 else:
-                    compiler_error_with_expansion_stack(program.ops[block_ip].token, '`end` can only close `else`, `do` or `macro` blocks')
+                    compiler_error_with_expansion_stack(program.ops[block_ip].token, '`end` can only close `else`, `do`, `macro` or `proc` blocks')
                     exit(1)
                 ip += 1
             elif token.value == Keyword.WHILE:
@@ -1699,7 +1751,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
                 memory_name = token.value
                 memory_loc = token.loc
-                check_word_redefinition(token, memories, macros)
+                check_word_redefinition(token, memories, macros, procs)
                 mem_size_stack: List[int] = []
                 while len(rtokens) > 0:
                     token = rtokens.pop()
@@ -1753,7 +1805,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     compiler_error_with_expansion_stack(token, "expected macro name to be %s but found %s" % (token_name(TokenType.WORD), token_name(token.typ)))
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
-                check_word_redefinition(token, memories, macros)
+                check_word_redefinition(token, memories, macros, procs)
                 macro = Macro(token.loc, [])
                 macros[token.value] = macro
                 nesting_depth = 0
@@ -1764,14 +1816,37 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     else:
                         macro.tokens.append(token)
                         if token.typ == TokenType.KEYWORD:
-                            assert len(Keyword) == 9, "Exhaustive use of Keyword in parse_program_from_tokens: (%d)" % len(Keyword)
-                            if token.value in [Keyword.IF, Keyword.WHILE, Keyword.MACRO, Keyword.MEMORY]:
+                            assert len(Keyword) == 10, "Exhaustive use of Keyword in parse_program_from_tokens: (%d)" % len(Keyword)
+                            if token.value in [Keyword.IF, Keyword.WHILE, Keyword.MACRO, Keyword.MEMORY, Keyword.PROC]:
                                 nesting_depth += 1
                             elif token.value == Keyword.END:
                                 nesting_depth -= 1
                 if token.typ != TokenType.KEYWORD or token.value != Keyword.END:
                     compiler_error_with_expansion_stack(token, "expected `end` at the end of the macro definition but got `%s`" % (token.value, ))
                     exit(1)
+            elif token.value == Keyword.PROC:
+                if current_proc is None:
+                    program.ops.append(Op(typ=OpType.SKIP_PROC, token=token))
+                    current_proc = ip
+                    stack.append(ip)
+                    ip += 1
+                    program.ops.append(Op(typ=OpType.PREP_PROC, token=token))
+                    ip += 1
+                    if len(rtokens) == 0:
+                        compiler_error_with_expansion_stack(token, "expected procedure name but found nothing")
+                        exit(1)
+                    token = rtokens.pop()
+                    if token.typ != TokenType.WORD:
+                        compiler_error_with_expansion_stack(token, "expected procedure name to be %s but found %s" % (token_name(TokenType.WORD), token_name(token.typ)))
+                        exit(1)
+                    assert isinstance(token.value, str), "This is probably a bug in the lexer"
+                    proc_name = token.value
+                    proc_loc = token.loc
+                    check_word_redefinition(token, memories, macros, procs)
+                    procs[proc_name] = Proc(addr=current_proc + 1, loc=proc_loc)
+                else:
+                    compiler_error_with_expansion_stack(token, "defining procedures inside procedures is not allowed")
+                    compiler_note_(program.ops[current_proc].token.loc, "the current procedure starts here")
             else:
                 assert False, 'unreachable';
         else:
@@ -1889,7 +1964,7 @@ def cmd_call_echoed(cmd: List[str], silent: bool) -> int:
 def generate_control_flow_graph_as_dot_file(program: Program, dot_path: str):
     with open(dot_path, "w") as f:
         f.write("digraph Program {\n")
-        assert len(OpType) == 10, "Exhaustive handling of OpType in generate_control_flow_graph_as_dot_file"
+        assert len(OpType) == 14, "Exhaustive handling of OpType in generate_control_flow_graph_as_dot_file"
         for ip in range(len(program.ops)):
             op = program.ops[ip]
             if op.typ == OpType.INTRINSIC:
@@ -1931,6 +2006,17 @@ def generate_control_flow_graph_as_dot_file(program: Program, dot_path: str):
                 assert isinstance(op.operand, OpAddr)
                 f.write(f"    Node_{ip} [shape=record label=end];\n")
                 f.write(f"    Node_{ip} -> Node_{op.operand};\n")
+            elif op.typ == OpType.SKIP_PROC:
+                assert isinstance(op.operand, OpAddr)
+                f.write(f"    Node_{ip} [shape=record label=skip_proc];\n")
+                f.write(f"    Node_{ip} -> Node_{op.operand};\n")
+            elif op.typ == OpType.RET:
+                f.write(f"    Node_{ip} [shape=record label=ret];\n")
+            elif op.typ == OpType.CALL:
+                assert isinstance(op.operand, OpAddr)
+                f.write(f"    Node_{ip} [shape=record label=call];\n")
+                f.write(f"    Node_{ip} -> Node_{op.operand};\n")
+                f.write(f"    Node_{ip} -> Node_{ip + 1};\n")
             else:
                 assert False, f"unimplemented operation {[op.typ]}"
         f.write(f"    Node_{len(program.ops)} [label=halt]")
