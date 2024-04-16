@@ -542,7 +542,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
         print(mem[:20])
 
 def print_missing_op_args(op: Op):
-    assert len(OpType) == 11, f"Exhaustive ops handling in print_missing_op_args() (expected:{len(OpType)}). Keep n mind that not all of the ops should be handled in here. Only those that consume elements from the stack."
+    assert len(OpType) == 15, f"Exhaustive ops handling in print_missing_op_args() (expected:{len(OpType)}). Keep n mind that not all of the ops should be handled in here. Only those that consume elements from the stack."
     if op.typ == OpType.INTRINSIC:
         assert isinstance(op.operand, Intrinsic)
         compiler_error_with_expansion_stack(op.token, "Not enough arguments for the `%s` intrinsic" % INTRINSIC_NAMES[op.operand]) 
@@ -562,6 +562,7 @@ class Context:
     ip: OpAddr
 
 def type_check_program(program: Program):
+    assert False, "TODO: type checking is broken at the moment. Run with --unsafe flag!"
     visited_dos: Dict[OpAddr, DataStack] = {}
     contexts: List[Context] = [Context(stack=[], ret_stack=[], ip=0)]
     while len(contexts) > 0:
