@@ -158,6 +158,7 @@ def run_test_for_folder(folder: str):
         print("Ignored tests:")
         for it in ignored_tests:
             print(it)
+    print()
     if stats.sim_failed != 0 or stats.com_failed != 0:
         exit(1)
 
@@ -269,8 +270,7 @@ if __name__ == '__main__':
         else:
             assert False, 'unreachable'
     elif subcommand == 'full':
-        cmd_run_echoed(["mypy", "./porth.py"])
-        cmd_run_echoed(["mypy", "./test.py"])
+        cmd_run_echoed(["mypy", "./porth.py", "./test.py"])
         run_test_for_folder("./tests/")
         run_test_for_folder("./examples/")
         run_test_for_folder("./euler/")

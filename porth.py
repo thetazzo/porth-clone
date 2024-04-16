@@ -1687,7 +1687,8 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     compiler_note_(memories[memory_name].loc, "The first definition is located here")
                     exit(1)
                 if memory_name in INTRINSIC_BY_NAMES:
-                    assert False, "TODO: redefinition of an intrinsic"
+                    compiler_error_with_expansion_stack(token, "redefinition of an intrinsic word `%s`. Please choose a different name for your memory region." % (memory_name, ))
+                    exit(1)
                 if memory_name in macros:
                     assert False, "TODO: redefinition of a macro"
                 mem_size_stack: List[int] = []
