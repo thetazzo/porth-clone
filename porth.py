@@ -19,7 +19,7 @@ SIM_NULL_POINTER_PADDING = 1 # a bit of padding at the begginig of the memory to
 SIM_STR_CAPACITY = 640_000
 SIM_ARGV_CAPACITY = 640_000
 x86_64_RET_STACK_CAP=4096
-debug=True
+debug=False
 
 Loc=Tuple[str, int, int]
 
@@ -564,8 +564,6 @@ class Context:
     ip: OpAddr
 
 def type_check_program(program: Program):
-    if not debug:
-        assert False, "TODO: type checking is broken at the moment. Run with --unsafe flag!"
     visited_dos: Dict[OpAddr, DataStack] = {}
     contexts: List[Context] = [Context(stack=[], ret_stack=[], ip=0)]
     while len(contexts) > 0:
@@ -1042,8 +1040,9 @@ def type_check_program(program: Program):
             if a_type != DataType.BOOL:
                 compiler_error_with_expansion_stack(op.token, "Invalid argument for the while-do condition. Expected BOOL.")
                 exit(1)
-            if ctx.ip in visited_dos:
-                expected_types = list(map(lambda x: x[0], visited_dos[ctx.ip]))
+            call_path = tuple(ctx.ret_stack + [ctx.ip])
+            if call_path in visited_dos:
+                expected_types = list(map(lambda x: x[0], visited_dos[call_path]))
                 actual_types = list(map(lambda x: x[0], ctx.stack))
                 if expected_types != actual_types:
                     compiler_error_with_expansion_stack(op.token, 'Loops are not allowed to alter types and amount of elements on the stack.')
@@ -1052,7 +1051,7 @@ def type_check_program(program: Program):
                     exit(1)
                 contexts.pop()
             else:
-                visited_dos[ctx.ip] = copy(ctx.stack)
+                visited_dos[call_path] = copy(ctx.stack)
                 ctx.ip += 1
                 contexts.append(Context(stack=copy(ctx.stack), ret_stack=copy(ctx.ret_stack), ip=op.operand))
                 ctx = contexts[-1]
