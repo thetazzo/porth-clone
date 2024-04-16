@@ -6,5 +6,5 @@
 
 :b stderr 183
 ./tests/macro-redefinition-error.porth:2:7: ERROR: redefinition of already existing macro `foo`
-./tests/macro-redefinition-error.porth:1:7: NOTE: the first definition is located here
+./tests/macro-redefinition-error.porth:1:7: NOTE: The first definition is located here
 

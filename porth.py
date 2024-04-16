@@ -1424,7 +1424,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
         out.write("mem: resb %d\n" % program.memory_capacity) # reserve space for program memory
 
 assert len(Keyword) == 9, "Exhaustive KEYWORD_NAMES definition: %d" % len(Keyword) 
-KEYWORD_NAMES= {
+KEYWORD_BY_NAMES: Dict[str, Keyword]= {
     'if': Keyword.IF,
     'elif': Keyword.ELIF,
     'else': Keyword.ELSE,
@@ -1435,9 +1435,10 @@ KEYWORD_NAMES= {
     'include': Keyword.INCLUDE,
     'memory': Keyword.MEMORY,
 }
+KEYWORD_NAMES: Dict[Keyword, str] = {v: k for k, v in KEYWORD_BY_NAMES.items()}
 
 assert len(Intrinsic) == 42, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
-INTRINSIC_BY_NAMES = {
+INTRINSIC_BY_NAMES: Dict[str, Intrinsic]= {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
     '*': Intrinsic.MUL,
@@ -1481,8 +1482,7 @@ INTRINSIC_BY_NAMES = {
     'syscall5': Intrinsic.SYSCALL5,
     'syscall6': Intrinsic.SYSCALL6,
 }
-
-INTRINSIC_NAMES = {v: k for k, v in INTRINSIC_BY_NAMES.items()}
+INTRINSIC_NAMES: Dict[Intrinsic, str] = {v: k for k, v in INTRINSIC_BY_NAMES.items()}
 
 @dataclass
 class Macro:
@@ -1511,12 +1511,34 @@ def expand_macro(macro: Macro, expanded_from: Token) -> List[Token]:
         token.expanded_count = expanded_from.expanded_count + 1
     return result
 
+@dataclass
+class Memory:
+    offset: MemAddr
+    loc: Loc
+
+def check_word_redefinition(token: Token, memories: Dict[str, Memory], macros: Dict[str, Macro]):
+    assert token.typ == TokenType.WORD
+    assert isinstance(token.value, str)
+    name: str = token.value
+    if name in memories:
+        compiler_error_with_expansion_stack(token, "redefinition of memory region `%s`" % name)
+        compiler_note_(memories[name].loc, "The original definition is located here")
+        exit(1)
+    if name in INTRINSIC_BY_NAMES:
+        compiler_error_with_expansion_stack(token, "redefinition of an intrinsic word `%s`" % name)
+        exit(1)
+    if name in macros:
+        compiler_error_with_expansion_stack(token, "redefinition of already existing macro `%s`" % name)
+        compiler_note_(macros[name].loc, "The first definition is located here")
+        exit(1)
+
+
 def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], expansion_limit: int) -> Program:
     stack: List[OpAddr] = []
     program: Program = Program(ops=[], memory_capacity=0)
     rtokens: List[Token] = list(reversed(tokens))
     macros: Dict[str, Macro] = {}
-    memories: Dict[str, MemAddr] = {}
+    memories: Dict[str, Memory] = {}
     ip: OpAddr = 0;
     while len(rtokens) > 0:
         token = rtokens.pop()
@@ -1533,7 +1555,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     exit(1)
                 rtokens += reversed(expand_macro(macros[token.value], token))
             elif token.value in memories:
-                program.ops.append(Op(typ=OpType.PUSH_MEM, token=token, operand=memories[token.value]))
+                program.ops.append(Op(typ=OpType.PUSH_MEM, token=token, operand=memories[token.value].offset))
                 ip += 1
             else:
                 compiler_error_with_expansion_stack(token, "unknown word `%s`" % token.value)
@@ -1676,30 +1698,33 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
                 memory_name = token.value
-                if memory_name in memories:
-                    assert False, "TODO: redefinition of a memory region"
-                if memory_name in INTRINSIC_BY_NAMES:
-                    assert False, "TODO: redefinition of an intrinsic"
-                if memory_name in macros:
-                    assert False, "TODO: redefinition of a macro"
+                memory_loc = token.loc
+                check_word_redefinition(token, memories, macros)
                 mem_size_stack: List[int] = []
                 while len(rtokens) > 0:
                     token = rtokens.pop()
                     if token.typ == TokenType.KEYWORD:
+                        assert isinstance(token.value, Keyword)
                         if token.value == Keyword.END:
                             break
                         else:
-                            assert False, "TODO: unsupported keyword in memory definition"
+                            compiler_error_with_expansion_stack(token, f"unsupported keyword `{KEYWORD_NAMES[token.value]}` in memory definition")
+                            exit(1)
                     elif token.typ == TokenType.INT:
                         assert isinstance(token.value, int)
                         mem_size_stack.append(token.value)
                     elif token.typ == TokenType.WORD:
-                        # TODO: check of stack underflows in memory definition
                         if token.value == INTRINSIC_NAMES[Intrinsic.PLUS]:
+                            if len(mem_size_stack) < 2:
+                                compiler_error_with_expansion_stack(token, f"not enough arguments for `{INTRINSIC_NAMES[Intrinsic.PLUS]}` intrinsic in memory definition")
+                                exit(1)
                             a = mem_size_stack.pop()
                             b = mem_size_stack.pop()
                             mem_size_stack.append(a + b)
                         elif token.value == INTRINSIC_NAMES[Intrinsic.MUL]:
+                            if len(mem_size_stack) < 2:
+                                compiler_error_with_expansion_stack(token, f"not enough arguments for `{INTRINSIC_NAMES[Intrinsic.MUL]}` intrinsic in memory definition")
+                                exit(1)
                             a = mem_size_stack.pop()
                             b = mem_size_stack.pop()
                             mem_size_stack.append(a * b)
@@ -1717,7 +1742,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                 if len(mem_size_stack) != 1:
                     assert False, "TODO: memory definition expects only one integer"
                 memory_size = mem_size_stack.pop()
-                memories[memory_name] = program.memory_capacity
+                memories[memory_name] = Memory(offset=program.memory_capacity, loc=memory_loc)
                 program.memory_capacity += memory_size
             elif token.value == Keyword.MACRO:
                 if len(rtokens) == 0:
@@ -1728,16 +1753,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     compiler_error_with_expansion_stack(token, "expected macro name to be %s but found %s" % (token_name(TokenType.WORD), token_name(token.typ)))
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
-                if token.value in macros:
-                    compiler_error_with_expansion_stack(token, "redefinition of already existing macro `%s`" % token.value)
-                    compiler_note_(macros[token.value].loc, "the first definition is located here")
-                    exit(1)
-                if token.value in INTRINSIC_BY_NAMES:
-                    compiler_error_with_expansion_stack(token, "redefinition of an intrinsic word `%s`. Please choose a different name for your macro." % (token.value, ))
-                    exit(1)
-                if token.value in memories:
-                    compiler_error_with_expansion_stack(token, "redefinition of an memory word `%s`. Please choose a different name for your macro." % (token.value, ))
-                    exit(1)
+                check_word_redefinition(token, memories, macros)
                 macro = Macro(token.loc, [])
                 macros[token.value] = macro
                 nesting_depth = 0
@@ -1844,8 +1860,8 @@ def lex_lines(file_path: str, lines: List[str]) -> Generator[Token, None, None]:
                 try:
                     yield Token(TokenType.INT, text_of_token, loc, int(text_of_token))
                 except ValueError:
-                    if text_of_token in KEYWORD_NAMES:
-                        yield Token(TokenType.KEYWORD, text_of_token, loc, KEYWORD_NAMES[text_of_token])
+                    if text_of_token in KEYWORD_BY_NAMES:
+                        yield Token(TokenType.KEYWORD, text_of_token, loc, KEYWORD_BY_NAMES[text_of_token])
                     else:
                         if text_of_token.startswith("//"):
                             break
