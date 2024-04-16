@@ -32,10 +32,4 @@ jobs:
           ./pypy3.10-v7.3.15-linux64/bin/pypy3 --version
       - name: run tests
         run: |
-          mypy ./porth.py
-          mypy ./test.py
-          ./pypy3.10-v7.3.15-linux64/bin/pypy3 ./porth.py com ./porth.porth
-          ./pypy3.10-v7.3.15-linux64/bin/pypy3 ./test.py
-          ./pypy3.10-v7.3.15-linux64/bin/pypy3 ./test.py run ./examples/
-          ./pypy3.10-v7.3.15-linux64/bin/pypy3 ./test.py run ./euler/
-
+          mypy ./test.py full
