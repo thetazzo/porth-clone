@@ -108,7 +108,7 @@ macro print-opz // --
         // ptr
         dup sizeof(Op) * ops +
         "Type:    " puts dup @Op.typ print-op-typ "\n" puts 
-        "Operand: " puts @Op.operand print
+        "Operand: " puts @Op.operand putd         "\n" puts
         "------------------\n" puts
         1 +
     end drop
@@ -252,9 +252,10 @@ end
 
 macro parse_file_path_cstr_into_opz
     // open the file
-    O_RDONLY   // flags
-    file_path_cstr @64 cast(ptr) // pathname
-    AT_FDCWD   // dirfd
+    0                             // mode
+    O_RDONLY                      // flags
+    file_path_cstr @64 cast(ptr)  // pathname
+    AT_FDCWD                      // dirfd
     openat
 
     // validate successful opening of the file
