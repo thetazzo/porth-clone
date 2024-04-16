@@ -13,7 +13,7 @@ macro str-copy // dst src
     @Str rot !Str
 end
 
-if argc 2 < do
+argc 2 < if 
     "Usage: " eputs 0 nth_argv cstr-to-str eputs " <file>\n" eputs
     "ERROR: no input file was provided" eputs
     1 exit
@@ -28,7 +28,7 @@ O_RDONLY   // flags
 AT_FDCWD   // dirfd
 openat
 
-if dup 0 < do
+dup 0 < if 
     "ERROR: could not open file `" eputs 1 nth_argv cstr-to-str eputs "` not found\n" eputs
     1 exit
 end
@@ -37,7 +37,7 @@ end
 fd !64
 
 // get the size of the file
-if statbuf fd @64 fstat 0 < do
+statbuf fd @64 fstat 0 < if 
     "ERROR: could not determine the size of the file `" eputs 1 nth_argv cstr-to-str eputs "`\n" eputs
     1 exit
 end
@@ -60,7 +60,7 @@ mmap
 content Str.data !64
 
 
-if content Str.data @64 0 < do
+content Str.data @64 0 < if 
     "ERROR: could not memory map file `" eputs 1 nth_argv cstr-to-str eputs "`\n" eputs
     1 exit
 end
@@ -73,11 +73,11 @@ while content Str.count @64 0 > do
         line str-trim-left
         ' ' word line str-chop-by-delim
         1 nth_argv cstr-to-str puts ": " puts line_number @64 putd ": " puts
-        if word @Str "+" streq do
+        word @Str "+" streq if 
             "Compilation of PLUS\n" puts
-        elif word @Str "-" streq do
+        orelse word @Str "-" streq if
             "Compilation of MINUS\n" puts
-        elif word @Str "print" streq do
+        orelse word @Str "print" streq if
             "Compilation of PRINT\n" puts
         else
             "Parsing a word as a number: `" puts word @Str puts "`\n" puts
