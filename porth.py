@@ -1714,12 +1714,17 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                         assert isinstance(token.value, int)
                         mem_size_stack.append(token.value)
                     elif token.typ == TokenType.WORD:
-                        # TODO: check of stack underflows in memory definition
                         if token.value == INTRINSIC_NAMES[Intrinsic.PLUS]:
+                            if len(mem_size_stack) < 2:
+                                compiler_error_with_expansion_stack(token, f"not enough arguments for `{INTRINSIC_NAMES[Intrinsic.PLUS]}` intrinsic in memory definition")
+                                exit(1)
                             a = mem_size_stack.pop()
                             b = mem_size_stack.pop()
                             mem_size_stack.append(a + b)
                         elif token.value == INTRINSIC_NAMES[Intrinsic.MUL]:
+                            if len(mem_size_stack) < 2:
+                                compiler_error_with_expansion_stack(token, f"not enough arguments for `{INTRINSIC_NAMES[Intrinsic.MUL]}` intrinsic in memory definition")
+                                exit(1)
                             a = mem_size_stack.pop()
                             b = mem_size_stack.pop()
                             mem_size_stack.append(a * b)
