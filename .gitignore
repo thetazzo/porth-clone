@@ -29,6 +29,7 @@ examples/cat
 examples/gol
 examples/reverse-linked-list
 examples/fizz-buzz
+examples/checkers
 examples/seq
 examples/file-read-chop-line
 examples/memory-map-file

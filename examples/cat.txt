@@ -7,48 +7,11 @@ foo
 ./examples/hello-world.porth
 :b stdin 0
 
-:i returncode 0
-:b stdout 601
-include "std.porth"
+:i returncode 1
+:b stdout 0
 
-macro BUFFER_CAP 1024 end
-
-// memory layout
-memory fd sizeof(u64) end
-memory buffer BUFFER_CAP end
-
-macro cat_fd
-  while BUFFER_CAP buffer fd @64 read dup 0 > do
-     buffer puts
-  end drop
-end
-
-if argc 2 < do
-  stdin fd !64
-  cat_fd
-else
-  1 while dup argc < do
-    O_RDONLY over nth_argv AT_FDCWD openat
-    
-    if dup 0 < do
-      "ERROR: could not open file " eputs
-      over nth_argv dup cstrlen swap eputs
-      "\n" eputs
-      drop
-    else
-      fd !64
-      cat_fd
-      fd @64 close drop
-    end
-  
-    1 +
-  end drop
-end
-
-include "std.porth"
-
-"Hello, World!\n" puts
-
-:b stderr 31
-ERROR: could not open file foo
+:b stderr 272
+./examples/cat.porth:24:22: ERROR: Loops are not allowed to alter types and amount of elements on the stack.
+./examples/cat.porth:24:22: NOTE: Expected elements: [<DataType.INT: 1>]
+./examples/cat.porth:24:22: NOTE: Actual elements: [<DataType.INT: 1>, <DataType.INT: 1>]
 
