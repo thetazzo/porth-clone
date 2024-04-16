@@ -562,7 +562,8 @@ class Context:
     ip: OpAddr
 
 def type_check_program(program: Program):
-    assert False, "TODO: type checking is broken at the moment. Run with --unsafe flag!"
+    if not debug:
+        assert False, "TODO: type checking is broken at the moment. Run with --unsafe flag!"
     visited_dos: Dict[OpAddr, DataStack] = {}
     contexts: List[Context] = [Context(stack=[], ret_stack=[], ip=0)]
     while len(contexts) > 0:
