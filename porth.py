@@ -563,8 +563,10 @@ class Context:
     ret_stack: List[OpAddr]
     ip: OpAddr
 
+CallPath=Tuple[OpAddr, ...]
+
 def type_check_program(program: Program):
-    visited_dos: Dict[OpAddr, DataStack] = {}
+    visited_dos: Dict[CallPath, DataStack] = {}
     contexts: List[Context] = [Context(stack=[], ret_stack=[], ip=0)]
     while len(contexts) > 0:
         ctx = contexts[-1];
