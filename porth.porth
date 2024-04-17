@@ -148,6 +148,10 @@ proc sim-stack-pop // -- u64
 end
 
 proc push-op // type operand --
+    @ops-count OPS_CAP >= if
+        here eputs ": ERROR: ops overflow\n" eputs
+        1 exit
+    end
     @ops-count sizeof(Op) * ops +
     dup rot swap !Op.operand
     !Op.typ 
