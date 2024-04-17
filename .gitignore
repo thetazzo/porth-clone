@@ -34,6 +34,7 @@ examples/seq
 examples/file-read-chop-line
 examples/memory-map-file
 examples/read-file-stats
+examples/recursive-fib
 tests/arithmetics
 tests/bitwise-operations
 tests/comments
@@ -57,3 +58,4 @@ tests/while-procs
 tests/if-orelse
 tests/intrinsics
 tests/const
+tests/2swap
