@@ -1789,7 +1789,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                             assert isinstance(token.value, str)
                             rtokens += reversed(expand_macro(macros[token.value], token))
                         else:
-                            assert False, f"TODO: unsupported word in memory definition `{token.value}`"
+                            assert False, f"TODO: unsupported word in memory definition `{[token.value]}`"
                     else:
                         assert False, "TODO: unsupported token in memory definition"
                 if len(mem_size_stack) != 1:
