@@ -1,0 +1,11 @@
+include "std.porth"
+
+proc hello
+    "Hello Semen" puts
+end
+
+proc hello
+    "Foo Bar" puts
+end
+
+hello
