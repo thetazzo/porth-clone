@@ -55,3 +55,4 @@ tests/empty
 tests/if-else-fail
 tests/while-procs
 tests/if-orelse
+tests/intrinsics

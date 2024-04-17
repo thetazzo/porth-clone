@@ -129,6 +129,7 @@ memory ops-count       sizeof(u64)                 end
 memory ops             sizeof(Op)  OPS_CAP *       end
 
 proc sim-stack-push // type operand --
+    cast(int)
     sim-stack-count @64 SIM_STACK_CAP >= if 
         here eputs ": ERROR: sim stack overflow in simulation mode\n" eputs 1 exit 
     end
@@ -204,7 +205,7 @@ proc simulate-opz
         dup sizeof(Op) * ops +
 
         COUNT_OPZ 2 != if 
-            here eputs ": Assertion Failed: Exhaustive handling of Op types in print-op-typ\n" eputs
+            here eputs ": Assertion Failed: Exhaustive handling of Op types in simulate-opz\n" eputs
             1 exit
         end
 
@@ -212,8 +213,8 @@ proc simulate-opz
         dup @Op.typ OP_PUSH_INT = if 
             dup @Op.operand sim-stack-push
         orelse dup @Op.typ OP_INTRINSIC = if
-            COUNT_INTRINSICS 6 != if 
-                here eputs ": Assertion Failed: Exhaustive handling of intrinsics in print-op-typ\n" eputs
+            COUNT_INTRINSICS 42 != if 
+                here eputs ": Assertion Failed: Exhaustive handling of intrinsics in simulate-opz\n" eputs
                 1 exit
             end
             dup @Op.operand INTRINSIC_PLUS = if
@@ -232,18 +233,149 @@ proc simulate-opz
                 sim-stack-pop
                 *
                 sim-stack-push
+            orelse dup @Op.operand INTRINSIC_DIVMOD = if
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                divmod
+                sim-stack-push
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_EQ = if
+                sim-stack-pop
+                sim-stack-pop
+                =
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_GT = if
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                >
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_LT = if
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                <
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_GE = if
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                >=
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_LE = if
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                <=
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_NE = if
+                sim-stack-pop
+                sim-stack-pop
+                !=
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_SHR = if
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                shr
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_SHL = if
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                shl
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_OR = if
+                sim-stack-pop
+                sim-stack-pop
+                or
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_AND = if
+                sim-stack-pop
+                sim-stack-pop
+                and
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_NOT = if
+                sim-stack-pop
+                not
+                sim-stack-push
             orelse dup @Op.operand INTRINSIC_PRINT = if
-                sim-stack-pop print
-            orelse dup @Op.operand INTRINSIC_PRINT = if
-                sim-stack-pop print
+                sim-stack-pop
+                print
             orelse dup @Op.operand INTRINSIC_DUP = if
                 sim-stack-pop
                 dup
                 sim-stack-push
                 sim-stack-push
+            orelse dup @Op.operand INTRINSIC_SWAP = if
+                sim-stack-pop
+                sim-stack-pop 
+                swap
+                sim-stack-push
+                sim-stack-push
             orelse dup @Op.operand INTRINSIC_DROP = if
                 sim-stack-pop
                 drop
+            orelse dup @Op.operand INTRINSIC_OVER = if
+                sim-stack-pop
+                sim-stack-pop
+                dup
+                sim-stack-push
+                swap
+                sim-stack-push
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_ROT = if
+                sim-stack-pop
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                sim-stack-push
+                swap
+                sim-stack-push
+                sim-stack-push
+            orelse dup @Op.operand INTRINSIC_LOAD8 = if
+                here puts ": TODO: @8 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_STORE8 = if
+                here puts ": TODO: !8 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_LOAD16 = if
+                here puts ": TODO: @16 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_STORE16 = if
+                here puts ": TODO: !16 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_LOAD32 = if
+                here puts ": TODO: @32 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_STORE32 = if
+                here puts ": TODO: !32 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_LOAD64 = if
+                here puts ": TODO: @64 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_STORE64 = if
+                here puts ": TODO: !64 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_ARGC = if
+                here puts ": TODO: argc is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_ARGV = if
+                here puts ": TODO: argv is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_HERE = if
+                here puts ": TODO: here is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_CAST_PTR = if
+                nop
+            orelse dup @Op.operand INTRINSIC_CAST_INT = if
+                nop
+            orelse dup @Op.operand INTRINSIC_CAST_BOOL = if
+                nop
+            orelse dup @Op.operand INTRINSIC_SYSCALL0 = if
+                here puts ": TODO: syscall0 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_SYSCALL1 = if
+                here puts ": TODO: syscall1 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_SYSCALL2 = if
+                here puts ": TODO: syscall2 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_SYSCALL3 = if
+                here puts ": TODO: syscall3 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_SYSCALL4 = if
+                here puts ": TODO: syscall4 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_SYSCALL5 = if
+                here puts ": TODO: syscall5 is not implemented" eputs
+            orelse dup @Op.operand INTRINSIC_SYSCALL6 = if
+                here puts ": TODO: syscall6 is not implemented" eputs
             else 
                 here eputs ": unreachable\n" eputs 1 exit
                 1 exit
