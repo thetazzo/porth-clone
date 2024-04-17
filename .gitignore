@@ -59,3 +59,8 @@ tests/if-orelse
 tests/intrinsics
 tests/const
 tests/2swap
+tests/streq
+tests/try-parse-int
+tests/fputd
+tests/memcpy
+tests/offset-reset
