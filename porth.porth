@@ -67,24 +67,11 @@ memory out_fd sizeof(u64) end
 proc @out_fd out_fd @64 end
 proc !out_fd out_fd !64 end
 
-memory empty_envp sizeof(ptr) end
-memory nasm_argv  sizeof(ptr) 4 * end
-
-"/usr/bin/nasm"c nasm_argv 0 8 * + !64
-"-felf64"c       nasm_argv 1 8 * + !64
-"output.asm"c    nasm_argv 2 8 * + !64
-
-memory ld_argv sizeof(ptr) 5 * end
-"/usr/bin/ld"c ld_argv 0 8 * + !64
-"-o"c          ld_argv 1 8 * + !64
-"output"c      ld_argv 2 8 * + !64
-"output.o"c    ld_argv 3 8 * + !64
-
-memory output_argv sizeof(ptr) 2 * end
-"./output"c output_argv 0 8 * + !64
-
-memory wstatus sizeof(u64) end
 proc cmd_echoed // argv
+    memory wstatus sizeof(u64) end
+    memory empty_envp sizeof(ptr) end
+    0 empty_envp !64
+
     "[CMD]" puts
     dup while dup @64 0 != do
         " " puts
@@ -453,7 +440,7 @@ proc compile-opz // --
         // ptr type
         dup sizeof(Op) * ops +
 
-        COUNT_OPZ 2 != if
+        COUNT_OPZ 4 != if
             here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
             1 exit
         end
@@ -758,9 +745,25 @@ proc compile-opz // --
     "mem: resb "         @out_fd fputs MEM_CAPACITY @out_fd fputd "\n" @out_fd fputs
 
     @out_fd close drop
-
+    
+    memory nasm_argv  sizeof(ptr) 4 * end
+    "/usr/bin/nasm"c nasm_argv 0 8 * + !64
+    "-felf64"c       nasm_argv 1 8 * + !64
+    "output.asm"c    nasm_argv 2 8 * + !64
+    NULL             nasm_argv 3 8 * + !64
     nasm_argv cmd_echoed
+    
+    memory ld_argv sizeof(ptr) 5 * end
+    "/usr/bin/ld"c ld_argv 0 8 * + !64
+    "-o"c          ld_argv 1 8 * + !64
+    "output"c      ld_argv 2 8 * + !64
+    "output.o"c    ld_argv 3 8 * + !64
+    NULL           ld_argv 4 8 * + !64
     ld_argv cmd_echoed
+    
+    memory output_argv sizeof(ptr) 2 * end
+    "./output"c output_argv 0 8 * + !64
+    NULL        output_argv 1 8 * + !64
     output_argv cmd_echoed
 end
 
