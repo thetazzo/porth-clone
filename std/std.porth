@@ -603,6 +603,21 @@ proc is-digit
     and
 end
 
+proc try-parse-int // int ptr -- int err
+    memory input sizeof(Str) end
+    input !Str
+
+    0 while 
+        input @Str.count 0 > if
+            input @Str.data @8 is-digit
+        else false end
+    do 
+        10 * input @Str.data @8 '0' - +
+        input str-chop-one-left
+    end
+    input @Str.count 0 <=
+end
+
 macro putd stdout fputd end
 macro eputd strerr fputd end
 

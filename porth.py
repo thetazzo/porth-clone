@@ -19,7 +19,7 @@ SIM_NULL_POINTER_PADDING = 1 # a bit of padding at the begginig of the memory to
 SIM_STR_CAPACITY = 640_000
 SIM_ARGV_CAPACITY = 640_000
 SIM_LOCAL_MEMORY_CAPACITY = 640_000
-x86_64_RET_STACK_CAP=4096
+x86_64_RET_STACK_CAP=8192
 debug=False
 
 Loc=Tuple[str, int, int]
