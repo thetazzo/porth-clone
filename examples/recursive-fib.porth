@@ -1,0 +1,17 @@
+
+proc fib // n
+    memory a 8 end
+    memory b 8 end
+    dup 1 > if
+        dup 1 - fib a !64
+        dup 2 - fib b !64
+        drop 
+        a @64 b @64 +
+    end
+end
+
+0 while dup 10 < do
+    dup fib print
+    1 +
+end drop
+
