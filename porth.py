@@ -1602,6 +1602,19 @@ def eval_const_value(rtokens: List[Token], macros: Dict[str, Macro], consts: Dic
                 a = stack.pop()
                 b = stack.pop()
                 stack.append(a * b)
+            elif token.value == INTRINSIC_NAMES[Intrinsic.DIVMOD]:
+                if len(stack) < 2:
+                    compiler_error_with_expansion_stack(token, f"not enough arguments for `{INTRINSIC_NAMES[Intrinsic.DIVMOD]}` intrinsic in eval_const_value()")
+                    exit(1)
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(b // a)
+                stack.append(b % a)
+            elif token.value == INTRINSIC_NAMES[Intrinsic.DROP]:
+                if len(stack) < 1:
+                    compiler_error_with_expansion_stack(token, f"not enough arguments for `{INTRINSIC_NAMES[Intrinsic.DROP]}` intrinsic in eval_const_value()")
+                    exit(1)
+                a = stack.pop()
             # perform macro exansion
             elif token.value in macros:
                 if token.expanded_count >= expansion_limit:
