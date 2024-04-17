@@ -1,9 +1,10 @@
+include "std.porth"
 
 proc 2swap // a b c d
-    memory a 8 end
-    memory b 8 end
-    memory c 8 end
-    memory d 8 end
+    memory a sizeof(u64) end
+    memory b sizeof(u64) end
+    memory c sizeof(u64) end
+    memory d sizeof(u64) end
     d !64
     c !64
     b !64
@@ -15,5 +16,8 @@ proc 2swap // a b c d
     b @64
 end
 
+1 2 3 4 
+print print print print
+"--------------------------\n" puts
 1 2 3 4 2swap
 print print print print

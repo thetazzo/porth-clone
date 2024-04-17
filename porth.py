@@ -18,6 +18,7 @@ EXPANSION_DIAGNOSTIC_LIMIT=10
 SIM_NULL_POINTER_PADDING = 1 # a bit of padding at the begginig of the memory to make 0 an invalid address
 SIM_STR_CAPACITY = 640_000
 SIM_ARGV_CAPACITY = 640_000
+SIM_LOCAL_MEMORY_CAPACITY = 640_000
 x86_64_RET_STACK_CAP=4096
 debug=False
 
@@ -175,7 +176,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
 
     stack: List[int] = []
     ret_stack: List[OpAddr] = []
-    mem = bytearray(SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY + program.memory_capacity)
+    mem = bytearray(SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY + SIM_LOCAL_MEMORY_CAPACITY + program.memory_capacity)
 
     str_buf_ptr  = SIM_NULL_POINTER_PADDING
     str_ptrs: Dict[int, int] = {}
@@ -184,7 +185,10 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
     argv_buf_ptr = SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY
     argc = 0
 
-    mem_buf_ptr  = SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY
+    local_mem_ptr = SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY 
+    local_mem_rsp = local_mem_ptr + SIM_LOCAL_MEMORY_CAPACITY
+
+    mem_buf_ptr  = SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY + SIM_LOCAL_MEMORY_CAPACITY
 
     fds: List[BinaryIO] = [sys.stdin.buffer, sys.stdout.buffer, sys.stderr.buffer]
 
@@ -243,7 +247,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 ip += 1
             elif op.typ == OpType.PUSH_LOCAL_MEM:
                 assert isinstance(op.operand, MemAddr), "This could be a bug in the parsing step"
-                stack.append(mem_buf_ptr + op.operand)
+                stack.append(local_mem_rsp + op.operand)
                 ip += 1
             elif op.typ == OpType.IF:
                 a = stack.pop()
@@ -274,9 +278,12 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
                 ip = op.operand
             elif op.typ == OpType.PREP_PROC:
-                assert False, "alloc memory here"
+                assert isinstance(op.operand, int)
+                local_mem_rsp -= op.operand
                 ip += 1
             elif op.typ == OpType.RET:
+                assert isinstance(op.operand, int)
+                local_mem_rsp += op.operand
                 ip = ret_stack.pop()
             elif op.typ == OpType.CALL:
                 assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
@@ -551,7 +558,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
             exit(1)
 
 def print_missing_op_args(op: Op):
-    assert len(OpType) == 15, f"Exhaustive ops handling in print_missing_op_args() (expected:{len(OpType)}). Keep n mind that not all of the ops should be handled in here. Only those that consume elements from the stack."
+    assert len(OpType) == 16, f"Exhaustive ops handling in print_missing_op_args() (expected:{len(OpType)}). Keep n mind that not all of the ops should be handled in here. Only those that consume elements from the stack."
     if op.typ == OpType.INTRINSIC:
         assert isinstance(op.operand, Intrinsic)
         compiler_error_with_expansion_stack(op.token, "Not enough arguments for the `%s` intrinsic" % INTRINSIC_NAMES[op.operand]) 
@@ -1718,6 +1725,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     program.ops[ip].operand = while_ip
                     program.ops[block_ip].operand = ip + 1
                 elif program.ops[block_ip].typ == OpType.PREP_PROC:
+                    assert current_proc is not None
                     program.ops[block_ip].operand = current_proc.local_memories_cap
                     block_ip = stack.pop()
                     assert program.ops[block_ip].typ == OpType.SKIP_PROC
