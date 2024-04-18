@@ -64,3 +64,4 @@ tests/try-parse-int
 tests/fputd
 tests/memcpy
 tests/offset-reset
+tests/str-chop-by-delim

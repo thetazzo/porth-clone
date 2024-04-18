@@ -1,0 +1,13 @@
+:i argc 0
+:b stdin 0
+
+:i returncode 0
+:b stdout 46
+<|Hello|>
+<|Semen|>
+<|foo|>
+<|bar|>
+<|69420|>
+
+:b stderr 0
+

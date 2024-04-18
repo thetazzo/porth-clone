@@ -547,16 +547,16 @@ proc str-trim-left // input --
     drop
 end
 
-memory str-chop-by-delim-tmp sizeof(u64) end
 proc str-chop-by-delim // delim line input 
-    rot str-chop-by-delim-tmp !64
+    memory delim sizeof(u64) end
+    rot delim !64
     // line->data = input->data
     2dup @Str.data swap !Str.data 
     // line->count = 0
     over 0 swap !Str.count
     while 
         dup @Str.count 0 > if
-            dup @Str.data @8 str-chop-by-delim-tmp @64 !=
+            dup @Str.data @8 delim @64 !=
         else false end
     do
         dup str-chop-one-left
