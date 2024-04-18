@@ -26,7 +26,7 @@ Loc=Tuple[str, int, int]
 
 class Keyword(Enum):
     IF=auto()
-    ORELSE=auto()
+    IFSTAR=auto()
     ELSE=auto()
     END=auto()
     WHILE=auto()
@@ -96,7 +96,7 @@ class OpType(Enum):
     PUSH_LOCAL_MEM=auto()
     INTRINSIC=auto()
     IF=auto()
-    ORELSE=auto()
+    IFSTAR=auto()
     ELSE=auto()
     END=auto()
     WHILE=auto()
@@ -251,16 +251,13 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 assert isinstance(op.operand, MemAddr), "This could be a bug in the parsing step"
                 stack.append(local_mem_rsp + op.operand)
                 ip += 1
-            elif op.typ == OpType.IF:
+            elif op.typ in [OpType.IF, OpType.IFSTAR]:
                 a = stack.pop()
                 if a == 0:
                     assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
                     ip = op.operand
                 else:
                     ip += 1
-            elif op.typ == OpType.ORELSE:
-                assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
-                ip = op.operand
             elif op.typ == OpType.ELSE:
                 assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
                 ip = op.operand
@@ -1041,15 +1038,25 @@ def type_check_program(program: Program):
             ctx.ip += 1
             assert isinstance(op.operand, OpAddr)
             contexts.append(Context(stack=copy(ctx.stack), ip=op.operand, ret_stack=copy(ctx.ret_stack)))
+            ctx = contexts[-1]
+        elif op.typ == OpType.IFSTAR:
+            if len(ctx.stack) < 1:
+                print_missing_op_args(op)
+                exit(1)
+            a_typ, a_token = ctx.stack.pop()
+            if a_typ != DataType.BOOL:
+                compiler_error_with_expansion_stack(op.token, "Invalid argument for the `if*` condition. Expected BOOL.")
+                exit(1)
+            ctx.ip += 1
+            assert isinstance(op.operand, OpAddr)
+            contexts.append(Context(stack=ctx.stack.copy(), ip=op.operand, ret_stack=ctx.ret_stack.copy()))
+            ctx = contexts[-1]
         elif op.typ == OpType.WHILE:
             ctx.ip += 1
         elif op.typ == OpType.END:
             assert isinstance(op.operand, OpAddr)
             ctx.ip = op.operand
         elif op.typ == OpType.ELSE:
-            assert isinstance(op.operand, OpAddr)
-            ctx.ip = op.operand
-        elif op.typ == OpType.ORELSE:
             assert isinstance(op.operand, OpAddr)
             ctx.ip = op.operand
         elif op.typ == OpType.DO:
@@ -1154,7 +1161,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 out.write("    mov rax, [ret_stack_rsp]\n")
                 out.write("    add rax, %d\n" % op.operand)
                 out.write("    push rax\n")
-            elif op.typ == OpType.IF:
+            elif op.typ in [OpType.IF, OpType.IFSTAR]:
                 out.write("    pop rax\n")
                 out.write("    test rax, rax\n")
                 assert isinstance(op.operand, OpAddr), "There is a bug in the parsing step (probably)"
@@ -1162,9 +1169,6 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
             elif op.typ == OpType.WHILE:
                 pass
             elif op.typ == OpType.ELSE:
-                assert isinstance(op.operand, OpAddr), "There is a bug in the parsing step (probably)"
-                out.write("    jmp addr_%d\n" % op.operand)
-            elif op.typ == OpType.ORELSE:
                 assert isinstance(op.operand, OpAddr), "There is a bug in the parsing step (probably)"
                 out.write("    jmp addr_%d\n" % op.operand)
             elif op.typ == OpType.END:
@@ -1447,7 +1451,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
 assert len(Keyword) == 13, "Exhaustive KEYWORD_NAMES definition: %d" % len(Keyword) 
 KEYWORD_BY_NAMES: Dict[str, Keyword]= {
     'if': Keyword.IF,
-    'orelse': Keyword.ORELSE,
+    'if*': Keyword.IFSTAR,
     'else': Keyword.ELSE,
     'end': Keyword.END,
     'while': Keyword.WHILE,
@@ -1712,30 +1716,38 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                 program.ops.append(Op(typ=OpType.IF, token=token))
                 stack.append(ip)
                 ip += 1
-            elif token.value == Keyword.ORELSE:
-                program.ops.append(Op(typ=OpType.ORELSE, token=token))
-                if_ip = stack.pop()
-                if program.ops[if_ip].typ != OpType.IF:
-                    compiler_error_with_expansion_stack(program.ops[if_ip].token, '`orelse` can come after `if`')
+            elif token.value == Keyword.IFSTAR:
+                if len(stack) == 0:
+                    compiler_error_with_expansion_stack(token, '`if*` can only come after `else`')
                     exit(1)
-                if len(stack) > 0 and program.ops[stack[-1]].typ == OpType.ORELSE:
-                    prev_orelse_ip = stack.pop()
-                    program.ops[prev_orelse_ip].operand = ip
-                program.ops[if_ip].operand = ip + 1
+                else_ip = stack[-1]
+                if program.ops[else_ip].typ != OpType.ELSE:
+                    compiler_error_with_expansion_stack(program.ops[else_ip].token, "`if*` can only come after `else`")
+                    exit(1)
+                program.ops.append(Op(typ=OpType.IFSTAR, token=token))
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.ELSE:
-                program.ops.append(Op(typ=OpType.ELSE, token=token))
-                if_ip = stack.pop()
-                if program.ops[if_ip].typ != OpType.IF:
-                    compiler_error_with_expansion_stack(program.ops[if_ip].token, '`else` can only come after `if`')
+                if len(stack) == 0:
+                    compiler_error_with_expansion_stack(token, '`else` can only come after `if` or `if*`')
                     exit(1)
-                if len(stack) > 0 and program.ops[stack[-1]].typ == OpType.ORELSE:
-                    orelse_ip = stack.pop()
-                    program.ops[orelse_ip].operand = ip
-                program.ops[if_ip].operand = ip + 1
-                stack.append(ip)
-                ip += 1
+                if_ip = stack.pop()
+                if program.ops[if_ip].typ == OpType.IF:
+                    program.ops[if_ip].operand = ip + 1
+                    stack.append(ip)
+                    program.ops.append(Op(typ=OpType.ELSE, token=token))
+                    ip += 1
+                elif program.ops[if_ip].typ == OpType.IFSTAR:
+                    else_ip = -69 if len(stack) == 0 else stack.pop()
+                    assert else_ip != -69 and program.ops[else_ip].typ == OpType.ELSE, "At this point we should've already checked that `if*` comes after `else`. Otherwise this is a compiler bug."
+                    program.ops[if_ip].operand = ip + 1
+                    program.ops[else_ip].operand = ip 
+                    stack.append(ip)
+                    program.ops.append(Op(typ=OpType.ELSE, token=token))
+                    ip += 1
+                else:
+                    compiler_error_with_expansion_stack(program.ops[if_ip].token, f"`else` can only come after `if` or `if*`")
+                    exit(1)
             elif token.value == Keyword.END:
                 block_ip = stack.pop()
                 if program.ops[block_ip].typ == OpType.ELSE:
@@ -1760,13 +1772,12 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     program.ops.append(Op(typ=OpType.RET, token=token, operand=current_proc.local_memories_cap))
                     program.ops[block_ip].operand = ip + 1
                     current_proc = None
+                elif program.ops[block_ip].typ == OpType.IFSTAR:
+                    assert False, "TODO: implement"
                 elif program.ops[block_ip].typ == OpType.IF:
                     program.ops.append(Op(typ=OpType.END, token=token))
                     program.ops[block_ip].operand = ip
                     program.ops[ip].operand = ip + 1
-                    if len(stack) > 0 and program.ops[stack[-1]].typ == OpType.ORELSE:
-                        orelse_ip = stack.pop()
-                        program.ops[orelse_ip].operand = ip
                 else:
                     compiler_error_with_expansion_stack(program.ops[block_ip].token, '`end` can only close `if`, `else`, `do`, `macro` or `proc` blocks')
                     exit(1)
@@ -2018,7 +2029,7 @@ def cmd_call_echoed(cmd: List[str], silent: bool) -> int:
 def generate_control_flow_graph_as_dot_file(program: Program, dot_path: str):
     with open(dot_path, "w") as f:
         f.write("digraph Program {\n")
-        assert len(OpType) == 15, "Exhaustive handling of OpType in generate_control_flow_graph_as_dot_file"
+        assert len(OpType) == 16, "Exhaustive handling of OpType in generate_control_flow_graph_as_dot_file"
         for ip in range(len(program.ops)):
             op = program.ops[ip]
             if op.typ == OpType.INTRINSIC:
@@ -2041,10 +2052,11 @@ def generate_control_flow_graph_as_dot_file(program: Program, dot_path: str):
                 assert isinstance(op.operand, str)
                 f.write(f"    Node_{ip} [label=\"mem({op.operand})\"];\n")
                 f.write(f"    Node_{ip} -> Node_{ip+1};\n")
-            elif op.typ == OpType.IF:
-                if op.operand is None:
-                    compiler_note_(op.token.loc, "sus")
-                    exit(1)
+            elif op.typ == OpType.PUSH_LOCAL_MEM:
+                assert isinstance(op.operand, str)
+                f.write(f"    Node_{ip} [label=\"local_mem({op.operand})\"];\n")
+                f.write(f"    Node_{ip} -> Node_{ip+1};\n")
+            elif op.typ in [OpType.IF, OpType.IFSTAR]:
                 assert isinstance(op.operand, OpAddr), f"{op.operand}"
                 f.write(f"    Node_{ip} [shape=record label=if];\n")
                 f.write(f"    Node_{ip} -> Node_{ip + 1} [label=true];\n")
@@ -2057,10 +2069,6 @@ def generate_control_flow_graph_as_dot_file(program: Program, dot_path: str):
                 f.write(f"    Node_{ip} [shape=record label=do];\n")
                 f.write(f"    Node_{ip} -> Node_{ip+1} [label=true];\n")
                 f.write(f"    Node_{ip} -> Node_{op.operand} [label=false style=dashed];\n")
-            elif op.typ == OpType.ORELSE:
-                assert isinstance(op.operand, OpAddr)
-                f.write(f"    Node_{ip} [shape=record label=orelse];\n")
-                f.write(f"    Node_{ip} -> Node_{op.operand};\n")
             elif op.typ == OpType.ELSE:
                 assert isinstance(op.operand, OpAddr)
                 f.write(f"    Node_{ip} [shape=record label=else];\n")
