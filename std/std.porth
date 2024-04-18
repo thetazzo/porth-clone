@@ -8,8 +8,12 @@ macro , @ end
 macro cstr-to-pstr cstr-to-str end
 memory mem 640000 end
 macro nop end
+macro fputd fputu end
+macro eputd eputu end
+macro putd putu end
 //////////////////////////////////////////
 
+// TODO: NULL should have type ptr
 const NULL 0 end
 
 macro true  1 cast(bool) end
@@ -18,6 +22,8 @@ macro false 0 cast(bool) end
 const sizeof(u64)       8 end
 const sizeof(u32)       4 end
 const sizeof(ptr) sizeof(u64) end
+
+proc @ptr @64 cast(ptr) end
 
 // Standard streams
 const stdin  0 end
@@ -351,7 +357,7 @@ const O_WRONLY 1 end
 const O_RDWR   2 end
 const O_CREAT 64 end
 
-const CLOCK_MONOTONIC 0 end
+const CLOCK_MONOTONIC 1 end
 const TIMER_ABSTIME   1 end
 
 const MAP_PRIVATE 2 end
@@ -479,17 +485,18 @@ proc puts
     stdout fputs
 end
 
-const PUTD_BUFFER_CAP 32 end
-// write somme number to `stdout`
-proc fputd // value fd --
-    memory buffer PUTD_BUFFER_CAP end
+const PUTU_BUFFER_CAP 32 end
+// TODO: fputu should fail if write syscall fails
+// TODO: does not print negative numbers
+proc fputu // value fd --
+    memory buffer PUTU_BUFFER_CAP end
     memory fd sizeof(u64) end
     fd !64
 
     dup 0 = if
       "0" fd @64 fputs
     else
-      buffer PUTD_BUFFER_CAP +
+      buffer PUTU_BUFFER_CAP +
       while over 0 > do
         1 - dup rot
         10 divmod
@@ -497,10 +504,13 @@ proc fputd // value fd --
       end
   
       dup
-      buffer PUTD_BUFFER_CAP + swap - swap fd @64 fputs
+      buffer PUTU_BUFFER_CAP + swap - swap fd @64 fputs
     end
     drop
 end
+
+proc putu stdout fputu end
+proc eputu stderr fputu end
 
 // =========================================
 //           STRING MANIPULATION
@@ -622,9 +632,6 @@ proc try-parse-int // int ptr -- int err
     end
     input @Str.count 0 <=
 end
-
-macro putd stdout fputd end
-macro eputd strerr fputd end
 
 memory memcpy-size sizeof(u64) end
 memory memcpy-src sizeof(ptr) end

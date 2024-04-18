@@ -157,7 +157,7 @@ proc print-opz // --
         // ptr
         dup sizeof(Op) * ops +
         "Type:    " puts dup @Op.typ print-op-typ "\n" puts 
-        "Operand: " puts @Op.operand putd         "\n" puts
+        "Operand: " puts @Op.operand putu         "\n" puts
         "------------------\n" puts
         1 +
     end drop
@@ -431,21 +431,21 @@ proc compile-opz // --
         end
 
         "addr_" out-fd @64 fputs
-        over    out-fd @64 fputd
+        over    out-fd @64 fputu
         ":\n"   out-fd @64 fputs
         // ptr
         dup @Op.typ OP_PUSH_INT = if
-            ";;  -- push int "           out-fd @64 fputs dup Op.operand @64 out-fd @64 fputd " --\n" out-fd @64 fputs
-            "    mov rax, "              out-fd @64 fputs dup Op.operand @64 out-fd @64 fputd "\n" out-fd @64 fputs
+            ";;  -- push int "           out-fd @64 fputs dup Op.operand @64 out-fd @64 fputu " --\n" out-fd @64 fputs
+            "    mov rax, "              out-fd @64 fputs dup Op.operand @64 out-fd @64 fputu "\n" out-fd @64 fputs
             "    push rax\n"             out-fd @64 fputs
         else dup @Op.typ OP_IF = if*
             ";;  -- if --\n"             out-fd @64 fputs
             "    pop rax\n"              out-fd @64 fputs
             "    test rax, rax\n"        out-fd @64 fputs
-            "    jz addr_\n"             out-fd @64 fputs dup @Op.operand out-fd @64 fputd "\n" out-fd @64 fputs
+            "    jz addr_\n"             out-fd @64 fputs dup @Op.operand out-fd @64 fputu "\n" out-fd @64 fputs
         else dup @Op.typ OP_END = if*
             ";;  -- end --\n" out-fd @64 fputs
-            "    jmp addr_\n" out-fd @64 fputs dup @Op.operand out-fd @64 fputd "\n" out-fd @64 fputs
+            "    jmp addr_\n" out-fd @64 fputs dup @Op.operand out-fd @64 fputu "\n" out-fd @64 fputs
         else dup @Op.typ OP_INTRINSIC = if*
             COUNT_INTRINSICS 42 != if
                 here eputs ": Assertion Failed: Exhaustive handling of intrinsics in parse-file-path\n" eputs
@@ -727,7 +727,7 @@ proc compile-opz // --
     "    syscall\n"      out-fd @64 fputs
     "segment .bss\n"     out-fd @64 fputs
     "args_ptr: resq 1\n" out-fd @64 fputs
-    "mem: resb "         out-fd @64 fputs MEM_CAPACITY out-fd @64 fputd "\n" out-fd @64 fputs
+    "mem: resb "         out-fd @64 fputs MEM_CAPACITY out-fd @64 fputu "\n" out-fd @64 fputs
 
     out-fd @64 close drop
     
@@ -977,8 +977,8 @@ proc parse_file_path_cstr_into_opz // file-path-cstr
          else word @Str "end" streq if*
             @parse-block-stack-count 0 <= if
                 file-path-cstr @64 cast(ptr) cstr-to-str eputs
-                ":" puts line_number @64 putd
-                ":" puts word @Str.data cast(int) line_start @64 - 1 + putd
+                ":" puts line_number @64 putu
+                ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
                 ": ERROR: `end` can only close `if` for now\n" eputs
                 1 exit
             end
@@ -986,8 +986,8 @@ proc parse_file_path_cstr_into_opz // file-path-cstr
             ops over  sizeof(Op) * +
             dup @Op.typ OP_IF != if
                 file-path-cstr @64 cast(ptr) cstr-to-str eputs
-                ":" puts line_number @64 putd
-                ":" puts word @Str.data cast(int) line_start @64 - 1 + putd
+                ":" puts line_number @64 putu
+                ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
                 ": ERROR: `end` can only close `if` for now\n" eputs
                 1 exit
             end
@@ -998,8 +998,8 @@ proc parse_file_path_cstr_into_opz // file-path-cstr
             OP_PUSH_INT
             word @Str try-parse-int lnot if
                  file-path-cstr @64 cast(ptr) cstr-to-str eputs
-                 ":" puts line_number @64 putd
-                 ":" puts word @Str.data cast(int) line_start @64 - 1 + putd
+                 ":" puts line_number @64 putu
+                 ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
                  ": ERROR: `" eputs word @Str eputs "` is an unknown word\n" eputs
                  1 exit
             end

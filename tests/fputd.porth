@@ -1,6 +1,6 @@
 include "std.porth"
 
-"strerr: " stderr fputs 69 stderr fputd "\n" stderr fputs
-"strout: " stdout fputs 420 stdout fputd "\n" stdout fputs
+"strerr: " stderr fputs 69 stderr fputu "\n" stderr fputs
+"strout: " stdout fputs 420 stdout fputu "\n" stdout fputs
 
 
