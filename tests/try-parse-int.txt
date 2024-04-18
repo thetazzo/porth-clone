@@ -5,6 +5,7 @@
 :b stdout 5
 1234
 
-:b stderr 23
+:b stderr 47
 `abcd` is not a number
+`-1234` is not a number
 
