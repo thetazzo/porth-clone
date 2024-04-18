@@ -64,18 +64,6 @@ proc @Op.operand Op.operand @64 end
 proc !Op.typ     Op.typ !64     end
 proc !Op.operand Op.operand !64 end
 
-const offsetof(Token.typ)           sizeof(u64) offset end
-const offsetof(Token.text)          sizeof(u64) offset end
-const offsetof(Token.value)
-    sizeof(u64)
-    sizeof(Str) max
-    offset
-end
-const sizeof(Token) reset end
-proc Token.typ      offsetof(Token.typ)     + end
-proc Token.text     offsetof(Token.text)    + end
-proc Token.value    offsetof(Token.value)   + end
-
 proc cmd_echoed // argv
     memory wstatus sizeof(u64) end
     memory empty-envp sizeof(ptr) end
@@ -84,7 +72,7 @@ proc cmd_echoed // argv
     "[CMD]" puts
     dup while dup @64 0 != do
         " " puts
-        dup @64 cast(ptr) cstr-to-str puts
+        dup @ptr cstr-to-str puts
         8 +
     end drop
     "\n" puts
@@ -93,7 +81,7 @@ proc cmd_echoed // argv
 
     dup 0 = if 
         drop
-        dup @64 cast(ptr) empty-envp
+        dup @ptr empty-envp
         rot rot
         execve
         dup 0 < if 
@@ -834,53 +822,201 @@ proc remove-comment // output input
     2drop
 end
 
-proc parse_file_path_cstr_into_opz // file-path-cstr 
+proc memset // int int ptr --
+    memory data sizeof(ptr) end
+    data !64
+    memory byte sizeof(u64) end
+    byte !64
+    while dup 0 > do
+        byte @64 data @ptr !64
+        1 -
+    end
+    drop
+end
+
+const TOKEN_INT  1 offset end
+const TOKEN_WORD 1 offset end
+const TOKEN_STR  1 offset end
+const TOKEN_CHAR 1 offset end
+const COUNT_TOKENS reset  end
+
+const Token.typ sizeof(u64) offset end
+const Token.text sizeof(Str) offset end
+const Token.value
+   sizeof(u64)
+   sizeof(Str) max
+   offset
+end
+const sizeof(Token) reset end
+
+
+const Lexer.content sizeof(Str) offset end
+const Lexer.line sizeof(Str) offset end
+const sizeof(Lexer) reset end
+
+proc ?str-empty
+    offsetof(Str.count) +
+    @64
+    0 =
+end
+
+proc lexer-next-line // lexer:ptr --
+    memory lexer sizeof(ptr) end
+    lexer !64
+
+    memory line sizeof(Str) end
+
+    '\n'
+    line
+    lexer @ptr Lexer.content +
+    str-chop-by-delim
+
+    lexer @ptr Lexer.line +
+    line
+    remove-comment
+end
+
+proc lexer-next-token // token:ptr lexer:ptr -- bool
+    memory token sizeof(ptr) end
+    swap token !64
+
+    memory word sizeof(Str) end
+
+    while 
+        dup Lexer.line + str-trim-left
+
+        dup Lexer.line + ?str-empty if
+            dup Lexer.content + ?str-empty lnot
+        else false end
+    do dup lexer-next-line end
+
+    dup Lexer.line + ?str-empty lnot if
+        dup Lexer.line + @Str.data @8 '"' = if
+            // String literal
+
+            dup Lexer.line + str-chop-one-left
+            '"' word rot Lexer.line + str-chop-by-delim
+
+            word @Str token @ptr Token.value + !Str
+            TOKEN_STR token @ptr Token.typ + !64
+            // TODO: check if string literal was clsoed
+        else dup Lexer.line + @Str.data @8 39 = if* // cannot use ' directy for some reason
+            // Character literal
+            dup Lexer.line + str-chop-one-left
+            39 word rot Lexer.line + str-chop-by-delim
+
+            word @Str token @ptr Token.value + !Str
+            TOKEN_CHAR token @ptr Token.typ + !64
+            // TODO: check if character literal was clsoed
+        else
+            // Word or integer
+
+            ' '              // delim
+            word             // word
+            rot Lexer.line + // line
+            str-chop-by-delim
+
+            word @Str try-parse-int if
+                token @ptr Token.value + !64
+                TOKEN_INT token @ptr Token.typ + !64
+            else
+                drop // number from try-parse-int
+                word @Str token @ptr Token.value + !Str
+                TOKEN_WORD token @ptr Token.typ + !64
+            end
+        end
+    true
+    else
+        drop // lexer
+        false
+    end
+end
+
+proc map-file // file-path-cstr -- int str
     memory file-path-cstr sizeof(ptr) end
     file-path-cstr !64
 
-    // open the file
-    0                             // mode
-    O_RDONLY                      // flags
-    file-path-cstr @64 cast(ptr)  // pathname
-    AT_FDCWD                      // dirfd
+    0                   // mode
+    O_RDONLY            // flags
+    file-path-cstr @ptr // pathname
+    AT_FDCWD            // dirfd
     openat
 
-    // validate successful opening of the file
     dup 0 < if
-        "ERROR: could not open file `" eputs file-path-cstr @64 cast(ptr) cstr-to-str eputs "` not found\n" eputs
-        1 exit
+      "ERROR: could not open file " eputs file-path-cstr @ptr cstr-to-str eputs "\n" eputs
+      1 exit
     end
 
-    // save file descriptor to a global variable
     memory fd sizeof(u64) end
     fd !64
 
     memory statbuf sizeof(stat) end
     statbuf fd @64 fstat 0 < if
-        "ERROR: could not determine the size of the file `" eputs file-path-cstr @64 cast(ptr) cstr-to-str eputs "`\n" eputs
-        1 exit
+      "ERROR: could not determine the size of file " eputs file-path-cstr @ptr cstr-to-str eputs "\n" eputs
+      1 exit
     end
 
-    // save the size of the file into the count of the content
     memory content sizeof(Str) end
-    statbuf @stat.st_size content !Str.count 
+    statbuf @stat.st_size content !Str.count
 
-    // memory map the file
-    0                         // offset
-    fd @64                    // fd
-    MAP_PRIVATE               // flags
-    PROT_READ                 // protc
-    statbuf stat.st_size @64  // length
-    NULL                      // addr
+    0                        // offset
+    fd @64                   // fd
+    MAP_PRIVATE              // flags
+    PROT_READ                // prot
+    content @Str.count       // length
+    NULL                     // addr
     mmap
-    // save output of mmap onto `Str.data` of the `content` memory
     content !Str.data
 
-    // validate success of the `mmap` syscall ~ validate memory mapping was successful
     content @Str.data cast(int) 0 < if
-        "ERROR: could not memory map file `" eputs file-path-cstr @64 cast(ptr) cstr-to-str eputs "`\n" eputs
-        1 exit
+      "ERROR: could not memory map file " eputs file-path-cstr @ptr cstr-to-str eputs "\n" eputs
+      1 exit
     end
+
+    content @Str
+end
+
+proc lex-file // file-path-cstr --
+    memory file-path-cstr sizeof(ptr) end
+    file-path-cstr !64
+
+    memory lexer sizeof(Lexer) end
+    sizeof(Lexer) 0 lexer memset
+    file-path-cstr @ptr map-file lexer Lexer.content + !Str
+
+    memory token sizeof(Token) end
+    
+    while token lexer lexer-next-token do
+        token Token.typ + @64 //token.typ
+        
+        COUNT_TOKENS 4 != if
+            here eputs ": Assertion Failed: exhaustive handling of token types in lex-file\n" eputs
+          1 exit
+        end
+        
+        dup TOKEN_INT = if
+          "Integer:  " puts token Token.value + @64 putu "\n" puts
+        else dup TOKEN_WORD = if*
+          "Word:     " puts token Token.value + @64 putu "\n" puts
+        else dup TOKEN_STR = if*
+          "String:   " puts token Token.value + @64 putu "\n" puts
+        else dup TOKEN_CHAR = if*
+          "Character:" puts token Token.value + @64 putu "\n" puts
+        else
+          here puts ": unreachable. Unknown token type\n" eputs
+          1 exit
+        end
+        
+        drop // token.typ
+    end
+end
+
+proc parse_file_path_cstr_into_opz // file-path-cstr 
+    memory file-path-cstr sizeof(ptr) end
+    file-path-cstr !64
+
+    memory content sizeof(Str) end
+    file-path-cstr @ptr map-file content !Str
 
     memory line_number sizeof(u64) end
     memory line-with-comment sizeof(Str) end
@@ -889,201 +1025,201 @@ proc parse_file_path_cstr_into_opz // file-path-cstr
     memory line_start sizeof(ptr) end
 
     1 line_number !64
-  while content @Str.count 0 > do
-    '\n' line-with-comment content str-chop-by-delim
-    line line-with-comment remove-comment
-    line @Str.data line_start !64
-    while line @Str.count 0 > do
-      line str-trim-left
-      ' ' word line str-chop-by-delim
+    while content @Str.count 0 > do
+      '\n' line-with-comment content str-chop-by-delim
+      line line-with-comment remove-comment
+      line @Str.data line_start !64
+      while line @Str.count 0 > do
+        line str-trim-left
+        ' ' word line str-chop-by-delim
 
-      COUNT_OPZ 5 != if
-        here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
-        1 exit
-      end
-
-      COUNT_INTRINSICS 42 != if
-        here eputs ": Assertion Failed: Exhaustive handling of Intrinsics in parse-file-path\n" eputs
-        1 exit
-      end
-
-      // Intrinsics
-      word @Str "+" streq if
-        OP_INTRINSIC INTRINSIC_PLUS push-op
-      else word @Str "-" streq if*
-        OP_INTRINSIC INTRINSIC_MINUS push-op
-      else word @Str "*" streq if*
-        OP_INTRINSIC INTRINSIC_MUL push-op
-      else word @Str "divmod" streq if*
-        OP_INTRINSIC INTRINSIC_DIVMOD push-op
-      else word @Str "print" streq if*
-        OP_INTRINSIC INTRINSIC_PRINT push-op
-      else word @Str "=" streq if*
-        OP_INTRINSIC INTRINSIC_EQ push-op
-      else word @Str ">" streq if*
-        OP_INTRINSIC INTRINSIC_GT push-op
-      else word @Str "<" streq if*
-        OP_INTRINSIC INTRINSIC_LT push-op
-      else word @Str ">=" streq if*
-        OP_INTRINSIC INTRINSIC_GE push-op
-      else word @Str "<=" streq if*
-        OP_INTRINSIC INTRINSIC_LE push-op
-      else word @Str "!=" streq if*
-        OP_INTRINSIC INTRINSIC_NE push-op
-      else word @Str "shr" streq if*
-        OP_INTRINSIC INTRINSIC_SHR push-op
-      else word @Str "shl" streq if*
-        OP_INTRINSIC INTRINSIC_SHL push-op
-      else word @Str "or" streq if*
-        OP_INTRINSIC INTRINSIC_OR push-op
-      else word @Str "and" streq if*
-        OP_INTRINSIC INTRINSIC_AND push-op
-      else word @Str "not" streq if*
-        OP_INTRINSIC INTRINSIC_NOT push-op
-      else word @Str "dup" streq if*
-        OP_INTRINSIC INTRINSIC_DUP push-op
-      else word @Str "swap" streq if*
-        OP_INTRINSIC INTRINSIC_SWAP push-op
-      else word @Str "drop" streq if*
-        OP_INTRINSIC INTRINSIC_DROP push-op
-      else word @Str "over" streq if*
-        OP_INTRINSIC INTRINSIC_OVER push-op
-      else word @Str "rot" streq if*
-        OP_INTRINSIC INTRINSIC_ROT push-op
-      else word @Str "!8" streq if*
-        OP_INTRINSIC INTRINSIC_STORE8 push-op
-      else word @Str "@8" streq if*
-        OP_INTRINSIC INTRINSIC_LOAD8 push-op
-      else word @Str "!16" streq if*
-        OP_INTRINSIC INTRINSIC_STORE16 push-op
-      else word @Str "@16" streq if*
-        OP_INTRINSIC INTRINSIC_LOAD16 push-op
-      else word @Str "!32" streq if*
-        OP_INTRINSIC INTRINSIC_STORE32 push-op
-      else word @Str "@32" streq if*
-        OP_INTRINSIC INTRINSIC_LOAD32 push-op
-      else word @Str "!64" streq if*
-        OP_INTRINSIC INTRINSIC_STORE64 push-op
-      else word @Str "@64" streq if*
-        OP_INTRINSIC INTRINSIC_LOAD64 push-op
-      else word @Str "cast(ptr)" streq if*
-        OP_INTRINSIC INTRINSIC_CAST_PTR push-op
-      else word @Str "cast(int)" streq if*
-        OP_INTRINSIC INTRINSIC_CAST_INT push-op
-      else word @Str "cast(bool)" streq if*
-        OP_INTRINSIC INTRINSIC_CAST_BOOL push-op
-      else word @Str "argc" streq if*
-        OP_INTRINSIC INTRINSIC_ARGC push-op
-      else word @Str "argv" streq if*
-        OP_INTRINSIC INTRINSIC_ARGV push-op
-      else word @Str "here" streq if*
-        OP_INTRINSIC INTRINSIC_HERE push-op
-      else word @Str "syscall0" streq if*
-        OP_INTRINSIC INTRINSIC_SYSCALL0 push-op
-      else word @Str "syscall1" streq if*
-        OP_INTRINSIC INTRINSIC_SYSCALL1 push-op
-      else word @Str "syscall2" streq if*
-        OP_INTRINSIC INTRINSIC_SYSCALL2 push-op
-      else word @Str "syscall3" streq if*
-        OP_INTRINSIC INTRINSIC_SYSCALL3 push-op
-      else word @Str "syscall4" streq if*
-        OP_INTRINSIC INTRINSIC_SYSCALL4 push-op
-      else word @Str "syscall5" streq if*
-        OP_INTRINSIC INTRINSIC_SYSCALL5 push-op
-      else word @Str "syscall6" streq if*
-        OP_INTRINSIC INTRINSIC_SYSCALL6 push-op
-
-      // Keywords
-      else word @Str "if" streq if*
-        @ops-count parse-block-stack-push
-        OP_IF 0 push-op
-      else word @Str "else" streq if*
-        @parse-block-stack-count 0 <= if
-          file-path-cstr @64 cast(ptr) cstr-to-str eputs
-          ":" puts line_number @64 putu
-          ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
-          ": ERROR: `else` can only come after `if`\n" eputs
+        COUNT_OPZ 5 != if
+          here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
           1 exit
         end
 
-        parse-block-stack-pop   // if_ip
-        dup sizeof(Op) * ops +  // if_op
-
-        dup @Op.typ OP_IF != if
-          file-path-cstr @64 cast(ptr) cstr-to-str eputs
-          ":" puts line_number @64 putu
-          ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
-          ": ERROR: `else` can only come after `if`\n" eputs
+        COUNT_INTRINSICS 42 != if
+          here eputs ": Assertion Failed: Exhaustive handling of Intrinsics in parse-file-path\n" eputs
           1 exit
         end
 
-        @ops-count 1 + over !Op.operand
+        // Intrinsics
+        word @Str "+" streq if
+          OP_INTRINSIC INTRINSIC_PLUS push-op
+        else word @Str "-" streq if*
+          OP_INTRINSIC INTRINSIC_MINUS push-op
+        else word @Str "*" streq if*
+          OP_INTRINSIC INTRINSIC_MUL push-op
+        else word @Str "divmod" streq if*
+          OP_INTRINSIC INTRINSIC_DIVMOD push-op
+        else word @Str "print" streq if*
+          OP_INTRINSIC INTRINSIC_PRINT push-op
+        else word @Str "=" streq if*
+          OP_INTRINSIC INTRINSIC_EQ push-op
+        else word @Str ">" streq if*
+          OP_INTRINSIC INTRINSIC_GT push-op
+        else word @Str "<" streq if*
+          OP_INTRINSIC INTRINSIC_LT push-op
+        else word @Str ">=" streq if*
+          OP_INTRINSIC INTRINSIC_GE push-op
+        else word @Str "<=" streq if*
+          OP_INTRINSIC INTRINSIC_LE push-op
+        else word @Str "!=" streq if*
+          OP_INTRINSIC INTRINSIC_NE push-op
+        else word @Str "shr" streq if*
+          OP_INTRINSIC INTRINSIC_SHR push-op
+        else word @Str "shl" streq if*
+          OP_INTRINSIC INTRINSIC_SHL push-op
+        else word @Str "or" streq if*
+          OP_INTRINSIC INTRINSIC_OR push-op
+        else word @Str "and" streq if*
+          OP_INTRINSIC INTRINSIC_AND push-op
+        else word @Str "not" streq if*
+          OP_INTRINSIC INTRINSIC_NOT push-op
+        else word @Str "dup" streq if*
+          OP_INTRINSIC INTRINSIC_DUP push-op
+        else word @Str "swap" streq if*
+          OP_INTRINSIC INTRINSIC_SWAP push-op
+        else word @Str "drop" streq if*
+          OP_INTRINSIC INTRINSIC_DROP push-op
+        else word @Str "over" streq if*
+          OP_INTRINSIC INTRINSIC_OVER push-op
+        else word @Str "rot" streq if*
+          OP_INTRINSIC INTRINSIC_ROT push-op
+        else word @Str "!8" streq if*
+          OP_INTRINSIC INTRINSIC_STORE8 push-op
+        else word @Str "@8" streq if*
+          OP_INTRINSIC INTRINSIC_LOAD8 push-op
+        else word @Str "!16" streq if*
+          OP_INTRINSIC INTRINSIC_STORE16 push-op
+        else word @Str "@16" streq if*
+          OP_INTRINSIC INTRINSIC_LOAD16 push-op
+        else word @Str "!32" streq if*
+          OP_INTRINSIC INTRINSIC_STORE32 push-op
+        else word @Str "@32" streq if*
+          OP_INTRINSIC INTRINSIC_LOAD32 push-op
+        else word @Str "!64" streq if*
+          OP_INTRINSIC INTRINSIC_STORE64 push-op
+        else word @Str "@64" streq if*
+          OP_INTRINSIC INTRINSIC_LOAD64 push-op
+        else word @Str "cast(ptr)" streq if*
+          OP_INTRINSIC INTRINSIC_CAST_PTR push-op
+        else word @Str "cast(int)" streq if*
+          OP_INTRINSIC INTRINSIC_CAST_INT push-op
+        else word @Str "cast(bool)" streq if*
+          OP_INTRINSIC INTRINSIC_CAST_BOOL push-op
+        else word @Str "argc" streq if*
+          OP_INTRINSIC INTRINSIC_ARGC push-op
+        else word @Str "argv" streq if*
+          OP_INTRINSIC INTRINSIC_ARGV push-op
+        else word @Str "here" streq if*
+          OP_INTRINSIC INTRINSIC_HERE push-op
+        else word @Str "syscall0" streq if*
+          OP_INTRINSIC INTRINSIC_SYSCALL0 push-op
+        else word @Str "syscall1" streq if*
+          OP_INTRINSIC INTRINSIC_SYSCALL1 push-op
+        else word @Str "syscall2" streq if*
+          OP_INTRINSIC INTRINSIC_SYSCALL2 push-op
+        else word @Str "syscall3" streq if*
+          OP_INTRINSIC INTRINSIC_SYSCALL3 push-op
+        else word @Str "syscall4" streq if*
+          OP_INTRINSIC INTRINSIC_SYSCALL4 push-op
+        else word @Str "syscall5" streq if*
+          OP_INTRINSIC INTRINSIC_SYSCALL5 push-op
+        else word @Str "syscall6" streq if*
+          OP_INTRINSIC INTRINSIC_SYSCALL6 push-op
 
-        @ops-count parse-block-stack-push
-        OP_ELSE 0 push-op
+        // Keywords
+        else word @Str "if" streq if*
+          @ops-count parse-block-stack-push
+          OP_IF 0 push-op
+        else word @Str "else" streq if*
+          @parse-block-stack-count 0 <= if
+            file-path-cstr @ptr cstr-to-str eputs
+            ":" puts line_number @64 putu
+            ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
+            ": ERROR: `else` can only come after `if`\n" eputs
+            1 exit
+          end
 
-        drop // if_op
-        drop // if_ip
-      else word @Str "end" streq if*
-        @parse-block-stack-count 0 <= if
-          file-path-cstr @64 cast(ptr) cstr-to-str eputs
-          ":" puts line_number @64 putu
-          ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
-          ": ERROR: `end` can only close `if` and `else` for now\n" eputs
-          1 exit
-        end
+          parse-block-stack-pop   // if_ip
+          dup sizeof(Op) * ops +  // if_op
 
-        parse-block-stack-pop // ip
-        ops over sizeof(Op) * + // op
+          dup @Op.typ OP_IF != if
+            file-path-cstr @ptr cstr-to-str eputs
+            ":" puts line_number @64 putu
+            ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
+            ": ERROR: `else` can only come after `if`\n" eputs
+            1 exit
+          end
 
-        dup @Op.typ OP_IF = if
-          dup @ops-count swap !Op.operand
-          OP_END @ops-count 1 + push-op
-        else dup @Op.typ OP_ELSE = if*
-          dup @ops-count swap !Op.operand
-          OP_END @ops-count 1 + push-op
+          @ops-count 1 + over !Op.operand
+
+          @ops-count parse-block-stack-push
+          OP_ELSE 0 push-op
+
+          drop // if_op
+          drop // if_ip
+        else word @Str "end" streq if*
+          @parse-block-stack-count 0 <= if
+            file-path-cstr @ptr cstr-to-str eputs
+            ":" puts line_number @64 putu
+            ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
+            ": ERROR: `end` can only close `if` and `else` for now\n" eputs
+            1 exit
+          end
+
+          parse-block-stack-pop // ip
+          ops over sizeof(Op) * + // op
+
+          dup @Op.typ OP_IF = if
+            dup @ops-count swap !Op.operand
+            OP_END @ops-count 1 + push-op
+          else dup @Op.typ OP_ELSE = if*
+            dup @ops-count swap !Op.operand
+            OP_END @ops-count 1 + push-op
+          else
+            file-path-cstr @ptr cstr-to-str eputs
+            ":" puts line_number @64 putu
+            ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
+            ": ERROR: `end` can only close `if` for now\n" eputs
+            1 exit
+          end
+
+          drop // op
+          drop // ip
+        else word @Str "include" streq if*
+          here eputs ": TODO: `include` keyword is not implemented\n" eputs 1 exit
         else
-          file-path-cstr @64 cast(ptr) cstr-to-str eputs
-          ":" puts line_number @64 putu
-          ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
-          ": ERROR: `end` can only close `if` for now\n" eputs
-          1 exit
+          OP_PUSH_INT
+          word @Str try-parse-int lnot if
+            file-path-cstr @ptr cstr-to-str eputs
+            ":" puts line_number @64 putu
+            ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
+            ": ERROR: `" eputs word @Str eputs "` is unknown word\n" eputs
+            1 exit
+          end
+          push-op
         end
 
-        drop // op
-        drop // ip
-      else word @Str "include" streq if*
-        here eputs ": TODO: `include` keyword is not implemented\n" eputs 1 exit
-      else
-        OP_PUSH_INT
-        word @Str try-parse-int lnot if
-          file-path-cstr @64 cast(ptr) cstr-to-str eputs
-          ":" puts line_number @64 putu
-          ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
-          ": ERROR: `" eputs word @Str eputs "` is unknown word\n" eputs
-          1 exit
-        end
-        push-op
       end
-
+      line_number inc64
     end
-    line_number inc64
-  end
-  // TODO: parse_file_path does not clean up resources after itself
+    // TODO: parse_file_path does not clean up resources after itself
 end
 
 
-proc print_usage 
-    dup "Usage: porth <SUBCOMMAND>\n" rot fputs
-    dup "  SUBCOMMAND:\n" rot fputs
-    dup "    sim <file>     Simulate the program\n" rot fputs
-    dup "    com            Compile the program\n" rot fputs
-    dup "    print          Print ops of the program\n" rot fputs
-    dup "    help           Print this help to the stderr ane exit with 0 code\n" rot fputs
-    drop
+proc print_usage // fd -- 
+    memory fd sizeof(u64) end
+    fd !64
+
+    "Usage: porth <SUBCOMMAND>\n"                                             fd @64 fputs
+    "  SUBCOMMAND:\n"                                                         fd @64 fputs
+    "    sim <file>     Simulate the program\n"                               fd @64 fputs
+    "    com <file>     Compile the program\n"                                fd @64 fputs
+    "    print <file>   Print ops of the program\n"                           fd @64 fputs
+    "    help           Print this help to the stderr ane exit with 0 code\n" fd @64 fputs
 end
-// TODO: parsing file is not implemented
-// TODO: user cannot choose the mode (com vs sim) from command line args
 
 // entrypoint of the program
 proc main 
@@ -1123,6 +1259,14 @@ proc main
         2 nth_argv parse_file_path_cstr_into_opz
 
         print-opz
+    else dup "lex"c cstreq if*
+        argc 3 < if
+            stderr print_usage
+            "ERROR: not input file provided for `lex` subcommand\n" eputs
+            1 exit
+        end
+
+        2 nth_argv lex-file
     else dup "help"c cstreq if*
         stdout print_usage
         0 exit
