@@ -1,7 +1,7 @@
 include "std.porth"
 
-macro MEM_CAPACITY    640000 end
-macro SIM_STACK_CAP   1024   end
+const MEM_CAPACITY    640000 end
+const SIM_STACK_CAP   1024   end
 
 // operation codes
 const OP_PUSH_INT  0 end

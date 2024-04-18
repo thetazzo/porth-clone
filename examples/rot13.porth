@@ -1,6 +1,6 @@
 include "std.porth"
 
-macro BUFF_CAP 1024 end
+const BUFF_CAP 1024 end
 memory buffer BUFF_CAP end
 
 "Type something here: " puts
