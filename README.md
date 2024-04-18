@@ -305,12 +305,6 @@ TBD
 
 <!-- TODO: Document Arrays Conventions -->
 
-#### Memory Layout
-
-TBD
-
-<!-- TODO: Document Memory Laytout Conventions -->
-
 ---
 
 ## References
