@@ -64,6 +64,18 @@ proc @Op.operand Op.operand @64 end
 proc !Op.typ     Op.typ !64     end
 proc !Op.operand Op.operand !64 end
 
+const offsetof(Token.typ)           sizeof(u64) offset end
+const offsetof(Token.text)          sizeof(u64) offset end
+const offsetof(Token.value)
+    sizeof(u64)
+    sizeof(Str) max
+    offset
+end
+const sizeof(Token) reset end
+proc Token.typ      offsetof(Token.typ)     + end
+proc Token.text     offsetof(Token.text)    + end
+proc Token.value    offsetof(Token.value)   + end
+
 proc cmd_echoed // argv
     memory wstatus sizeof(u64) end
     memory empty-envp sizeof(ptr) end

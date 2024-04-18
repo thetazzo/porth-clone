@@ -48,6 +48,7 @@ class Intrinsic(IntEnum):
     MINUS=auto()
     MUL=auto()
     DIVMOD=auto()
+    MAX=auto()
     EQ=auto()
     GT=auto()
     LT=auto()
@@ -284,7 +285,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                 ret_stack.append(ip + 1)
                 ip = op.operand
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 42, "Exhaustive handling of intrinsic in simulate_little_endian_linux()"
+                assert len(Intrinsic) == 43, "Exhaustive handling of intrinsic in simulate_little_endian_linux()"
                 if op.operand == Intrinsic.PLUS:
                     a = stack.pop()
                     b = stack.pop()
@@ -305,6 +306,11 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                     b = stack.pop()
                     stack.append(b // a)
                     stack.append(b % a)
+                    ip += 1
+                elif op.operand == Intrinsic.MAX:
+                    a = stack.pop()
+                    b = stack.pop()
+                    stack.append(max(a, b))
                     ip += 1
                 elif op.operand == Intrinsic.EQ:
                     a = stack.pop()
@@ -623,7 +629,7 @@ def type_check_program(program: Program):
         elif op.typ == OpType.RET:
             ctx.ip = ctx.ret_stack.pop()
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 42, "Exhaustive intrinsic handling in type_check_program()"
+            assert len(Intrinsic) == 43, "Exhaustive intrinsic handling in type_check_program()"
             assert isinstance(op.operand, Intrinsic), "This could be a bug in compilation step"
             if op.operand == Intrinsic.PLUS:
                 assert len(DataType) == 3, "Exhaustive type handling in PLUS intrinsic"
@@ -679,6 +685,20 @@ def type_check_program(program: Program):
                     ctx.stack.append((DataType.INT, op.token))
                 else:
                     compiler_error_with_call_path(op, ctx.ret_stack, program.ops, "invalid argument types fo DIVMOD intrinsic. Expected INT.")
+                    exit(1)
+            elif op.operand == Intrinsic.MAX:
+                assert len(DataType) == 3, "Exhaustive type handling in EQ intrinsic"
+                if len(ctx.stack) < 2:
+                    compiler_error_with_call_path(op, ctx.ret_stack, program.ops, f"not enough arguments for `{op.token.value}` intrinsic")
+                    exit(1)
+                a_typ, a_loc = ctx.stack.pop()
+                b_typ, b_loc = ctx.stack.pop()
+                if a_typ == b_typ and a_typ == DataType.INT:
+                    ctx.stack.append((DataType.INT, op.token))
+                else:
+                    compiler_error_with_call_path(op, ctx.ret_stack, program.ops, f"Invalid argument types for `{op.token.value}` intrinsic: {(a_typ, b_typ)}")
+                    compiler_note_(op.token.loc, f"Expected:")
+                    compiler_note_(op.token.loc, f"  {(DataType.INT, DataType.INT)}")
                     exit(1)
             elif op.operand == Intrinsic.EQ:
                 assert len(DataType) == 3, "Exhaustive type handling in EQ intrinsic"
@@ -1206,7 +1226,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                 out.write("    mov [ret_stack_rsp], rsp\n")
                 out.write("    mov rsp, rax\n")
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 42, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
+                assert len(Intrinsic) == 43, "Exhaustive handling of intrinsic in generate_nasm_linux_x86_64: %d" % len(Intrinsic)
                 if op.operand == Intrinsic.PLUS:
                     out.write("    pop rax\n")
                     out.write("    pop rbx\n")
@@ -1221,6 +1241,12 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop rax\n")
                     out.write("    pop rbx\n")
                     out.write("    mul rbx\n")
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.MAX:
+                    out.write("    pop rax\n")
+                    out.write("    pop rbx\n")
+                    out.write("    cmp rbx, rax\n")
+                    out.write("    cmovge rax, rbx\n")
                     out.write("    push rax\n")
                 elif op.operand == Intrinsic.DIVMOD:
                     out.write("    xor rdx, rdx\n")
@@ -1469,12 +1495,13 @@ KEYWORD_BY_NAMES: Dict[str, Keyword]= {
 }
 KEYWORD_NAMES: Dict[Keyword, str] = {v: k for k, v in KEYWORD_BY_NAMES.items()}
 
-assert len(Intrinsic) == 42, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
+assert len(Intrinsic) == 43, "Exhaustive INTRINSIC_BY_NAMES definition.: %d" % len(Intrinsic)
 INTRINSIC_BY_NAMES: Dict[str, Intrinsic]= {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
     '*': Intrinsic.MUL,
     'divmod': Intrinsic.DIVMOD,
+    'max': Intrinsic.MAX,
     'print': Intrinsic.PRINT,
     '=': Intrinsic.EQ,
     '>': Intrinsic.GT,
@@ -1685,6 +1712,19 @@ def eval_const_value(ctx: ParseContext, rtokens: List[Token]) -> Tuple[int, Data
                     exit(1)
                 value, typ = stack.pop()
                 stack.append((value, DataType.PTR))
+            elif token.value == INTRINSIC_NAMES[Intrinsic.MAX]:
+                if len(stack) < 2:
+                    compiler_error_with_expansion_stack(token, f"not enough arguments for `{token.value}` intrinsic")
+                    exit(1)
+                a, a_typ = stack.pop()
+                b, b_typ = stack.pop()
+                if a_typ == b_typ and a_typ == DataType.INT:
+                    stack.append((max(a, b), DataType.INT))
+                else:
+                    compiler_error_with_expansion_stack(token, f"Invalid argument types for `{token.value}` intrinsic: {(a_typ, b_typ)}")
+                    compiler_note_(token.loc, f"Expected:")
+                    compiler_note_(token.loc, f"  {(DataType.INT, DataType.INT)}")
+                    exit(1)
             elif token.value in ctx.consts:
                 assert isinstance(token.value, str)
                 stack.append((ctx.consts[token.value].value, ctx.consts[token.value].typ))
