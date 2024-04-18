@@ -14,6 +14,7 @@ import traceback
 
 PORTH_EXT = ".porth" 
 INCLUDE_LIMIT=100
+TYPE_CHECK_CALL_LIMIT=500
 SIM_NULL_POINTER_PADDING = 1 # a bit of padding at the begginig of the memory to make 0 an invalid address
 SIM_STR_CAPACITY = 640_000
 SIM_ARGV_CAPACITY = 640_000
@@ -613,6 +614,9 @@ def type_check_program(program: Program):
         elif op.typ == OpType.PREP_PROC:
             ctx.ip += 1
         elif op.typ == OpType.CALL:
+            if len(ctx.ret_stack) > TYPE_CHECK_CALL_LIMIT:
+                compiler_error_with_expansion_stack(op.token, "Type checking call limit exceeded. Are you trying to do recursion? We don't support type checking recursion properly yet. Consider using `-unsafe` flag for now.")
+                exit(1)
             ctx.ret_stack.append(ctx.ip + 1)
             assert isinstance(op.operand, OpAddr)
             ctx.ip = op.operand
