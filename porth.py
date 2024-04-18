@@ -1773,8 +1773,8 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     program.ops[block_ip].operand = ip + 1
                     current_proc = None
                 elif program.ops[block_ip].typ == OpType.IFSTAR:
-                    else_before_ifstar_ip = None if len(stack) == 0 else stack.pop()
-                    assert else_before_ifstar_ip is not None and program.ops[else_before_ifstar_ip].typ == OpType.ELSE, "At this point we should've already checked that `if*` comes after `else`. Otherwise this is a compiler bug."
+                    else_before_ifstar_ip = -69 if len(stack) == 0 else stack.pop()
+                    assert else_before_ifstar_ip != -69 and program.ops[else_before_ifstar_ip].typ == OpType.ELSE, "At this point we should've already checked that `if*` comes after `else`. Otherwise this is a compiler bug."
                     program.ops.append(Op(typ=OpType.END, token=token))
                     program.ops[block_ip].operand = ip 
                     program.ops[else_before_ifstar_ip].operand = ip 
