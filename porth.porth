@@ -1040,6 +1040,8 @@ proc parse_file_path_cstr_into_opz // file-path-cstr
 
         drop // op
         drop // ip
+      else word @Str "include" streq if*
+        here eputs ": TODO: `include` keyword is not implemented\n" eputs 1 exit
       else
         OP_PUSH_INT
         word @Str try-parse-int lnot if
