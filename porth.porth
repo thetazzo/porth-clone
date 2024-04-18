@@ -4,55 +4,56 @@ const MEM_CAPACITY    640000 end
 const SIM_STACK_CAP   1024   end
 
 // operation codes
-const OP_PUSH_INT  0 end
-const OP_IF        1 end
-const OP_END       2 end
-const OP_INTRINSIC 3 end
-const COUNT_OPZ    4 end
+const OP_PUSH_INT  1 offset end
+const OP_IF        1 offset end
+const OP_ELSE      1 offset end
+const OP_END       1 offset end
+const OP_INTRINSIC 1 offset end
+const COUNT_OPZ       reset end
 
-const INTRINSIC_PLUS       0 end
-const INTRINSIC_MINUS      1 end
-const INTRINSIC_MUL        2 end
-const INTRINSIC_DIVMOD     3 end
-const INTRINSIC_EQ         4 end
-const INTRINSIC_GT         5 end
-const INTRINSIC_LT         6 end
-const INTRINSIC_GE         7 end
-const INTRINSIC_LE         8 end
-const INTRINSIC_NE         9 end
-const INTRINSIC_SHR       10 end
-const INTRINSIC_SHL       11 end
-const INTRINSIC_OR        12 end
-const INTRINSIC_AND       13 end
-const INTRINSIC_NOT       14 end
-const INTRINSIC_PRINT     15 end
-const INTRINSIC_DUP       16 end
-const INTRINSIC_SWAP      17 end
-const INTRINSIC_DROP      18 end
-const INTRINSIC_OVER      19 end
-const INTRINSIC_ROT       20 end
-const INTRINSIC_LOAD8     21 end
-const INTRINSIC_LOAD16    22 end
-const INTRINSIC_LOAD32    23 end
-const INTRINSIC_LOAD64    24 end
-const INTRINSIC_STORE8    25 end
-const INTRINSIC_STORE16   26 end
-const INTRINSIC_STORE32   27 end
-const INTRINSIC_STORE64   28 end
-const INTRINSIC_CAST_PTR  29 end
-const INTRINSIC_CAST_INT  30 end
-const INTRINSIC_CAST_BOOL 31 end
-const INTRINSIC_ARGC      32 end
-const INTRINSIC_ARGV      33 end
-const INTRINSIC_HERE      34 end
-const INTRINSIC_SYSCALL0  35 end
-const INTRINSIC_SYSCALL1  36 end
-const INTRINSIC_SYSCALL2  37 end
-const INTRINSIC_SYSCALL3  38 end
-const INTRINSIC_SYSCALL4  39 end
-const INTRINSIC_SYSCALL5  40 end
-const INTRINSIC_SYSCALL6  41 end
-const COUNT_INTRINSICS    42 end
+const INTRINSIC_PLUS      1 offset end
+const INTRINSIC_MINUS     1 offset end
+const INTRINSIC_MUL       1 offset end
+const INTRINSIC_DIVMOD    1 offset end
+const INTRINSIC_EQ        1 offset end
+const INTRINSIC_GT        1 offset end
+const INTRINSIC_LT        1 offset end
+const INTRINSIC_GE        1 offset end
+const INTRINSIC_LE        1 offset end
+const INTRINSIC_NE        1 offset end
+const INTRINSIC_SHR       1 offset end
+const INTRINSIC_SHL       1 offset end
+const INTRINSIC_OR        1 offset end
+const INTRINSIC_AND       1 offset end
+const INTRINSIC_NOT       1 offset end
+const INTRINSIC_PRINT     1 offset end
+const INTRINSIC_DUP       1 offset end
+const INTRINSIC_SWAP      1 offset end
+const INTRINSIC_DROP      1 offset end
+const INTRINSIC_OVER      1 offset end
+const INTRINSIC_ROT       1 offset end
+const INTRINSIC_LOAD8     1 offset end
+const INTRINSIC_LOAD16    1 offset end
+const INTRINSIC_LOAD32    1 offset end
+const INTRINSIC_LOAD64    1 offset end
+const INTRINSIC_STORE8    1 offset end
+const INTRINSIC_STORE16   1 offset end
+const INTRINSIC_STORE32   1 offset end
+const INTRINSIC_STORE64   1 offset end
+const INTRINSIC_CAST_PTR  1 offset end
+const INTRINSIC_CAST_INT  1 offset end
+const INTRINSIC_CAST_BOOL 1 offset end
+const INTRINSIC_ARGC      1 offset end
+const INTRINSIC_ARGV      1 offset end
+const INTRINSIC_HERE      1 offset end
+const INTRINSIC_SYSCALL0  1 offset end
+const INTRINSIC_SYSCALL1  1 offset end
+const INTRINSIC_SYSCALL2  1 offset end
+const INTRINSIC_SYSCALL3  1 offset end
+const INTRINSIC_SYSCALL4  1 offset end
+const INTRINSIC_SYSCALL5  1 offset end
+const INTRINSIC_SYSCALL6  1 offset end
+const COUNT_INTRINSICS       reset end
 
 const OPS_CAP     1024           end
 const sizeof(Op)  16             end
@@ -175,7 +176,7 @@ proc simulate-opz // --
         sim-op
         memcpy
 
-        COUNT_OPZ 4 != if 
+        COUNT_OPZ 5 != if 
             here eputs ": Assertion Failed: Exhaustive handling of Op types in simulate-opz\n" eputs
             1 exit
         end
@@ -190,6 +191,8 @@ proc simulate-opz // --
             else
                 sim-op @Op.operand sim-ip !64
             end
+        else sim-op @Op.typ OP_ELSE = if*
+            sim-op @Op.operand sim-ip !64
         else sim-op @Op.typ OP_END = if*
             sim-op @Op.operand sim-ip !64
         else sim-op @Op.typ OP_INTRINSIC = if*
@@ -425,7 +428,7 @@ proc compile-opz // --
         // ptr type
         dup sizeof(Op) * ops +
 
-        COUNT_OPZ 4 != if
+        COUNT_OPZ 5 != if
             here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
             1 exit
         end
@@ -443,6 +446,9 @@ proc compile-opz // --
             "    pop rax\n"              out-fd @64 fputs
             "    test rax, rax\n"        out-fd @64 fputs
             "    jz addr_\n"             out-fd @64 fputs dup @Op.operand out-fd @64 fputu "\n" out-fd @64 fputs
+        else dup @Op.typ OP_ELSE = if*
+            ";;  -- else --\n"             out-fd @64 fputs
+            "    jmp addr_\n"            out-fd @64 fputs dup @Op.operand out-fd @64 fputu "\n" out-fd @64 fputs
         else dup @Op.typ OP_END = if*
             ";;  -- end --\n" out-fd @64 fputs
             "    jmp addr_\n" out-fd @64 fputs dup @Op.operand out-fd @64 fputu "\n" out-fd @64 fputs
@@ -722,6 +728,11 @@ proc compile-opz // --
         drop
         1 +
     end drop
+
+    "addr_"              out-fd @64 fputs
+    @ops-count           out-fd @64 fputu
+    ":\n"              out-fd @64 fputs
+
     "    mov rax, 60\n"  out-fd @64 fputs
     "    mov rdi, 0\n"   out-fd @64 fputs
     "    syscall\n"      out-fd @64 fputs
@@ -866,150 +877,187 @@ proc parse_file_path_cstr_into_opz // file-path-cstr
     memory line_start sizeof(ptr) end
 
     1 line_number !64
-    while content @Str.count 0 > do
-      '\n' line-with-comment content str-chop-by-delim
-      line line-with-comment remove-comment
-      line @Str.data line_start !64
-      while line @Str.count 0 > do
-         line str-trim-left
-         ' ' word line str-chop-by-delim
+  while content @Str.count 0 > do
+    '\n' line-with-comment content str-chop-by-delim
+    line line-with-comment remove-comment
+    line @Str.data line_start !64
+    while line @Str.count 0 > do
+      line str-trim-left
+      ' ' word line str-chop-by-delim
 
-         COUNT_OPZ 4 != if
-           here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
-           1 exit
-         end
-
-         COUNT_INTRINSICS 42 != if
-           here eputs ": Assertion Failed: Exhaustive handling of intrinsics in parse-file-path\n" eputs
-           1 exit
-         end
-
-         // Intrinsics
-         word @Str "+" streq if
-           OP_INTRINSIC INTRINSIC_PLUS push-op
-         else word @Str "-" streq if*
-           OP_INTRINSIC INTRINSIC_MINUS push-op
-         else word @Str "*" streq if*
-           OP_INTRINSIC INTRINSIC_MUL push-op
-         else word @Str "divmod" streq if*
-           OP_INTRINSIC INTRINSIC_DIVMOD push-op
-         else word @Str "print" streq if*
-           OP_INTRINSIC INTRINSIC_PRINT push-op
-         else word @Str "=" streq if*
-           OP_INTRINSIC INTRINSIC_EQ push-op
-         else word @Str ">" streq if*
-           OP_INTRINSIC INTRINSIC_GT push-op
-         else word @Str "<" streq if*
-           OP_INTRINSIC INTRINSIC_LT push-op
-         else word @Str ">=" streq if*
-           OP_INTRINSIC INTRINSIC_GE push-op
-         else word @Str "<=" streq if*
-           OP_INTRINSIC INTRINSIC_LE push-op
-         else word @Str "!=" streq if*
-           OP_INTRINSIC INTRINSIC_NE push-op
-         else word @Str "shr" streq if*
-           OP_INTRINSIC INTRINSIC_SHR push-op
-         else word @Str "shl" streq if*
-           OP_INTRINSIC INTRINSIC_SHL push-op
-         else word @Str "or" streq if*
-           OP_INTRINSIC INTRINSIC_OR push-op
-         else word @Str "and" streq if*
-           OP_INTRINSIC INTRINSIC_AND push-op
-         else word @Str "not" streq if*
-           OP_INTRINSIC INTRINSIC_NOT push-op
-         else word @Str "dup" streq if*
-           OP_INTRINSIC INTRINSIC_DUP push-op
-         else word @Str "swap" streq if*
-           OP_INTRINSIC INTRINSIC_SWAP push-op
-         else word @Str "drop" streq if*
-           OP_INTRINSIC INTRINSIC_DROP push-op
-         else word @Str "over" streq if*
-           OP_INTRINSIC INTRINSIC_OVER push-op
-         else word @Str "rot"  streq if*
-           OP_INTRINSIC INTRINSIC_ROT push-op
-         else word @Str "@8" streq if*
-           OP_INTRINSIC INTRINSIC_LOAD8 push-op
-         else word @Str "@16" streq if*
-           OP_INTRINSIC INTRINSIC_LOAD16 push-op
-         else word @Str "@32" streq if*
-           OP_INTRINSIC INTRINSIC_LOAD32 push-op
-         else word @Str "@64" streq if*
-           OP_INTRINSIC INTRINSIC_LOAD64 push-op
-         else word @Str "!8" streq if*
-           OP_INTRINSIC INTRINSIC_STORE8 push-op
-         else word @Str "!32" streq if*
-           OP_INTRINSIC INTRINSIC_STORE32 push-op
-         else word @Str "!16" streq if*
-           OP_INTRINSIC INTRINSIC_STORE16 push-op
-         else word @Str "!64" streq if*
-           OP_INTRINSIC INTRINSIC_STORE64 push-op
-         else word @Str "cast(ptr)" streq if*
-           OP_INTRINSIC INTRINSIC_CAST_PTR push-op
-         else word @Str "cast(int)" streq if*
-           OP_INTRINSIC INTRINSIC_CAST_INT push-op
-         else word @Str "cast(bool)" streq if*
-           OP_INTRINSIC INTRINSIC_CAST_BOOL push-op
-         else word @Str "argc" streq if*
-           OP_INTRINSIC INTRINSIC_ARGC push-op
-         else word @Str "argv" streq if*
-           OP_INTRINSIC INTRINSIC_ARGV push-op
-         else word @Str "here" streq if*
-           OP_INTRINSIC INTRINSIC_HERE push-op
-         else word @Str "syscall0" streq if*
-           OP_INTRINSIC INTRINSIC_SYSCALL0 push-op
-         else word @Str "syscall1" streq if*
-           OP_INTRINSIC INTRINSIC_SYSCALL1 push-op
-         else word @Str "syscall2" streq if*
-           OP_INTRINSIC INTRINSIC_SYSCALL2 push-op
-         else word @Str "syscall3" streq if*
-           OP_INTRINSIC INTRINSIC_SYSCALL3 push-op
-         else word @Str "syscall4" streq if*
-           OP_INTRINSIC INTRINSIC_SYSCALL4 push-op
-         else word @Str "syscall5" streq if*
-           OP_INTRINSIC INTRINSIC_SYSCALL5 push-op
-         else word @Str "syscall6" streq if*
-           OP_INTRINSIC INTRINSIC_SYSCALL6 push-op
-
-         // Keywords
-         else word @Str "if" streq if*
-            @ops-count parse-block-stack-push
-            OP_IF 0 push-op
-         else word @Str "end" streq if*
-            @parse-block-stack-count 0 <= if
-                file-path-cstr @64 cast(ptr) cstr-to-str eputs
-                ":" puts line_number @64 putu
-                ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
-                ": ERROR: `end` can only close `if` for now\n" eputs
-                1 exit
-            end
-            parse-block-stack-pop
-            ops over  sizeof(Op) * +
-            dup @Op.typ OP_IF != if
-                file-path-cstr @64 cast(ptr) cstr-to-str eputs
-                ":" puts line_number @64 putu
-                ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
-                ": ERROR: `end` can only close `if` for now\n" eputs
-                1 exit
-            end
-            @ops-count swap !Op.operand
-            drop // ip
-            OP_END @ops-count 1 + push-op
-         else
-            OP_PUSH_INT
-            word @Str try-parse-int lnot if
-                 file-path-cstr @64 cast(ptr) cstr-to-str eputs
-                 ":" puts line_number @64 putu
-                 ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
-                 ": ERROR: `" eputs word @Str eputs "` is an unknown word\n" eputs
-                 1 exit
-            end
-            push-op
-         end
+      COUNT_OPZ 5 != if
+        here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
+        1 exit
       end
-      line_number inc64
+
+      COUNT_INTRINSICS 42 != if
+        here eputs ": Assertion Failed: Exhaustive handling of Intrinsics in parse-file-path\n" eputs
+        1 exit
+      end
+
+      // Intrinsics
+      word @Str "+" streq if
+        OP_INTRINSIC INTRINSIC_PLUS push-op
+      else word @Str "-" streq if*
+        OP_INTRINSIC INTRINSIC_MINUS push-op
+      else word @Str "*" streq if*
+        OP_INTRINSIC INTRINSIC_MUL push-op
+      else word @Str "divmod" streq if*
+        OP_INTRINSIC INTRINSIC_DIVMOD push-op
+      else word @Str "print" streq if*
+        OP_INTRINSIC INTRINSIC_PRINT push-op
+      else word @Str "=" streq if*
+        OP_INTRINSIC INTRINSIC_EQ push-op
+      else word @Str ">" streq if*
+        OP_INTRINSIC INTRINSIC_GT push-op
+      else word @Str "<" streq if*
+        OP_INTRINSIC INTRINSIC_LT push-op
+      else word @Str ">=" streq if*
+        OP_INTRINSIC INTRINSIC_GE push-op
+      else word @Str "<=" streq if*
+        OP_INTRINSIC INTRINSIC_LE push-op
+      else word @Str "!=" streq if*
+        OP_INTRINSIC INTRINSIC_NE push-op
+      else word @Str "shr" streq if*
+        OP_INTRINSIC INTRINSIC_SHR push-op
+      else word @Str "shl" streq if*
+        OP_INTRINSIC INTRINSIC_SHL push-op
+      else word @Str "or" streq if*
+        OP_INTRINSIC INTRINSIC_OR push-op
+      else word @Str "and" streq if*
+        OP_INTRINSIC INTRINSIC_AND push-op
+      else word @Str "not" streq if*
+        OP_INTRINSIC INTRINSIC_NOT push-op
+      else word @Str "dup" streq if*
+        OP_INTRINSIC INTRINSIC_DUP push-op
+      else word @Str "swap" streq if*
+        OP_INTRINSIC INTRINSIC_SWAP push-op
+      else word @Str "drop" streq if*
+        OP_INTRINSIC INTRINSIC_DROP push-op
+      else word @Str "over" streq if*
+        OP_INTRINSIC INTRINSIC_OVER push-op
+      else word @Str "rot" streq if*
+        OP_INTRINSIC INTRINSIC_ROT push-op
+      else word @Str "!8" streq if*
+        OP_INTRINSIC INTRINSIC_STORE8 push-op
+      else word @Str "@8" streq if*
+        OP_INTRINSIC INTRINSIC_LOAD8 push-op
+      else word @Str "!16" streq if*
+        OP_INTRINSIC INTRINSIC_STORE16 push-op
+      else word @Str "@16" streq if*
+        OP_INTRINSIC INTRINSIC_LOAD16 push-op
+      else word @Str "!32" streq if*
+        OP_INTRINSIC INTRINSIC_STORE32 push-op
+      else word @Str "@32" streq if*
+        OP_INTRINSIC INTRINSIC_LOAD32 push-op
+      else word @Str "!64" streq if*
+        OP_INTRINSIC INTRINSIC_STORE64 push-op
+      else word @Str "@64" streq if*
+        OP_INTRINSIC INTRINSIC_LOAD64 push-op
+      else word @Str "cast(ptr)" streq if*
+        OP_INTRINSIC INTRINSIC_CAST_PTR push-op
+      else word @Str "cast(int)" streq if*
+        OP_INTRINSIC INTRINSIC_CAST_INT push-op
+      else word @Str "cast(bool)" streq if*
+        OP_INTRINSIC INTRINSIC_CAST_BOOL push-op
+      else word @Str "argc" streq if*
+        OP_INTRINSIC INTRINSIC_ARGC push-op
+      else word @Str "argv" streq if*
+        OP_INTRINSIC INTRINSIC_ARGV push-op
+      else word @Str "here" streq if*
+        OP_INTRINSIC INTRINSIC_HERE push-op
+      else word @Str "syscall0" streq if*
+        OP_INTRINSIC INTRINSIC_SYSCALL0 push-op
+      else word @Str "syscall1" streq if*
+        OP_INTRINSIC INTRINSIC_SYSCALL1 push-op
+      else word @Str "syscall2" streq if*
+        OP_INTRINSIC INTRINSIC_SYSCALL2 push-op
+      else word @Str "syscall3" streq if*
+        OP_INTRINSIC INTRINSIC_SYSCALL3 push-op
+      else word @Str "syscall4" streq if*
+        OP_INTRINSIC INTRINSIC_SYSCALL4 push-op
+      else word @Str "syscall5" streq if*
+        OP_INTRINSIC INTRINSIC_SYSCALL5 push-op
+      else word @Str "syscall6" streq if*
+        OP_INTRINSIC INTRINSIC_SYSCALL6 push-op
+
+      // Keywords
+      else word @Str "if" streq if*
+        @ops-count parse-block-stack-push
+        OP_IF 0 push-op
+      else word @Str "else" streq if*
+        @parse-block-stack-count 0 <= if
+          file-path-cstr @64 cast(ptr) cstr-to-str eputs
+          ":" puts line_number @64 putu
+          ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
+          ": ERROR: `else` can only come after `if`\n" eputs
+          1 exit
+        end
+
+        parse-block-stack-pop   // if_ip
+        dup sizeof(Op) * ops +  // if_op
+
+        dup @Op.typ OP_IF != if
+          file-path-cstr @64 cast(ptr) cstr-to-str eputs
+          ":" puts line_number @64 putu
+          ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
+          ": ERROR: `else` can only come after `if`\n" eputs
+          1 exit
+        end
+
+        @ops-count 1 + over !Op.operand
+
+        @ops-count parse-block-stack-push
+        OP_ELSE 0 push-op
+
+        drop // if_op
+        drop // if_ip
+      else word @Str "end" streq if*
+        @parse-block-stack-count 0 <= if
+          file-path-cstr @64 cast(ptr) cstr-to-str eputs
+          ":" puts line_number @64 putu
+          ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
+          ": ERROR: `end` can only close `if` and `else` for now\n" eputs
+          1 exit
+        end
+
+        parse-block-stack-pop // ip
+        ops over sizeof(Op) * + // op
+
+        dup @Op.typ OP_IF = if
+          dup @ops-count swap !Op.operand
+          OP_END @ops-count 1 + push-op
+        else dup @Op.typ OP_ELSE = if*
+          dup @ops-count swap !Op.operand
+          OP_END @ops-count 1 + push-op
+        else
+          file-path-cstr @64 cast(ptr) cstr-to-str eputs
+          ":" puts line_number @64 putu
+          ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
+          ": ERROR: `end` can only close `if` for now\n" eputs
+          1 exit
+        end
+
+        drop // op
+        drop // ip
+      else
+        OP_PUSH_INT
+        word @Str try-parse-int lnot if
+          file-path-cstr @64 cast(ptr) cstr-to-str eputs
+          ":" puts line_number @64 putu
+          ":" puts word @Str.data cast(int) line_start @64 - 1 + putu
+          ": ERROR: `" eputs word @Str eputs "` is unknown word\n" eputs
+          1 exit
+        end
+        push-op
+      end
+
     end
-    // TODO: parse_file_path does not clean up resources after itself
+    line_number inc64
+  end
+  // TODO: parse_file_path does not clean up resources after itself
 end
+
 
 proc print_usage 
     dup "Usage: porth <SUBCOMMAND>\n" rot fputs
