@@ -1,6 +1,0 @@
-
-macro direct_recursive_macro
-    direct_recursive_macro
-end
-
-direct_recursive_macro

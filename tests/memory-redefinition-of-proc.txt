@@ -1,0 +1,10 @@
+:i argc 0
+:b stdin 0
+
+:i returncode 1
+:b stdout 0
+
+:b stderr 195
+./tests/memory-redefinition-of-proc.porth:2:8: ERROR: redefinition of already existing procedure `hello`
+./tests/memory-redefinition-of-proc.porth:1:6: NOTE: The first definition is located here
+

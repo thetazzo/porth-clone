@@ -2,7 +2,7 @@ include "std.porth"
 
 // Find the largest prime factor of 600851475143
 
-macro Number 600851475143 end
+const Number 600851475143 end
 
 Number 3 while over 1 > do
     2dup mod 0 = if

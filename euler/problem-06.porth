@@ -1,6 +1,6 @@
 include "std.porth"
 
-macro N 69 end
+const N 69 end
 
 // sum of squares
 0 1 while dup N <= do

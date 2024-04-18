@@ -1,6 +1,6 @@
 include "std.porth"
 
-macro N 1000 end
+const N 1000 end
 
 0 3 while dup N < do
     dup  3 mod 0 = 

@@ -9,7 +9,7 @@ memory line sizeof(Str) end
 memory word sizeof(Str) end
 memory line_number sizeof(u64) end
 
-macro str-copy // dst src
+proc str-copy // dst src
     @Str rot !Str
 end
 
@@ -72,7 +72,7 @@ while content Str.count @64 0 > do
     while line Str.count @64 0 > do
         line str-trim-left
         ' ' word line str-chop-by-delim
-        1 nth_argv cstr-to-str puts ": " puts line_number @64 putd ": " puts
+        1 nth_argv cstr-to-str puts ": " puts line_number @64 putu ": " puts
         word @Str "+" streq if 
             "Compilation of PLUS\n" puts
         else word @Str "-" streq if*

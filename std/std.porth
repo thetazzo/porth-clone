@@ -489,7 +489,7 @@ proc @Str
 end
 
 // poping the "string structure" of the stack
-macro !Str // count data dst -
+proc !Str // count data dst -
     dup Str.data rot swap !64
     !Str.count 
 end
@@ -601,18 +601,3 @@ proc memcpy // size src dst
         1 +
     end drop
 end
-
-// Deprecated Words //////////
-proc .64 swap !64 end
-proc ,64 @64 end
-proc ! !8 end
-proc @ @8 end
-proc . swap ! end
-proc , @ end
-proc cstr-to-pstr cstr-to-str end
-memory mem 640000 end
-proc nop end
-proc fputd fputu end
-proc eputd eputu end
-proc putd putu end
-//////////////////////////////

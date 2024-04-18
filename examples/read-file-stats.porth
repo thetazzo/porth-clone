@@ -36,5 +36,5 @@ end
 "Size of file `" puts
 1 nth_argv cstr-to-str puts
 "` is " puts
-statbuf @stat.st_size putd
+statbuf @stat.st_size putu
 " bytes\n" puts
