@@ -75,9 +75,9 @@ while content Str.count @64 0 > do
         1 nth_argv cstr-to-str puts ": " puts line_number @64 putd ": " puts
         word @Str "+" streq if 
             "Compilation of PLUS\n" puts
-        orelse word @Str "-" streq if
+        else word @Str "-" streq if*
             "Compilation of MINUS\n" puts
-        orelse word @Str "print" streq if
+        else word @Str "print" streq if*
             "Compilation of PRINT\n" puts
         else
             "Parsing a word as a number: `" puts word @Str puts "`\n" puts

@@ -275,7 +275,9 @@ here puts ": TODO: not implemented\n" puts 1 exit
 ```porth
 <condition> if 
     <body> 
-orelse <condition> if
+else <condition> if*
+    <body>
+else <condition> if*
     <body>
 else
     <body>
