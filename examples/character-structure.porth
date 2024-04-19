@@ -7,6 +7,11 @@ const C.per  sizeof(u64)  offset end
 const C.lck  sizeof(u64)  offset end
 const sizeof(C)           reset end
 
+proc !C.name C.name + !Str end // Str --
+proc !C.str C.str   + !64  end // u64 --
+proc !C.per C.per   + !64  end // u64 --
+proc !C.lck C.lck   + !64  end // u64 --
+
 proc print-character // character --
     "Name:       " puts dup C.name + @Str puts "\n" puts
     "Strength:   " puts dup C.str  + @64  putu "\n" puts
@@ -15,10 +20,10 @@ proc print-character // character --
     drop // charater
 end
 
-memory Jolly sizeof(C) end
-"Jolly" Jolly C.name + !Str
-10      Jolly C.str  + !64
-8       Jolly C.per  + !64
-3       Jolly C.lck  + !64
+memory  Jolly sizeof(C) end
+"Jolly" Jolly !C.name 
+10      Jolly !C.str
+8       Jolly !C.per 
+3       Jolly !C.lck 
 
 Jolly print-character
