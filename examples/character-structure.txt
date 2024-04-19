@@ -1,0 +1,12 @@
+:i argc 0
+:b stdin 0
+
+:i returncode 0
+:b stdout 61
+Name:       Jolly
+Strength:   10
+Perception: 8
+Luck:       3
+
+:b stderr 0
+
