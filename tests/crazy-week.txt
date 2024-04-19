@@ -1,0 +1,9 @@
+:i argc 0
+:b stdin 0
+
+:i returncode 1
+:b stdout 0
+
+:b stderr 101
+./tests/crazy-week.porth:13:5: ERROR: Assertion has failed with message: `You have a crazy week lad`
+

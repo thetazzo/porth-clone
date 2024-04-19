@@ -103,7 +103,7 @@ end
 memory sim-stack-count   sizeof(u64)                 end 
 memory sim-stack         sizeof(u64) SIM_STACK_CAP * end
 memory ops-count         sizeof(u64)                 end
-proc  @ops-count        ops-count   @64             end
+proc   @ops-count        ops-count   @64             end
 memory ops               sizeof(Op)  OPS_CAP *       end
 
 proc sim-stack-push // type operand --
@@ -135,18 +135,21 @@ proc push-op // type operand --
 end
 
 proc print-op-typ
-    COUNT_OPZ 4 != if 
-        here eputs ": Assertion Failed: Exhaustive handling of Op types in print-op-typ\n" eputs
-        1 exit
+    assert
+        "Exhaustive handling of Op types in print-op-typ"
+        COUNT_OPZ 5 = 
     end
+
     dup OP_PUSH_INT = if 
         "OP_PUSH_INT" puts
-    else dup OP_IF = if*
-        "OP_IF" puts
-    else dup OP_END = if*
-        "OP_END" puts
     else dup OP_INTRINSIC = if*
         "OP_INTRINSIC" puts
+    else dup OP_IF = if*
+        "OP_IF" puts
+    else dup OP_ELSE = if*
+        "OP_ELSE" puts
+    else dup OP_END = if*
+        "OP_END" puts
     else
         here eputs ": unknown op type\n" eputs 
     end
@@ -159,7 +162,7 @@ proc print-opz // --
         dup sizeof(Op) * ops +
         "Type:    " puts dup @Op.typ print-op-typ "\n" puts 
         "Operand: " puts @Op.operand putu         "\n" puts
-        "------------------\n" puts
+        "------------------------\n" puts
         1 +
     end drop
 end
@@ -176,9 +179,9 @@ proc simulate-opz // --
         sim-op
         memcpy
 
-        COUNT_OPZ 5 != if 
-            here eputs ": Assertion Failed: Exhaustive handling of Op types in simulate-opz\n" eputs
-            1 exit
+        assert
+            "Exhaustive handling of Op types in simulate-opz"
+            COUNT_OPZ 5 =  
         end
 
         // ptr
@@ -196,9 +199,9 @@ proc simulate-opz // --
         else sim-op @Op.typ OP_END = if*
             sim-op @Op.operand sim-ip !64
         else sim-op @Op.typ OP_INTRINSIC = if*
-            COUNT_INTRINSICS 42 != if 
-                here eputs ": Assertion Failed: Exhaustive handling of intrinsics in simulate-opz\n" eputs
-                1 exit
+            assert
+                "Exhaustive handling of intrinsics in simulate-opz"
+                COUNT_INTRINSICS 42 =
             end
             sim-op @Op.operand INTRINSIC_PLUS = if
                 sim-stack-pop
@@ -428,9 +431,9 @@ proc compile-opz // --
         // ptr type
         dup sizeof(Op) * ops +
 
-        COUNT_OPZ 5 != if
-            here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
-            1 exit
+        assert
+            "Exhaustive handling of Op types in parse-file-path"
+            COUNT_OPZ 5 =
         end
 
         "addr_" out-fd @64 fputs
@@ -453,9 +456,9 @@ proc compile-opz // --
             ";;  -- end --\n" out-fd @64 fputs
             "    jmp addr_\n" out-fd @64 fputs dup @Op.operand out-fd @64 fputu "\n" out-fd @64 fputs
         else dup @Op.typ OP_INTRINSIC = if*
-            COUNT_INTRINSICS 42 != if
-                here eputs ": Assertion Failed: Exhaustive handling of intrinsics in parse-file-path\n" eputs
-                1 exit
+            assert
+                "Exhaustive handling of intrinsics in parse-file-path"
+                COUNT_INTRINSICS 42 =
             end
             dup @Op.operand INTRINSIC_PLUS = if
                 ";;  -- plus --\n"       out-fd @64 fputs
@@ -1021,9 +1024,9 @@ proc lex-file // file-path-cstr --
     memory token sizeof(Token) end
     
     while token lexer lexer-next-token do
-        COUNT_TOKENS 4 != if
-            here eputs ": Assertion Failed: exhaustive handling of token types in lex-file\n" eputs
-          1 exit
+        assert 
+            "Exhaustive handling of token types in lex-file"
+            COUNT_TOKENS 4 =
         end
 
         token Token.loc + // loc
@@ -1072,14 +1075,14 @@ proc parse_file_path_cstr_into_opz // file-path-cstr
         line str-trim-left
         ' ' word line str-chop-by-delim
 
-        COUNT_OPZ 5 != if
-          here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
-          1 exit
+        assert
+            "Exhaustive handling of Op types in parse-file-path"
+            COUNT_OPZ 5 = 
         end
 
-        COUNT_INTRINSICS 42 != if
-          here eputs ": Assertion Failed: Exhaustive handling of Intrinsics in parse-file-path\n" eputs
-          1 exit
+        assert
+            "Exhaustive handling of Intrinsics in parse-file-path"
+            COUNT_INTRINSICS 42 =
         end
 
         // Intrinsics

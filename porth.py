@@ -37,6 +37,7 @@ class Keyword(Enum):
     CONST=auto()
     OFFSET=auto()
     RESET=auto()
+    ASSERT=auto()
 
 class DataType(IntEnum):
     INT=auto()
@@ -1478,7 +1479,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
         out.write("ret_stack_end:\n")
         out.write("mem: resb %d\n" % program.memory_capacity) # reserve space for program memory
 
-assert len(Keyword) == 12, "Exhaustive KEYWORD_NAMES definition: %d" % len(Keyword) 
+assert len(Keyword) == 13, "Exhaustive KEYWORD_NAMES definition: %d" % len(Keyword) 
 KEYWORD_BY_NAMES: Dict[str, Keyword]= {
     'if': Keyword.IF,
     'if*': Keyword.IFSTAR,
@@ -1492,6 +1493,7 @@ KEYWORD_BY_NAMES: Dict[str, Keyword]= {
     'const': Keyword.CONST,
     'offset': Keyword.OFFSET,
     'reset': Keyword.RESET,
+    'assert': Keyword.ASSERT,
 }
 KEYWORD_NAMES: Dict[Keyword, str] = {v: k for k, v in KEYWORD_BY_NAMES.items()}
 
@@ -1725,6 +1727,19 @@ def eval_const_value(ctx: ParseContext, rtokens: List[Token]) -> Tuple[int, Data
                     compiler_note_(token.loc, f"Expected:")
                     compiler_note_(token.loc, f"  {(DataType.INT, DataType.INT)}")
                     exit(1)
+            elif token.value == INTRINSIC_NAMES[Intrinsic.EQ]:
+                if len(stack) < 2:
+                    compiler_error_with_expansion_stack(token, f"not enough arguments for `{token.value}` intrinsic")
+                    exit(1)
+                a, a_typ = stack.pop()
+                b, b_typ = stack.pop()
+                if a_typ != b_typ:
+                    compiler_error_with_expansion_stack(token, f"intrinsic expects arguments to have the same types: {(a_typ, b_typ)}")
+                    compiler_note_(token.loc, f"Expected:")
+                    compiler_note_(token.loc, f"  {(a_typ, a_typ)}")
+                    compiler_note_(token.loc, f"  {(b_typ, b_typ)}")
+                    exit(1)
+                stack.append((int(a == b), DataType.BOOL))
             elif token.value in ctx.consts:
                 assert isinstance(token.value, str)
                 stack.append((ctx.consts[token.value].value, ctx.consts[token.value].typ))
@@ -1789,7 +1804,7 @@ def parse_program_from_tokens(ctx: ParseContext, tokens: List[Token], include_pa
             ctx.ops.append(Op(typ=OpType.PUSH_INT, operand=token.value, token=token));
             ctx.ip += 1
         elif token.typ == TokenType.KEYWORD:
-            assert len(Keyword) == 12, "Exhaustive keywords handling in parse_program_from_tokens()"
+            assert len(Keyword) == 13, "Exhaustive keywords handling in parse_program_from_tokens()"
             if token.value == Keyword.IF:
                 ctx.ops.append(Op(typ=OpType.IF, token=token))
                 ctx.stack.append(ctx.ip)
@@ -1903,6 +1918,23 @@ def parse_program_from_tokens(ctx: ParseContext, tokens: List[Token], include_pa
                         continue
                 if not file_included:
                     compiler_error_with_expansion_stack(token, "file `%s` not found" % token.value)
+                    exit(1)
+            elif token.value == Keyword.ASSERT:
+                if len(rtokens) == 0:
+                    compiler_error_with_expansion_stack(token, "expected assert message but found nothing")
+                    exit(1)
+                token = rtokens.pop()
+                if token.typ != TokenType.STR:
+                    compiler_error_with_expansion_stack(token, "expected assert message to be %s but found %s" % (token_name(TokenType.STR), token_name(token.typ)))
+                    exit(1)
+                assert isinstance(token.value, str)
+                assert_message = token.value
+                assert_value, assert_typ = eval_const_value(ctx, rtokens)
+                if assert_typ != DataType.BOOL:
+                    compiler_error_with_expansion_stack(token,  f"assertion expects the expression to be of type `bool`: {[assert_typ]}")
+                    exit(1)
+                if assert_value == 0:
+                    compiler_error_with_expansion_stack(token,  f"Assertion has failed with message: `{assert_message}`")
                     exit(1)
             elif token.value == Keyword.CONST:
                 if len(rtokens) == 0:
