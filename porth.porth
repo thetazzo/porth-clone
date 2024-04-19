@@ -835,9 +835,9 @@ proc memset // int int ptr --
 end
 
 const Loc.file-path sizeof(Str) offset end
-const Loc.row sizeof(u64) offset end
-const Loc.col sizeof(u64) offset end
-const sizeof(Loc) reset end
+const Loc.row       sizeof(u64) offset end
+const Loc.col       sizeof(u64) offset end
+const sizeof(Loc)                reset end
 
 const TOKEN_INT  1 offset end
 const TOKEN_WORD 1 offset end
@@ -855,13 +855,13 @@ const Token.value
 end
 const sizeof(Token) reset end
 
-
+// Lexer structure
 const Lexer.content    sizeof(Str) offset end
 const Lexer.line       sizeof(Str) offset end
 const Lexer.line-start sizeof(ptr) offset end
 const Lexer.file-path  sizeof(Str) offset end
 const Lexer.row        sizeof(u64) offset end
-const sizeof(Lexer) reset end
+const sizeof(Lexer)                 reset end
 
 proc ?str-empty
     offsetof(Str.count) +
@@ -1034,18 +1034,18 @@ proc lex-file // file-path-cstr --
 
         token Token.typ + @64 // token.typ
         dup TOKEN_INT = if
-          "[INT]  " puts token Token.value + @64 putu "\n" puts
+            "[INTEGER] " puts token Token.value + @64 putu "\n" puts
         else dup TOKEN_WORD = if*
-          "[WORD] " puts token Token.value + @Str puts "\n" puts
+            "[WORD] " puts token Token.value + @Str puts "\n" puts
         else dup TOKEN_STR = if*
-          "[STR]  " puts token Token.value + @Str puts "\n" puts
+            "[STR] \"" puts token Token.value + @Str puts "\"\n" puts
         else dup TOKEN_CHAR = if*
-          "[CHAR] " puts token Token.value + @Str puts "\n" puts
+            "[CHAR] \'" puts token Token.value + @Str puts "\'\n" puts
         else
-          here puts ": unreachable. Unknown token type\n" eputs
-          1 exit
+            here eputs ": Unreachable. Unknown token type.\n" eputs
+            1 exit
         end
-        
+ 
         drop // token.typ
     end
 end
