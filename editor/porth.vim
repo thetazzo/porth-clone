@@ -20,7 +20,6 @@ syntax keyword P_INCLUDE include
 " Comments
 syntax region P_COMMENT_LINE start="//" end="$" contains=P_TODO start=+\(L\|u\|u8\|U\|R\|LR\|u8R\|uR\|UR\)\="+ skip=+\\\\\|\\"+ end=+"+ contains=cSpecial,cFormat,@Spell extend
 
-
 " Strings
 syntax region P_STRING start=/\v"/ skip=/\v\\./ end=/\v"/
 syntax region P_STRING start=/\v'/ skip=/\v\\./ end=/\v'/
