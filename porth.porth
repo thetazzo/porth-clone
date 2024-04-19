@@ -103,7 +103,7 @@ end
 memory sim-stack-count   sizeof(u64)                 end 
 memory sim-stack         sizeof(u64) SIM_STACK_CAP * end
 memory ops-count         sizeof(u64)                 end
-proc  @ops-count        ops-count   @64             end
+proc   @ops-count        ops-count   @64             end
 memory ops               sizeof(Op)  OPS_CAP *       end
 
 proc sim-stack-push // type operand --
@@ -142,12 +142,14 @@ proc print-op-typ
 
     dup OP_PUSH_INT = if 
         "OP_PUSH_INT" puts
-    else dup OP_IF = if*
-        "OP_IF" puts
-    else dup OP_END = if*
-        "OP_END" puts
     else dup OP_INTRINSIC = if*
         "OP_INTRINSIC" puts
+    else dup OP_IF = if*
+        "OP_IF" puts
+    else dup OP_ELSE = if*
+        "OP_ELSE" puts
+    else dup OP_END = if*
+        "OP_END" puts
     else
         here eputs ": unknown op type\n" eputs 
     end
@@ -160,7 +162,7 @@ proc print-opz // --
         dup sizeof(Op) * ops +
         "Type:    " puts dup @Op.typ print-op-typ "\n" puts 
         "Operand: " puts @Op.operand putu         "\n" puts
-        "------------------\n" puts
+        "------------------------\n" puts
         1 +
     end drop
 end
