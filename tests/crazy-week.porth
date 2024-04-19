@@ -1,0 +1,17 @@
+include "std.porth"
+
+const MON 1 offset end
+const TUE 1 offset end
+const WED 1 offset end
+const THU 1 offset end
+const FRI 1 offset end
+const SAT 1 offset end
+const SUN 1 offset end
+const COUNT_DAYZ reset end
+
+assert
+    "You have a crazy week lad"
+    COUNT_DAYZ 8 =
+end
+
+
