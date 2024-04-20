@@ -1,10 +1,10 @@
-highlight Yellow          guifg=#ffee71 guibg=None
-highlight Orange          guifg=#EEBB00 guibg=None
-highlight OrangeBold      guifg=#A8CC99 gui=bold
-highlight Cyan            guifg=#00AAFF guibg=None
-highlight Pink            guifg=#da519a guibg=None
-highlight LightBlue       guifg=#99a9d6 guibg=None
-highlight Green           guifg=#03C04A guibg=None
+highlight Yellow      guifg=#ffee71 guibg=None
+highlight Orange      guifg=#EEBB00 guibg=None
+highlight OrangeBold  guifg=#A8CC99 gui=bold
+highlight Cyan        guifg=#00AAFF guibg=None
+highlight Pink        guifg=#da519a guibg=None
+highlight LightBlue   guifg=#99a9d6 guibg=None
+highlight Green       guifg=#03C04A guibg=None
 
 highlight link P_INCLUDE OrangeBold
 
@@ -29,5 +29,4 @@ highlight default link P_TODO Todo
 " highlight default link P_KEYWORD Keyword
 highlight link P_KEYWORD Yellow
 highlight default link P_COMMENT_LINE Comment
-" highlight default link P_STRING String
-highlight default link P_STRING Green
+highlight default link P_STRING String
