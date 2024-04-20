@@ -11,7 +11,7 @@ highlight link P_INCLUDE OrangeBold
 syntax keyword P_TODO TODO XXX FIXME NOTE
 
 " Keywords
-syntax keyword P_KEYWORD end while do if else proc const assert
+syntax keyword P_KEYWORD end while do if else proc const assert in
 syntax keyword Cyan      memory
 syntax keyword LightBlue offset
 syntax keyword Pink      reset

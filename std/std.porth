@@ -12,7 +12,7 @@ const stdin  0 end
 const stdout 1 end
 const stderr 2 end
 
-proc @ptr @64 cast(ptr) end
+proc @ptr ptr -- ptr in @64 cast(ptr) end
 
 // Syscalls
 /// Syscalls
@@ -351,20 +351,20 @@ const sizeof(timespec) 16 end
 
 // fstat stat structure
 const sizeof(stat)   144 end
-proc stat.st_dev    0 + end
-proc stat.st_ino    8 + end
-proc stat.st_mode   24 + end
-proc stat.st_nlink  16 + end
-proc stat.st_uid    28 + end
-proc stat.st_gid    32 + end
-proc stat.st_rdev   40 + end
-proc stat.st_size   48 + end
-proc @stat.st_size stat.st_size @64 end // stat size accessor macro
-proc stat.st_blksize             56 + end
-proc stat.st_blocks              64 + end
-proc stat.st_atim 72 + end
-proc stat.st_mtim 88 + end
-proc stat.st_ctim 104 + end
+proc stat.st_dev     ptr -- ptr in 0 + end
+proc stat.st_ino     ptr -- ptr in 8 + end
+proc stat.st_mode    ptr -- ptr in 24 + end
+proc stat.st_nlink   ptr -- ptr in 16 + end
+proc stat.st_uid     ptr -- ptr in 28 + end
+proc stat.st_gid     ptr -- ptr in 32 + end
+proc stat.st_rdev    ptr -- ptr in 40 + end
+proc stat.st_size    ptr -- ptr in 48 + end
+proc @stat.st_size   ptr -- int in stat.st_size @64 end // stat size accessor macro
+proc stat.st_blksize ptr -- ptr in 56 + end
+proc stat.st_blocks  ptr -- ptr in 64 + end
+proc stat.st_atim    ptr -- ptr in 72 + end
+proc stat.st_mtim    ptr -- ptr in 88 + end
+proc stat.st_ctim    ptr -- ptr in 104 + end
 const sizeof(stat.st_dev)     sizeof(u64) end
 const sizeof(stat.st_ino)     sizeof(u64) end
 const sizeof(stat.st_mode)    sizeof(u32) end
@@ -380,72 +380,73 @@ const sizeof(stat.st_mtim)    sizeof(timespec) end
 const sizeof(stat.st_ctim)    sizeof(timespec) end
 
 // wrappers for syscalls
-proc write SYS_write syscall3 end
-proc read SYS_read syscall3 end
-proc openat SYS_openat syscall4 end
-proc fstat SYS_fstat syscall2 end
-proc close SYS_close syscall1 end
-proc exit SYS_exit syscall1 drop end
-proc mmap SYS_mmap syscall6 end
-proc clock_nanosleep SYS_clock_nanosleep syscall4 end
-proc fork SYS_fork syscall0 end
-proc getpid SYS_getpid syscall0 end
-proc execve SYS_execve syscall3 end
-proc wait4 SYS_wait4 syscall4 end
+proc write  int ptr int              -- int in SYS_write syscall3 end
+proc read   int ptr int              -- int in SYS_read syscall3 end
+proc openat int int ptr int          -- int in SYS_openat syscall4 end
+proc fstat  ptr int                  -- int in SYS_fstat syscall2 end
+proc close  int                      -- int in SYS_close syscall1 end
+proc exit   int                      -- in SYS_exit syscall1 drop end
+proc mmap   int int int int int ptr  -- int in SYS_mmap syscall6 end
+proc clock_nanosleep ptr ptr int int -- int in SYS_clock_nanosleep syscall4 end
+proc fork                            -- int in SYS_fork syscall0 end
+proc getpid                          -- int in SYS_getpid syscall0 end
+proc execve ptr ptr ptr              -- int in SYS_execve syscall3 end
+proc wait4  ptr int ptr int          -- int in SYS_wait4 syscall4 end
 
-proc / divmod drop end
-proc % divmod swap drop end
-proc mod % end
-proc div / end
+proc /   int int -- int in divmod drop end
+proc %   int int -- int in divmod swap drop end
+proc mod int int -- int in % end
+proc div int int -- int in / end
 
-proc nth_argv
+proc nth_argv int -- ptr in
     8 * argv + @64 cast(ptr)
 end
 
 // increments value a the pointer
-proc inc32 dup @32 1 + swap !32 end
-proc dec32 dup @32 1 - swap !32 end
-proc inc64 dup @64 1 + swap !64 end
-proc dec64 dup @64 1 - swap !64 end
+proc inc32 ptr in dup @32 1 + swap !32 end
+proc dec32 ptr in dup @32 1 - swap !32 end
+proc inc64 ptr in dup @64 1 + swap !64 end
+proc dec64 ptr in dup @64 1 - swap !64 end
 
 // helpers
 
-proc 2drop drop drop end
-proc 2dup over over end
+// TODO: generics are not supported
+//proc 2drop drop drop end
+//proc 2dup over over end
+
+proc todo -- in "TODO: not implemented" stderr write drop 1 exit end
 
 // custom logical not intrinsic since the `not` intrinsic is bitwise
 // allows inverting a boolean
-proc lnot
+proc lnot bool -- bool in
     cast(int) 1 - cast(bool)
 end
-
-proc todo "TODO: not implemented" stderr write 1 exit end
 
 // Calcualte the length of the string and push it on to the stack
 // the first element on the stack contains the length pf the string literal
 // the second element on the stack contains the full length including \0
 // NOTE: it counts event the new line \n
-proc cstrlen
+proc cstrlen ptr -- int in
     dup
     while dup @8 0 != do 1 + end
     swap -
 end
 
-proc cstr-to-str
+proc cstr-to-str ptr -- int ptr in
     dup cstrlen swap
 end
 
 // write something 
-proc fputs write drop end
+proc fputs int ptr int -- in write drop end
 // write something to `stdout`
-proc puts stdout fputs end
+proc puts  int ptr -- in stdout fputs end
 // write something to `stderr`
-proc eputs stderr fputs end
+proc eputs int ptr -- in stderr fputs end
 
 const PUTU_BUFFER_CAP 32 end
 // TODO: fputu should fail if write syscall fails
 // TODO: does not print negative numbers
-proc fputu // value fd --
+proc fputu int int in // value fd --
     memory buffer PUTU_BUFFER_CAP end
     memory fd sizeof(u64) end
     fd !64
@@ -466,8 +467,8 @@ proc fputu // value fd --
     drop
 end
 
-proc putu stdout fputu end
-proc eputu stderr fputu end
+proc putu int in stdout fputu end
+proc eputu int in stderr fputu end
 
 // =========================================
 //           STRING MANIPULATION
@@ -477,33 +478,33 @@ const offsetof(Str.count) sizeof(u64) offset end
 const offsetof(Str.data) sizeof(ptr) offset end
 const sizeof(Str) reset end
 
-proc Str.count  offsetof(Str.count) +  end
-proc Str.data   offsetof(Str.data) +  end
-proc @Str.count Str.count @64 end
-proc @Str.data  Str.data  @64 cast(ptr) end
-proc !Str.count Str.count !64 end
-proc !Str.data  Str.data  !64  end
+proc Str.count  ptr -- ptr in offsetof(Str.count) +  end
+proc Str.data   ptr -- ptr in offsetof(Str.data) +  end
+proc @Str.count ptr -- int in Str.count @64 end
+proc @Str.data  ptr -- ptr in Str.data  @64 cast(ptr) end
+proc !Str.count int ptr -- in Str.count !64 end
+proc !Str.data  ptr ptr -- in Str.data  !64  end
 
-// "pushing the structure onto the stack"
-proc @Str
+// pushing the structure onto the stack
+proc @Str ptr -- int ptr in
     dup  @Str.count 
     swap @Str.data 
 end
 
-// poping the "string structure" of the stack
-proc !Str // count data dst -
+// poping the 'string structure' of the stack
+proc !Str int ptr ptr -- in // count data dst -
     dup Str.data rot swap !64
     !Str.count 
 end
 
 // chop a single char from the left side
-proc str-chop-one-left // str --
+proc str-chop-one-left ptr -- in // str --
     dup Str.count dec64
     Str.data inc64
 end
 
 // remove ' ' (space) characters while the input string starts with them
-proc str-trim-left // input --
+proc str-trim-left ptr -- in // input --
     while 
         dup @Str.count 0 > if
             dup @Str.data @8 ' ' =
@@ -514,11 +515,11 @@ proc str-trim-left // input --
     drop
 end
 
-proc str-chop-by-delim // delim line input 
+proc str-chop-by-delim int ptr ptr -- in // delim line input 
     memory delim sizeof(u64) end
     rot delim !64
     // line->data = input->data
-    2dup @Str.data swap !Str.data 
+    over over @Str.data swap !Str.data 
     // line->count = 0
     over 0 swap !Str.count
     while 
@@ -533,11 +534,11 @@ proc str-chop-by-delim // delim line input
     dup @Str.count 0 > if
         dup str-chop-one-left
     end
-    2drop
+    drop drop
 end
 
 // Comparing NULL terminated strings
-proc cstreq
+proc cstreq ptr ptr -- bool in
     while
         over @8 0 != over @8 0 != and if
             over @8 over @8 =
@@ -551,7 +552,11 @@ proc cstreq
     @8 0 = swap @8 0 = and
 end
 
-proc streq // n1 s1 n2 s2
+proc streq
+    int ptr int ptr
+    --
+    bool
+in // n1 s1 n2 s2
     memory a sizeof(Str) end
     a !Str
     memory b sizeof(Str) end
@@ -569,13 +574,13 @@ proc streq // n1 s1 n2 s2
     else false end
 end
 
-proc is-digit
+proc is-digit int -- bool in
     dup '0' >=
     swap '9' <=
     and
 end
 
-proc try-parse-int // int ptr -- int err
+proc try-parse-int int ptr -- int bool in // int ptr -- int err
     memory input sizeof(Str) end
     input !Str
 
@@ -590,16 +595,16 @@ proc try-parse-int // int ptr -- int err
     input @Str.count 0 <=
 end
 
-memory memcpy-size sizeof(u64) end
-memory memcpy-src sizeof(ptr) end
-memory memcpy-dst sizeof(ptr) end
-proc memcpy // size src dst
-    memcpy-dst !64
-    memcpy-src !64
-    memcpy-size !64
-    0 while dup memcpy-size @64 < do
-        dup  memcpy-src @64 cast(ptr) + @8
-        over memcpy-dst @64 cast(ptr) + !8
-        1 +
+proc memcpy int ptr ptr -- in // size src dst
+    memory src sizeof(ptr) end
+    memory dst sizeof(ptr) end
+    dst !64
+    src !64
+    while dup 0 > do
+        src @ptr @8
+        dst @ptr !8
+        src inc64
+        dst inc64
+        1 -
     end drop
 end
