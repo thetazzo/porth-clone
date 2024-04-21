@@ -1,10 +1,10 @@
 include "std.porth"
 
-proc hello
+proc hello in
     "Hello Semen" puts
 end
 
-proc hello
+proc hello in
     "Foo Bar" puts
 end
 

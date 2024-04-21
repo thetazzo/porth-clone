@@ -1,6 +1,10 @@
 include "std.porth"
 
-proc 2swap // a b c d
+proc 2swap 
+    int int int int
+    --
+    int int int int
+in 
     memory a sizeof(u64) end
     memory b sizeof(u64) end
     memory c sizeof(u64) end
