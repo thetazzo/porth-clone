@@ -599,23 +599,55 @@ def type_check_contracts(intro_token: Token, ctx: Context, contracts: List[Contr
         ins = contract.ins.copy()
         stack = ctx.stack.copy()
         error = False
+        generics: Dict[str, Union[DataType, str]] = {}
         while len(stack) > 0 and len(ins) > 0:
             actual, actual_loc = stack.pop()
             expected, expected_loc = ins.pop()
-            if actual != expected:
-                error = True
-                log.append(CompilerMessage(loc=actual_loc, label="ERROR", text=f"Unexpected data type `{DATATYPE_NAMES[actual]}`"))
-                log.append(CompilerMessage(loc=expected_loc, label="NOTE", text= f"Expected `{DATATYPE_NAMES[expected]}`"))
-                break
+            if isinstance(expected, DataType):
+                if actual != expected:
+                    error = True
+                    log.append(CompilerMessage(loc=actual_loc, label="ERROR", text=f"Unexpected data type `{DATATYPE_NAMES[actual]}`"))
+                    log.append(CompilerMessage(loc=expected_loc, label="NOTE", text= f"Expected `{DATATYPE_NAMES[expected]}`"))
+                    break
+            elif isinstance(expected, str):
+                if expected in generics:
+                    if actual != generics[expected]:
+                        error = True
+                        error = True
+                        log.append(CompilerMessage(loc=actual_loc, label="ERROR", text=f"Unexpected type {human_typ_name(actual)}."))
+                        log.append(CompilerMessage(loc=expected_loc, label="NOTE", text=f"Expected {human_typ_name(generics[expected])}"))
+                        break;
+                else:
+                    generics[expected] = actual
+            else:
+                assert False, "unreachable"
         if error:
             continue
         if len(stack) < len(ins):
             log.append(CompilerMessage(loc=intro_token.loc, label="ERROR", text=f"Not enough arguments provided for `{intro_token.value}`. Expected:"))
             while len(ins) > 0:
                 typ, loc = ins.pop()
-                log.append(CompilerMessage(loc=loc, label="NOTE", text=f"{DATATYPE_NAMES[typ]}"))
+                if isinstance(typ, DataType):
+                    log.append(CompilerMessage(loc=loc, label="NOTE", text=f"{DATATYPE_NAMES[typ]}"))
+                elif isinstance(typ, str):
+                    if typ in generics:
+                        log.append(CompilerMessage(loc=loc, label="NOTE", text=human_typ_name(generics[typ])))
+                    else:
+                        log.append(CompilerMessage(loc=loc, label="NOTE", text=human_typ_name(typ)))
+                else:
+                    assert False, "unreachable"
             continue
-        ctx.stack = stack + [(typ, intro_token.loc) for typ, loc in contract.outs]
+        for typ, loc in contract.outs:
+            if isinstance(typ, DataType):
+                stack.append((typ, intro_token.loc))
+            elif isinstance(typ, str):
+                if typ in generics:
+                    stack.append((generics[typ], intro_token.loc))
+                else:
+                    assert False, "Unreachable. Such function won't compile in the first place since you can't prodice an instance of a generic type at the moment"
+            else:
+                assert False, "unreachable"
+        ctx.stack = stack 
         return
     for msg in log:
         compiler_diagnostic(msg.loc, msg.label, msg.text)
@@ -631,17 +663,19 @@ def type_check_context_outs(ctx: Context):
             exit(1)
     if len(ctx.stack) > len(ctx.outs):
         top_typ, top_loc = ctx.stack.pop()
-        compiler_error_(top_loc, f"Unhandled data on the stack `{DATATYPE_NAMES[top_typ]}`")
+        compiler_error_(top_loc, f"Unhandled data on the stack:")
+        compiler_note_(top_loc, f"{human_typ_name(top_typ)}")
         while len(ctx.stack) > 0:
             typ, loc = ctx.stack.pop()
-            compiler_note_(loc, f"and `{DATATYPE_NAMES[typ]}`")
+            compiler_note_(loc, f"`{human_typ_name(typ)}`")
         exit(1)
     elif len(ctx.stack) < len(ctx.outs):
         top_typ, top_loc = ctx.outs.pop()
-        compiler_error_(top_loc, f"`{DATATYPE_NAMES[top_typ]}` was not provided")
+        compiler_error_(top_loc, f"Insufficient data on the stack: Expected:")
+        compiler_note_(top_loc, f"{human_typ_name(top_typ)}")
         while len(ctx.outs) > 0:
             typ, loc = ctx.outs.pop()
-            compiler_note_(loc, f"and `{DATATYPE_NAMES[typ]}`")
+            compiler_note_(loc, f"and `{human_typ_name(typ)}`")
         exit(1)
 
 def type_check_program(program: Program, proc_contracs: Dict[OpAddr, Contract]):

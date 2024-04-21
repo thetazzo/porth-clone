@@ -70,3 +70,4 @@ tests/intrinsic-redefinition-error
 tests/proc-inside-proc
 tests/procs
 tests/max
+tests/memset
