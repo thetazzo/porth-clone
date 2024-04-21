@@ -486,7 +486,7 @@ const sizeof(Str) reset end
 proc Str.count  ptr -- ptr in offsetof(Str.count) +  end
 proc Str.data   ptr -- ptr in offsetof(Str.data) +  end
 proc @Str.count ptr -- int in Str.count @64 end
-proc @Str.data  ptr -- ptr in Str.data  @64 cast(ptr) end
+proc @Str.data  ptr -- ptr in Str.data  @ptr end
 proc !Str.count int ptr -- in Str.count !64 end
 proc !Str.data  ptr ptr -- in Str.data  !64  end
 
@@ -609,8 +609,10 @@ proc memcpy
 in 
     memory src sizeof(ptr) end
     memory dst sizeof(ptr) end
+    memory result sizeof(ptr) end
     dst !64
     src !64
+    dst @ptr swap
     while dup 0 > do
         src @ptr @8
         dst @ptr !8
@@ -618,5 +620,24 @@ in
         dst inc64
         1 -
     end drop
-    dst @ptr
+end
+
+proc memset 
+    int // size
+    int // byte
+    ptr // data
+    --
+    ptr // data
+in
+    memory data sizeof(ptr) end
+    data !64
+    memory byte sizeof(u64) end
+    byte !64
+    data @ptr swap
+    while dup 0 > do
+        byte @64 data @ptr !64
+        data inc64
+        1 -
+    end
+    drop
 end
