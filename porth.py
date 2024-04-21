@@ -165,13 +165,6 @@ def compiler_error_(loc: Loc, message: str):
 def compiler_error_with_expansion_stack(token: Token, message: str):
     compiler_diagnostic_with_expansion_stack(token, "ERROR", message)
 
-def compiler_error_with_call_path(op: Op, call_path: List[OpAddr], ops: List[Op], message: str):
-    compiler_diagnostic(op.token.loc, "ERROR", message)
-    for ip in reversed(call_path):
-        op = ops[ip-1]
-        assert op.typ == OpType.CALL
-        compiler_note_(op.token.loc, f"called from `{op.token.text}`")
-
 def compiler_note_(loc: Loc, message: str):
     compiler_diagnostic(loc, "NOTE", message)
 
@@ -585,8 +578,6 @@ class Context:
     stack: DataStack
     ip: OpAddr
     outs: List[DataType]
-
-CallPath=Tuple[OpAddr, ...]
 
 @dataclass
 class Contract:
