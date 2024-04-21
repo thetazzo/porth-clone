@@ -15,13 +15,13 @@ memory ans sizeof(u64) N * end
 
     // factorize
     dup 2 while over 1 > do
-        2dup mod 0 = if
+        over over mod 0 = if
             dup 8 * tmp + inc64
             swap over / swap
         else
             1 + 
         end
-    end 2drop
+    end drop drop
 
     // print the table
     0 while dup N < do

@@ -9,10 +9,6 @@ memory line sizeof(Str) end
 memory word sizeof(Str) end
 memory line_number sizeof(u64) end
 
-proc str-copy // dst src
-    @Str rot !Str
-end
-
 argc 2 < if 
     "Usage: " eputs 0 nth_argv cstr-to-str eputs " <file>\n" eputs
     "ERROR: no input file was provided" eputs

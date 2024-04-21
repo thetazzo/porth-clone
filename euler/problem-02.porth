@@ -9,5 +9,5 @@ memory acc sizeof(u64) end
         over acc @64 + acc !64
     end
     swap over +
-end 2drop
+end drop drop
 acc @64 print

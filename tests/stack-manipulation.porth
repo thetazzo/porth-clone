@@ -32,13 +32,13 @@ print print
 "------------------------------\n" puts
 
 // 2dup
-69 420 2dup
+69 420 over over
 print print print print
 
 "------------------------------\n" puts
 
 // swap
-69 420 2dup
+69 420 over over
 print print 
 swap
 print print
