@@ -399,7 +399,12 @@ proc mod int int -- int in % end
 proc div int int -- int in / end
 
 proc nth_argv int -- ptr in
-    8 * argv + @64 cast(ptr)
+    8
+    *
+    argv
+    +
+    @64
+    cast(ptr)
 end
 
 // increments value a the pointer
