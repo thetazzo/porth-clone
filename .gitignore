@@ -36,6 +36,7 @@ examples/memory-map-file
 examples/read-file-stats
 examples/recursive-fib
 examples/character-structure
+examples/bubble-sort
 tests/arithmetics
 tests/bitwise-operations
 tests/comments
