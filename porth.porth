@@ -1,4 +1,4 @@
-include "std.porth"
+include "./std/std.porth"
 
 const MEM_CAPACITY    640000 end
 const SIM_STACK_CAP   1024   end
@@ -838,18 +838,6 @@ proc remove-comment ptr ptr in
     drop drop
 end
 
-proc memset int int ptr in 
-    memory data sizeof(ptr) end
-    data !64
-    memory byte sizeof(u64) end
-    byte !64
-    while dup 0 > do
-        byte @64 data @ptr !64
-        1 -
-    end
-    drop
-end
-
 const Loc.file-path sizeof(Str) offset end
 const Loc.row       sizeof(u64) offset end
 const Loc.col       sizeof(u64) offset end
@@ -858,9 +846,9 @@ const sizeof(Loc)                reset end
 proc putloc ptr in
     dup Loc.file-path + @Str puts
     ":" puts
-    dup Loc.row       + @64  putu
+    dup Loc.row + @64 putu
     ":" puts
-    dup Loc.col       + @64  putu
+    dup Loc.col + @64 putu
     drop
 end
 
@@ -1053,7 +1041,7 @@ in
     file-path-cstr !64
 
     memory lexer sizeof(Lexer) end
-    sizeof(Lexer) 0 lexer memset
+    sizeof(Lexer) 0 lexer memset drop
     file-path-cstr @ptr map-file    lexer Lexer.content   + !Str
     file-path-cstr @ptr cstr-to-str lexer Lexer.file-path + !Str
 
@@ -1089,6 +1077,43 @@ in
     end
 end
 
+const TMP_CAP 1024 4 * end
+memory tmp-data TMP_CAP end
+memory tmp-size sizeof(u64) end
+
+proc tmp-celan in 0 tmp-size !64 end
+
+proc tmp-alloc
+    int
+    --
+    ptr // result
+in
+    dup tmp-size @64 + TMP_CAP > if
+        here eputs ": Temporary memory buffer exceeded. Need to call tmp-clean more often\n" eputs
+        1 exit
+    end
+
+    // size size 0 ptr
+
+    dup
+    0
+    tmp-data tmp-size @64 +
+    memset
+
+    tmp-size @64
+    rot
+    +
+    tmp-size !64
+end
+
+proc str-to-cstr
+    int ptr
+    --
+    ptr
+in
+    over 1 + tmp-alloc memcpy
+end
+
 proc parse_file_path_cstr_into_opz
     ptr // file-path-cstr
     --
@@ -1097,7 +1122,7 @@ in
     file-path-cstr !64
 
     memory lexer sizeof(Lexer) end
-    sizeof(Lexer) 0 lexer memset
+    sizeof(Lexer) 0 lexer memset drop
     file-path-cstr @ptr map-file    lexer Lexer.content   + !Str
     file-path-cstr @ptr cstr-to-str lexer Lexer.file-path + !Str
 
@@ -1279,9 +1304,10 @@ in
                   ": expected path to include file to be a string\n" eputs
                   1 exit
               end
-              here eputs ": TODO: `include` keyword is not implemented\n" eputs 1 exit
+              token Token.value + @Str str-to-cstr parse_file_path_cstr_into_opz
             else
-                here eputs ": TODO: report unknown keyword" eputs
+                token Token.loc + putloc
+                ": TODO: unknown word `" puts dup @Str puts "`\n" puts
                 1 exit
             end
             drop // token.value
