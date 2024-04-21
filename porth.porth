@@ -178,6 +178,7 @@ proc simulate-opz in
         sim-ip @64 sizeof(Op) * ops +
         sim-op
         memcpy
+        drop
 
         assert
             "Exhaustive handling of Op types in simulate-opz"
@@ -977,6 +978,7 @@ in
         lexer @ptr Lexer.file-path +
         token @ptr Token.loc + Loc.file-path +
         memcpy
+        drop
 
         lexer @ptr Lexer.row + @64
         token @ptr Token.loc + Loc.row +

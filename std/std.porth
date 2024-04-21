@@ -600,7 +600,13 @@ proc try-parse-int int ptr -- int bool in // int ptr -- int err
     input @Str.count 0 <=
 end
 
-proc memcpy int ptr ptr -- in // size src dst
+proc memcpy
+    int // size
+    ptr // src
+    ptr // dst
+    --
+    ptr // dst
+in 
     memory src sizeof(ptr) end
     memory dst sizeof(ptr) end
     dst !64
@@ -612,4 +618,5 @@ proc memcpy int ptr ptr -- in // size src dst
         dst inc64
         1 -
     end drop
+    dst @ptr
 end
