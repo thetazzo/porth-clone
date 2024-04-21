@@ -7,12 +7,28 @@ const C.per  sizeof(u64)  offset end
 const C.lck  sizeof(u64)  offset end
 const sizeof(C)           reset end
 
-proc !C.name C.name + !Str end // Str --
-proc !C.str C.str   + !64  end // u64 --
-proc !C.per C.per   + !64  end // u64 --
-proc !C.lck C.lck   + !64  end // u64 --
+proc !C.name 
+    int ptr // name
+    ptr     // character
+    --
+in C.name + !Str end
+proc !C.str
+    int // strength value
+    ptr // character
+    --
+in C.str  + !64  end
+proc !C.per
+    int // perception value
+    ptr // character
+    --
+in C.per  + !64  end 
+proc !C.lck
+    int // luck value
+    ptr // character
+    --
+in C.lck  + !64  end
 
-proc print-character // character --
+proc print-character ptr -- in
     "Name:       " puts dup C.name + @Str puts "\n" puts
     "Strength:   " puts dup C.str  + @64  putu "\n" puts
     "Perception: " puts dup C.per  + @64  putu "\n" puts
