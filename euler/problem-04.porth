@@ -6,7 +6,7 @@ memory ans sizeof(u64) end
 
 100 while dup 1000 < do
     100 while dup 1000 < do
-        2dup * 
+        over over * 
 
         dup 0 while over 0 > do
             10 *
@@ -15,7 +15,7 @@ memory ans sizeof(u64) end
         end
         swap drop
 
-        2dup = if 
+        over over = if 
             // a b
             dup ans @64 > if
                 ans over swap !64 
