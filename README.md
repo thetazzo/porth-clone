@@ -309,10 +309,11 @@ include "file.porth"
 
 ### Procedures
 
-<!-- TODO: Document Procedured -->
+<!-- TODO: Document Procedures -->
 
+* NOTE: if procedure has no return value you can omit `--`
 ```porth
-proc seq // n --
+proc seq int -- in 
     while dup 0 > do
         dup print
         1 -
