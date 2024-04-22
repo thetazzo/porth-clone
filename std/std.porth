@@ -792,4 +792,6 @@ in
     1 exit
 end
 
-"Porth Library Version: 0.5.0\n" puts
+
+// disabled becuase it breaks tests
+// "Porth Library Version: 0.5.0\n" puts

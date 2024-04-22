@@ -572,18 +572,18 @@ def print_missing_op_args(op: Op):
     else:
         assert False, "unsupported type of operation"
 
-DataStack=List[Tuple[DataType, Loc]]
+DataStack=List[Tuple[Union[DataType, str], Loc]]
 
 @dataclass
 class Context:
     stack: DataStack
     ip: OpAddr
-    outs: List[Tuple[DataType, Loc]]
+    outs: List[Tuple[Union[DataType, str], Loc]]
 
 @dataclass
 class Contract:
-    ins: List[Tuple[DataType, Loc]]
-    outs: List[Tuple[DataType, Loc]]
+    ins:  List[Tuple[Union[DataType, str], Loc]]
+    outs: List[Tuple[Union[DataType, str], Loc]]
 
 @dataclass
 class CompilerMessage:
@@ -602,7 +602,7 @@ def human_typ_name(typ: Union[DataType, str]) -> str:
 def type_check_contracts(intro_token: Token, ctx: Context, contracts: List[Contract]):
     log = []
     for contract in contracts:
-        ins = contract.ins.copy()
+        ins = list(contract.ins)
         stack = ctx.stack.copy()
         error = False
         generics: Dict[str, Union[DataType, str]] = {}
@@ -612,7 +612,7 @@ def type_check_contracts(intro_token: Token, ctx: Context, contracts: List[Contr
             if isinstance(expected, DataType):
                 if actual != expected:
                     error = True
-                    log.append(CompilerMessage(loc=actual_loc, label="ERROR", text=f"Unexpected data type `{DATATYPE_NAMES[actual]}`"))
+                    log.append(CompilerMessage(loc=actual_loc, label="ERROR", text=f"Unexpected data type `{human_typ_name(actual)}`"))
                     log.append(CompilerMessage(loc=expected_loc, label="NOTE", text= f"Expected `{DATATYPE_NAMES[expected]}`"))
                     break
             elif isinstance(expected, str):
@@ -664,8 +664,8 @@ def type_check_context_outs(ctx: Context):
         actual, actual_loc = ctx.stack.pop()
         expected, expected_loc = ctx.outs.pop()
         if actual != expected:
-            compiler_error_(actual_loc, f"Unexpected data type `{DATATYPE_NAMES[actual]}`")
-            compiler_note_(expected_loc, f"Expected `{DATATYPE_NAMES[expected]}`")
+            compiler_error_(actual_loc, f"Unexpected data type `{human_typ_name(actual)}`")
+            compiler_note_(expected_loc, f"Expected `{human_typ_name(expected)}`")
             exit(1)
     if len(ctx.stack) > len(ctx.outs):
         top_typ, top_loc = ctx.stack.pop()
@@ -1607,7 +1607,7 @@ def eval_const_value(ctx: ParseContext, rtokens: List[Token]) -> Tuple[int, Data
                     compiler_note_(token.loc, f"  {(DataType.INT, DataType.PTR)}")
                     compiler_note_(token.loc, f"  {(DataType.PTR, DataType.INT)}")
                     exit(1)
-            if token.value == INTRINSIC_NAMES[Intrinsic.MINUS]:
+            elif token.value == INTRINSIC_NAMES[Intrinsic.MINUS]:
                 if len(stack) < 2:
                     compiler_error_(token.loc, f"not enough arguments for `{token.value}` intrinsic in eval_const_value()")
                     exit(1)
@@ -1717,8 +1717,8 @@ def eval_const_value(ctx: ParseContext, rtokens: List[Token]) -> Tuple[int, Data
         exit(1)
     return stack.pop()
 
-def parse_contract_list(rtokens: List[Token], stoppers: List[Keyword]) -> Tuple[List[Tuple[DataType, Loc]], Keyword]:
-    args: List[Tuple[DataType, Loc]] = []
+def parse_contract_list(rtokens: List[Token], stoppers: List[Keyword]) -> Tuple[List[Tuple[Union[DataType, str], Loc]], Keyword]:
+    args: List[Tuple[Union[DataType, str], Loc]] = []
     while len(rtokens) > 0:
         token = rtokens.pop()
         if token.typ == TokenType.WORD:
@@ -1735,9 +1735,13 @@ def parse_contract_list(rtokens: List[Token], stoppers: List[Keyword]) -> Tuple[
             else:
                 compiler_error_(token.loc, f"unexpected keyword {KEYWORD_NAMES[token.value]}")
                 exit(1)
+        elif token.typ == TokenType.STR:
+            assert isinstance(token.value, str)
+            args.append((token.value, token.loc))
         else:
             compiler_error_(token.loc, f"`{token_name(token.typ)}` are not allowed in procedure defining")
             exit(1)
+
     compiler_error_(token.loc, f"Unexpected end of file. Expected keywords: ")
     for keyword in stoppers:
         compiler_note_(token.loc, f"{KEYWORD_NAMES[keyword]}")
