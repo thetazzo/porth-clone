@@ -1,8 +1,5 @@
 include "./std/std.porth"
 
-const MEM_CAPACITY    640000 end
-const SIM_STACK_CAP   1024   end
-
 // operation codes
 const OP_PUSH_INT  1 offset end
 const OP_IF        1 offset end
@@ -10,6 +7,56 @@ const OP_ELSE      1 offset end
 const OP_END       1 offset end
 const OP_INTRINSIC 1 offset end
 const COUNT_OPZ       reset end
+
+proc op-type-as-str
+    int // op type
+    --
+    int ptr // str
+in
+    assert
+        "Exhaustive handling of Op types in op-type-as-str"
+        COUNT_OPZ 5 =
+    end
+
+    dup OP_PUSH_INT = if 
+        "OP_PUSH_INT"
+    else dup OP_INTRINSIC = if*
+        "OP_INTRINSIC"
+    else dup OP_IF = if*
+        "OP_IF"
+    else dup OP_ELSE = if*
+        "OP_ELSE"
+    else dup OP_END = if*
+        "OP_END"
+    else
+        here eputs ": unknown op type\n" eputs 1 exit
+        0 NULL
+    end
+    rot drop
+end
+
+const Op.typ     sizeof(u64) offset end
+const Op.operand sizeof(u64) offset end
+const sizeof(Op)             reset end
+
+const OPS_CAP 1024 end
+memory ops-count sizeof(u64)           end
+memory ops       sizeof(Op)  OPS_CAP * end
+
+proc push-op
+    int // type
+    int // operand
+    --
+in 
+    ops-count @64 OPS_CAP >= if
+        here eputs ": ERROR: ops overflow\n" eputs
+        1 exit
+    end
+    ops-count @64 sizeof(Op) * ops +
+    dup rot swap Op.operand + !64
+    Op.typ + !64 
+    ops-count inc64
+end
 
 const INTRINSIC_PLUS      1 offset end
 const INTRINSIC_MINUS     1 offset end
@@ -55,11 +102,6 @@ const INTRINSIC_SYSCALL5  1 offset end
 const INTRINSIC_SYSCALL6  1 offset end
 const COUNT_INTRINSICS       reset end
 
-const OPS_CAP    1024           end
-const Op.typ     sizeof(u64) offset end
-const Op.operand sizeof(u64) offset end
-const sizeof(Op)             reset end
-
 proc cmd_echoed ptr -- in // argv
     memory wstatus sizeof(u64) end
     memory empty-envp sizeof(ptr) end
@@ -95,283 +137,18 @@ proc cmd_echoed ptr -- in // argv
     drop
 end
 
-// memory layout variables
-memory sim-stack-count   sizeof(u64)                 end 
-memory sim-stack         sizeof(u64) SIM_STACK_CAP * end
-memory ops-count         sizeof(u64)                 end
-memory ops               sizeof(Op)  OPS_CAP *       end
-
-proc sim-stack-push int -- in 
-    sim-stack-count @64 SIM_STACK_CAP >= if 
-        here eputs ": ERROR: sim stack overflow in simulation mode\n" eputs 1 exit 
-    end
-    sim-stack sim-stack-count @64 8 * + !64
-    sim-stack-count inc64
-end
-
-proc sim-stack-pop -- int in 
-    sim-stack-count @64 0 = if  
-        here eputs ": ERROR: sim stack underflow in simulation mode\n" eputs 1 exit
-    end
-    sim-stack-count dec64
-    sim-stack sim-stack-count @64 8 * + @64
-end
-
-proc push-op int int -- in 
-    ops-count @64 OPS_CAP >= if
-        here eputs ": ERROR: ops overflow\n" eputs
-        1 exit
-    end
-    ops-count @64 sizeof(Op) * ops +
-    dup rot swap Op.operand + !64
-    Op.typ + !64 
-    ops-count inc64
-end
-
-proc print-op-typ int -- in
-    assert
-        "Exhaustive handling of Op types in print-op-typ"
-        COUNT_OPZ 5 = 
-    end
-
-    dup OP_PUSH_INT = if 
-        "OP_PUSH_INT" puts
-    else dup OP_INTRINSIC = if*
-        "OP_INTRINSIC" puts
-    else dup OP_IF = if*
-        "OP_IF" puts
-    else dup OP_ELSE = if*
-        "OP_ELSE" puts
-    else dup OP_END = if*
-        "OP_END" puts
-    else
-        here eputs ": unknown op type\n" eputs 
-    end
-    drop
-end
-
 proc print-opz in 
     0 while dup ops-count @64 < do
         // ptr
         dup sizeof(Op) * ops +
-        "Type:    " puts dup Op.typ + @64 print-op-typ "\n" puts 
-        "Operand: " puts Op.operand + @64 putu         "\n" puts
+        "Type:    " puts dup Op.typ + @64 op-type-as-str puts "\n" puts 
+        "Operand: " puts Op.operand + @64 putu           "\n" puts
         "------------------------\n" puts
         1 +
     end drop
 end
 
-proc simulate-opz in 
-
-    memory sim-ip sizeof(u64) end
-    memory sim-op sizeof(Op) end
-
-    0 sim-ip !64
-    while sim-ip @64 ops-count @64 < do
-        sizeof(Op)
-        sim-ip @64 sizeof(Op) * ops +
-        sim-op
-        memcpy
-        drop
-
-        assert
-            "Exhaustive handling of Op types in simulate-opz"
-            COUNT_OPZ 5 =  
-        end
-
-        // ptr
-        sim-op Op.typ + @64 OP_PUSH_INT = if 
-            sim-op Op.operand + @64 sim-stack-push
-            sim-ip inc64
-        else sim-op Op.typ + @64 OP_IF = if*
-            sim-stack-pop cast(bool) if
-                sim-ip inc64
-            else
-                sim-op Op.operand + @64 sim-ip !64
-            end
-        else sim-op Op.typ + @64 OP_ELSE = if*
-            sim-op Op.operand + @64 sim-ip !64
-        else sim-op Op.typ + @64 OP_END = if*
-            sim-op Op.operand + @64 sim-ip !64
-        else sim-op Op.typ + @64 OP_INTRINSIC = if*
-            assert
-                "Exhaustive handling of intrinsics in simulate-opz"
-                COUNT_INTRINSICS 42 =
-            end
-            sim-op Op.operand + @64 INTRINSIC_PLUS = if
-                sim-stack-pop
-                sim-stack-pop
-                +
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_MINUS = if*
-                sim-stack-pop
-                sim-stack-pop
-                swap
-                -
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_MUL = if*
-                sim-stack-pop
-                sim-stack-pop
-                *
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_DIVMOD = if*
-                sim-stack-pop
-                sim-stack-pop
-                swap
-                divmod
-                sim-stack-push
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_EQ = if*
-                sim-stack-pop
-                sim-stack-pop
-                =
-                cast(int)
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_GT = if*
-                sim-stack-pop
-                sim-stack-pop
-                swap
-                >
-                cast(int)
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_LT = if*
-                sim-stack-pop
-                sim-stack-pop
-                swap
-                <
-                cast(int)
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_GE = if*
-                sim-stack-pop
-                sim-stack-pop
-                swap
-                >=
-                cast(int)
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_LE = if*
-                sim-stack-pop
-                sim-stack-pop
-                swap
-                <=
-                cast(int)
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_NE = if*
-                sim-stack-pop
-                sim-stack-pop
-                !=
-                cast(int)
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_SHR = if*
-                sim-stack-pop
-                sim-stack-pop
-                swap
-                shr
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_SHL = if*
-                sim-stack-pop
-                sim-stack-pop
-                swap
-                shl
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_OR = if*
-                sim-stack-pop
-                sim-stack-pop
-                or
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_AND = if*
-                sim-stack-pop
-                sim-stack-pop
-                and
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_NOT = if*
-                sim-stack-pop
-                not
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_PRINT = if*
-                sim-stack-pop
-                print
-            else sim-op Op.operand + @64 INTRINSIC_DUP = if*
-                sim-stack-pop
-                sim-op
-                cast(int)
-                sim-stack-push
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_SWAP = if*
-                sim-stack-pop
-                sim-stack-pop 
-                swap
-                sim-stack-push
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_DROP = if*
-                sim-stack-pop
-                drop
-            else sim-op Op.operand + @64 INTRINSIC_OVER = if*
-                sim-stack-pop
-                sim-stack-pop
-                dup
-                sim-stack-push
-                swap
-                sim-stack-push
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_ROT = if*
-                sim-stack-pop
-                sim-stack-pop
-                sim-stack-pop
-                swap
-                sim-stack-push
-                swap
-                sim-stack-push
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_LOAD8 = if*
-                here puts ": TODO: @8 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_STORE8 = if*
-                here puts ": TODO: !8 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_LOAD16 = if*
-                here puts ": TODO: @16 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_STORE16 = if*
-                here puts ": TODO: !16 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_LOAD32 = if*
-                here puts ": TODO: @32 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_STORE32 = if*
-                here puts ": TODO: !32 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_LOAD64 = if*
-                here puts ": TODO: @64 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_STORE64 = if*
-                here puts ": TODO: !64 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_ARGC = if*
-                here puts ": TODO: argc is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_ARGV = if*
-                here puts ": TODO: argv is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_HERE = if*
-                here puts ": TODO: here is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_CAST_PTR = if*
-            else sim-op Op.operand + @64 INTRINSIC_CAST_INT = if*
-            else sim-op Op.operand + @64 INTRINSIC_CAST_BOOL = if*
-            else sim-op Op.operand + @64 INTRINSIC_SYSCALL0 = if*
-                here puts ": TODO: syscall0 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_SYSCALL1 = if*
-                here puts ": TODO: syscall1 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_SYSCALL2 = if*
-                here puts ": TODO: syscall2 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_SYSCALL3 = if*
-                here puts ": TODO: syscall3 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_SYSCALL4 = if*
-                here puts ": TODO: syscall4 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_SYSCALL5 = if*
-                here puts ": TODO: syscall5 is not implemented" eputs
-            else sim-op Op.operand + @64 INTRINSIC_SYSCALL6 = if*
-                here puts ": TODO: syscall6 is not implemented" eputs
-            else 
-                here eputs ": unreachable\n" eputs 1 exit
-                1 exit
-            end 
-            sim-ip inc64
-        else 
-            here eputs ": unreachable\n" eputs 1 exit
-            1 exit
-        end 
-    end 
-end
+const MEM_CAPACITY 640000 end
 
 proc compile-opz in // --
     "[INFO] Generating output.asm\n" puts
@@ -766,6 +543,238 @@ proc compile-opz in // --
     "./output"c output-argv 0 8 * + !64
     NULL        output-argv 1 8 * + !64
     output-argv cmd_echoed
+end
+
+const SIM_STACK_CAP 1024 end
+memory sim-stack-count sizeof(u64)                 end 
+memory sim-stack       sizeof(u64) SIM_STACK_CAP * end
+
+proc sim-stack-push int -- in 
+    sim-stack-count @64 SIM_STACK_CAP >= if 
+        here eputs ": ERROR: sim stack overflow in simulation mode\n" eputs 1 exit 
+    end
+    sim-stack sim-stack-count @64 8 * + !64
+    sim-stack-count inc64
+end
+
+proc sim-stack-pop -- int in 
+    sim-stack-count @64 0 = if  
+        here eputs ": ERROR: sim stack underflow in simulation mode\n" eputs 1 exit
+    end
+    sim-stack-count dec64
+    sim-stack sim-stack-count @64 8 * + @64
+end
+
+proc simulate-opz in 
+
+    memory sim-ip sizeof(u64) end
+    memory sim-op sizeof(Op) end
+
+    0 sim-ip !64
+    while sim-ip @64 ops-count @64 < do
+        sizeof(Op)
+        sim-ip @64 sizeof(Op) * ops +
+        sim-op
+        memcpy
+        drop
+
+        assert
+            "Exhaustive handling of Op types in simulate-opz"
+            COUNT_OPZ 5 =  
+        end
+
+        // ptr
+        sim-op Op.typ + @64 OP_PUSH_INT = if 
+            sim-op Op.operand + @64 sim-stack-push
+            sim-ip inc64
+        else sim-op Op.typ + @64 OP_IF = if*
+            sim-stack-pop cast(bool) if
+                sim-ip inc64
+            else
+                sim-op Op.operand + @64 sim-ip !64
+            end
+        else sim-op Op.typ + @64 OP_ELSE = if*
+            sim-op Op.operand + @64 sim-ip !64
+        else sim-op Op.typ + @64 OP_END = if*
+            sim-op Op.operand + @64 sim-ip !64
+        else sim-op Op.typ + @64 OP_INTRINSIC = if*
+            assert
+                "Exhaustive handling of intrinsics in simulate-opz"
+                COUNT_INTRINSICS 42 =
+            end
+            sim-op Op.operand + @64 INTRINSIC_PLUS = if
+                sim-stack-pop
+                sim-stack-pop
+                +
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_MINUS = if*
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                -
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_MUL = if*
+                sim-stack-pop
+                sim-stack-pop
+                *
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_DIVMOD = if*
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                divmod
+                sim-stack-push
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_EQ = if*
+                sim-stack-pop
+                sim-stack-pop
+                =
+                cast(int)
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_GT = if*
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                >
+                cast(int)
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_LT = if*
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                <
+                cast(int)
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_GE = if*
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                >=
+                cast(int)
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_LE = if*
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                <=
+                cast(int)
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_NE = if*
+                sim-stack-pop
+                sim-stack-pop
+                !=
+                cast(int)
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_SHR = if*
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                shr
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_SHL = if*
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                shl
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_OR = if*
+                sim-stack-pop
+                sim-stack-pop
+                or
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_AND = if*
+                sim-stack-pop
+                sim-stack-pop
+                and
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_NOT = if*
+                sim-stack-pop
+                not
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_PRINT = if*
+                sim-stack-pop
+                print
+            else sim-op Op.operand + @64 INTRINSIC_DUP = if*
+                sim-stack-pop
+                sim-op
+                cast(int)
+                sim-stack-push
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_SWAP = if*
+                sim-stack-pop
+                sim-stack-pop 
+                swap
+                sim-stack-push
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_DROP = if*
+                sim-stack-pop
+                drop
+            else sim-op Op.operand + @64 INTRINSIC_OVER = if*
+                sim-stack-pop
+                sim-stack-pop
+                dup
+                sim-stack-push
+                swap
+                sim-stack-push
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_ROT = if*
+                sim-stack-pop
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                sim-stack-push
+                swap
+                sim-stack-push
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_LOAD8 = if*
+                here puts ": TODO: @8 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_STORE8 = if*
+                here puts ": TODO: !8 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_LOAD16 = if*
+                here puts ": TODO: @16 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_STORE16 = if*
+                here puts ": TODO: !16 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_LOAD32 = if*
+                here puts ": TODO: @32 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_STORE32 = if*
+                here puts ": TODO: !32 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_LOAD64 = if*
+                here puts ": TODO: @64 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_STORE64 = if*
+                here puts ": TODO: !64 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_ARGC = if*
+                here puts ": TODO: argc is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_ARGV = if*
+                here puts ": TODO: argv is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_HERE = if*
+                here puts ": TODO: here is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_CAST_PTR = if*
+            else sim-op Op.operand + @64 INTRINSIC_CAST_INT = if*
+            else sim-op Op.operand + @64 INTRINSIC_CAST_BOOL = if*
+            else sim-op Op.operand + @64 INTRINSIC_SYSCALL0 = if*
+                here puts ": TODO: syscall0 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_SYSCALL1 = if*
+                here puts ": TODO: syscall1 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_SYSCALL2 = if*
+                here puts ": TODO: syscall2 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_SYSCALL3 = if*
+                here puts ": TODO: syscall3 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_SYSCALL4 = if*
+                here puts ": TODO: syscall4 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_SYSCALL5 = if*
+                here puts ": TODO: syscall5 is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_SYSCALL6 = if*
+                here puts ": TODO: syscall6 is not implemented" eputs
+            else 
+                here eputs ": unreachable\n" eputs 1 exit
+                1 exit
+            end 
+            sim-ip inc64
+        else 
+            here eputs ": unreachable\n" eputs 1 exit
+            1 exit
+        end 
+    end 
 end
 
 const  PARSE_BLOCK_STACK_CAP 1024                            end
