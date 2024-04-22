@@ -865,65 +865,33 @@ def type_check_program(program: Program, proc_contracs: Dict[OpAddr, Contract]):
                     Contract(ins=[(DataType.PTR, op.token.loc)], outs=[(DataType.INT, op.token.loc)]),
                 ])
             elif op.operand == Intrinsic.STORE8:
-                assert len(DataType) == 3, "Exhaustive type handling in STORE8 intrinsic"
-                if len(ctx.stack) < 2:
-                    print_missing_op_args(op)
-                    exit(1)
-                a_type, a_loc = ctx.stack.pop()
-                b_type, b_loc = ctx.stack.pop()
-                if a_type == DataType.PTR and b_type == DataType.INT:
-                    pass
-                else:
-                    compiler_error_(op.token.loc, "invalid argument type for STORE8 intrinsic")
-                    exit(1)
+                type_check_contracts(op.token, ctx, [
+                    Contract(ins=[("a", op.token.loc), (DataType.PTR, op.token.loc)], outs=[]),
+                ])
             elif op.operand == Intrinsic.LOAD16:
                 type_check_contracts(op.token, ctx, [
                     Contract(ins=[(DataType.PTR, op.token.loc)], outs=[(DataType.INT, op.token.loc)]),
                 ])
             elif op.operand == Intrinsic.STORE16:
-                assert len(DataType) == 3, "Exhaustive type handling in STORE16 intrinsic"
-                if len(ctx.stack) < 2:
-                    print_missing_op_args(op)
-                    exit(1)
-                a_type, a_loc = ctx.stack.pop()
-                b_type, b_loc = ctx.stack.pop()
-                if (b_type == DataType.INT or b_type == DataType.PTR) and a_type == DataType.PTR:
-                    pass
-                else:
-                    compiler_error_(op.token.loc, "invalid argument type for STORE16 intrinsic: %s" % [b_type, a_type])
-                    exit(1)
+                type_check_contracts(op.token, ctx, [
+                    Contract(ins=[("a", op.token.loc), (DataType.PTR, op.token.loc)], outs=[]),
+                ])
             elif op.operand == Intrinsic.LOAD32:
                 type_check_contracts(op.token, ctx, [
                     Contract(ins=[(DataType.PTR, op.token.loc)], outs=[(DataType.INT, op.token.loc)]),
                 ])
             elif op.operand == Intrinsic.STORE32:
-                assert len(DataType) == 3, "Exhaustive type handling in STORE32 intrinsic"
-                if len(ctx.stack) < 2:
-                    print_missing_op_args(op)
-                    exit(1)
-                a_type, a_loc = ctx.stack.pop()
-                b_type, b_loc = ctx.stack.pop()
-                if (b_type == DataType.INT or b_type == DataType.PTR) and a_type == DataType.PTR:
-                    pass
-                else:
-                    compiler_error_(op.token.loc, "invalid argument type for STORE32 intrinsic: %s" % [b_type, a_type])
-                    exit(1)
+                type_check_contracts(op.token, ctx, [
+                    Contract(ins=[("a", op.token.loc), (DataType.PTR, op.token.loc)], outs=[]),
+                ])
             elif op.operand == Intrinsic.LOAD64:
                 type_check_contracts(op.token, ctx, [
                     Contract(ins=[(DataType.PTR, op.token.loc)], outs=[(DataType.INT, op.token.loc)]),
                 ])
             elif op.operand == Intrinsic.STORE64:
-                assert len(DataType) == 3, "Exhaustive type handling in STORE64 intrinsic"
-                if len(ctx.stack) < 2:
-                    print_missing_op_args(op)
-                    exit(1)
-                a_type, a_loc = ctx.stack.pop()
-                b_type, b_loc = ctx.stack.pop()
-                if (b_type == DataType.INT or b_type == DataType.PTR) and a_type == DataType.PTR:
-                    pass
-                else:
-                    compiler_error_(op.token.loc, "invalid argument type for STORE64 intrinsic: %s" % [b_type, a_type])
-                    exit(1)
+                type_check_contracts(op.token, ctx, [
+                    Contract(ins=[("a", op.token.loc), (DataType.PTR, op.token.loc)], outs=[]),
+                ])
             elif op.operand == Intrinsic.CAST_PTR:
                 if len(ctx.stack) < 1:
                     print_missing_op_args(op)
