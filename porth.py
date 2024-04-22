@@ -1707,13 +1707,13 @@ def eval_const_value(ctx: ParseContext, rtokens: List[Token]) -> Tuple[int, Data
                 assert isinstance(token.value, str)
                 stack.append((ctx.consts[token.value].value, ctx.consts[token.value].typ))
             else:
-                compiler_error_(token.loc, f"unsupported word in eval_const_value() `{[token.value]}`")
+                compiler_error_(token.loc, f"unsupported word `{token.value}` in compile time evaluation")
                 exit(1)
         else:
-            compiler_error_(token.loc, f"{token_name(token.typ)} are not supported in eval_const_value()")
+            compiler_error_(token.loc, f"{token_name(token.typ)}(s) are not supported in compile time evaluation")
             exit(1)
     if len(stack) != 1:
-        compiler_error_(token.loc, "the result of the expansion in eval_const_value() must be a single number")
+        compiler_error_(token.loc, "the result of the expansion in compile time evaluation must be a single number")
         exit(1)
     return stack.pop()
 

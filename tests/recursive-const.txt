@@ -4,6 +4,6 @@
 :i returncode 1
 :b stdout 0
 
-:b stderr 89
-./tests/recursive-const.porth:1:9: ERROR: unsupported word in eval_const_value() `['N']`
+:b stderr 90
+./tests/recursive-const.porth:1:9: ERROR: unsupported word `N` in compile time evaluation
 
