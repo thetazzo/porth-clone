@@ -14,7 +14,7 @@ proc op-type-as-str
     int ptr // str
 in
     assert
-        "Exhaustive handling of Op types in op-type-as-str"
+        "Exhaustive handling of Op.typs in op-type-as-str"
         COUNT_OPZ 5 =
     end
 
@@ -337,7 +337,7 @@ proc compile-opz in // --
         dup sizeof(Op) * ops +
 
         assert
-            "Exhaustive handling of Op types in parse-file-path"
+            "Exhaustive handling of Op.typs in parse-file-path"
             COUNT_OPZ 5 =
         end
 
@@ -353,13 +353,13 @@ proc compile-opz in // --
             ";;  -- if --\n"             out-fd @64 fputs
             "    pop rax\n"              out-fd @64 fputs
             "    test rax, rax\n"        out-fd @64 fputs
-            "    jz addr_\n"             out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
+            "    jz addr_"             out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
         else dup Op.typ + @64 OP_ELSE = if*
             ";;  -- else --\n"             out-fd @64 fputs
-            "    jmp addr_\n"            out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
+            "    jmp addr_"            out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
         else dup Op.typ + @64 OP_END = if*
             ";;  -- end --\n" out-fd @64 fputs
-            "    jmp addr_\n" out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
+            "    jmp addr_" out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
         else dup Op.typ + @64 OP_INTRINSIC = if*
             assert
                 "Exhaustive handling of intrinsics in parse-file-path"
@@ -707,7 +707,7 @@ proc simulate-opz in
         drop
 
         assert
-            "Exhaustive handling of Op types in simulate-opz"
+            "Exhaustive handling of Op.typs in simulate-opz"
             COUNT_OPZ 5 =  
         end
 
@@ -1443,158 +1443,157 @@ proc parse_file_path_cstr_into_opz
 in 
     memory file-path-cstr sizeof(ptr) end
     file-path-cstr !64
-
+  
     memory lexer sizeof(Lexer) end
     sizeof(Lexer) 0 lexer memset drop
     file-path-cstr @ptr map-file    lexer Lexer.content   + !Str
     file-path-cstr @ptr cstr-to-str lexer Lexer.file-path + !Str
-
+  
     memory token sizeof(Token) end
     memory konst sizeof(Const) end
-
+  
     while token lexer lexer-next-token do
-        assert 
-          "Exhaustive handling of Token Types"
-          COUNT_TOKENS 4 =
-        end
-
-        token Token.typ + @64 // token.typ
-        dup TOKEN_INT = if
-            OP_PUSH_INT
-            token Token.value + @64
-            push-op
-        else dup TOKEN_STR = if*
-            here puts ": TODO: parsing string literals is not implemented\n" eputs
-        else dup TOKEN_CHAR = if*
-            here puts ": TODO: parsing character literals is not implemented\n" eputs
-        else dup TOKEN_WORD = if*
-            token Token.value + // token.value
-            assert
-                "Exhaustive handling of Op types in parse-file-path"
-                COUNT_OPZ 5 = 
-            end
-
-            assert
-                "Exhaustive handling of Intrinsics in parse-file-path"
-                COUNT_INTRINSICS 42 =
-            end
-            
-            dup @Str intrinsic-by-name if
-                OP_INTRINSIC swap push-op
-            else
-                drop
-                dup @Str "if" streq if
-                    ops-count @64 parse-block-stack-push
-                    OP_IF 0 push-op
-                else dup @Str "else" streq if*
-                    @parse-block-stack-count 0 <= if
-                        token Token.loc + eputloc
-                        ": ERROR: `else` can only come after `if`\n" eputs
-                        1 exit
-                    end
-
-                    parse-block-stack-pop   // if-ip
-                    ops over sizeof(Op) * + // if-op
-
-                    dup Op.typ + @64 OP_IF = if
-                        token Token.loc + eputloc
-                        ": ERROR: `else` can only come after `if`\n" eputs
-                        1 exit
-                    end
-
-                    ops-count @64 1 + over Op.operand + !64
-
-                    ops-count @64 parse-block-stack-push
-                    OP_ELSE 0 push-op
-
-                    drop // if-op
-                    drop // if-ip
-                end dup @Str "end" streq if*
-                    @parse-block-stack-count 0 <= if
-                        token Token.loc + eputloc
-                        ": ERROR: `end` can only close `if` and `else`\n" eputs
-                        1 exit
-                    end
-
-                    parse-block-stack-pop   // ip
-                    ops over sizeof(Op) * + // op
-
-                    dup Op.typ + @64 OP_IF = if
-                      dup ops-count @64 swap Op.operand + !64
-                      OP_END ops-count @64 1 + push-op
-                    else dup Op.typ + @64 OP_ELSE = if*
-                      dup ops-count @64 swap Op.operand + !64
-                      OP_END ops-count @64 1 + push-op
-                    else
-                      token Token.loc + eputloc
-                      ": ERROR: `end` can only close `if` for now\n" eputs
-                      1 exit
-                    end
-
-                drop // op
-                drop // ip
-            else dup @Str "include" streq if*
-                token lexer lexer-next-token lnot if
-                    token Token.loc + eputloc
-                    ": expected path to include file but found nothing\n" eputs
-                    1 exit
-                end
-
-                token Token.typ + @64 TOKEN_STR != if
-                    token Token.loc + eputloc
-                    ": expected path to include file to be a string\n" eputs
-                    1 exit
-                end
-                token Token.value + @Str str-to-cstr parse_file_path_cstr_into_opz
-            else dup @Str "const" streq if*
-                token lexer lexer-next-token lnot if
-                    token Token.loc + eputloc
-                    ": expected constant name but found nothing\n" eputs
-                    1 exit
-                end
-
-                token Token.typ + @64 TOKEN_WORD != if
-                    token Token.loc + eputloc
-                    ": expected constant name but found word\n" eputs
-                    1 exit
-                end
-
-                token Token.value + @Str
-                token Token.loc +
-                check-name-redefinition
-
-                token Token.value + @Str konst Const.name + !Str
-                sizeof(Loc) token Token.loc + konst Const.loc + memcpy drop
-
-                lexer eval-const-value
-
-                konst Const.value + !64
-                konst Const.typ + !64
-
-                konst const-define
-            else dup @Str "proc" streq if*
-                here eputs ": TODO: procs are not implemented yet\n" eputs
-                token Token.loc + eputloc ": NOTE: the procedure is located here \n" puts
-                1 exit
-            else dup @Str const-lookup dup NULL != if*
-                OP_PUSH_INT
-                swap Const.value + @64
-                push-op
-            else
-                drop // const-lookup
-                token Token.loc + eputloc
-                ": TODO: unknown word `" puts dup @Str puts "`\n" puts
-                1 exit
-            end
-            drop // token.value
+      assert "Exhaustive handling of Token.typs" COUNT_TOKENS 4 = end
+  
+      token Token.typ + @64 // token.type
+  
+      dup TOKEN_INT = if
+        OP_PUSH_INT
+        token Token.value + @64
+        push-op
+      else dup TOKEN_WORD = if*
+        token Token.value + // token.value
+  
+        assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 5 = end
+  
+        dup @Str intrinsic-by-name if
+          OP_INTRINSIC swap push-op
         else
-            here eputs ": Unreachable: unknown token type\n" eputs
+          drop
+          dup @Str "if" streq if
+            ops-count @64 parse-block-stack-push
+            OP_IF 0 push-op
+          else dup @Str "else" streq if*
+            @parse-block-stack-count 0 <= if
+              token Token.loc + eputloc
+              ": ERROR: `else` can only come after `if`\n" eputs
+              1 exit
+            end
+  
+            parse-block-stack-pop   // if_ip
+            dup sizeof(Op) * ops +  // if_op
+  
+            dup Op.typ + @64 OP_IF != if
+              token Token.loc + eputloc
+              ": ERROR: `else` can only come after `if`\n" eputs
+              1 exit
+            end
+  
+            ops-count @64 1 + over Op.operand + !64
+  
+            ops-count @64 parse-block-stack-push
+            OP_ELSE 0 push-op
+  
+            drop // if_op
+            drop // if_ip
+          else dup @Str "end" streq if*
+            @parse-block-stack-count 0 <= if
+              token Token.loc + eputloc
+              ": ERROR: `end` can only close `if` and `else` for now\n" eputs
+              1 exit
+            end
+  
+            parse-block-stack-pop // ip
+            ops over sizeof(Op) * + // op
+  
+            dup Op.typ + @64 OP_IF = if
+              dup ops-count @64 swap Op.operand + !64
+              OP_END ops-count @64 1 + push-op
+            else dup Op.typ + @64 OP_ELSE = if*
+              dup ops-count @64 swap Op.operand + !64
+              OP_END ops-count @64 1 + push-op
+            else
+              token Token.loc + eputloc
+              ": ERROR: `end` can only close `if` for now\n" eputs
+              1 exit
+            end
+  
+            drop // op
+            drop // ip
+          else dup @Str "include" streq if*
+            token lexer lexer-next-token lnot if
+              token Token.loc + eputloc
+              ": expected path to the include file but found nothing\n" eputs
+              1 exit
+            end
+  
+            token Token.typ + @64 TOKEN_STR != if
+              token Token.loc + eputloc
+              // TODO: report what was found instead of a string
+              ": expected path to the include file to be a string\n" eputs
+              1 exit
+            end
+  
+            // TODO: introduce include limit
+            token Token.value + @Str str-to-cstr parse_file_path_cstr_into_opz
+          else dup @Str "const" streq if*
+            token lexer lexer-next-token lnot if
+              token Token.loc + eputloc
+              ": expected constant name but found nothing\n" eputs
+              1 exit
+            end
+  
+            token Token.typ + @64 TOKEN_WORD != if
+              token Token.loc + eputloc
+              // TODO: report what was found instead of a word
+              ": expected constant name to be a word\n" eputs
+              1 exit
+            end
+  
+            token Token.value + @Str
+            token Token.loc +
+            check-name-redefinition
+  
+            token Token.value + @Str konst Const.name + !Str
+            sizeof(Loc) token Token.loc + konst Const.loc + memcpy drop
+  
+            lexer eval-const-value
+  
+            konst Const.value + !64
+            konst Const.typ + !64
+  
+            konst const-define
+          else dup @Str "proc" streq if*
+            here eputs ": TODO: procs are not implemented yet\n" eputs
+            token Token.loc + eputloc ": NOTE: the procedure is located here \n" puts
             1 exit
+          else dup @Str const-lookup dup NULL != if*
+            OP_PUSH_INT
+            swap Const.value + @64
+            push-op
+          else
+            drop // const-lookup
+            token Token.loc + eputloc
+            ": TODO: unknown word `" puts dup @Str puts "`\n" puts
+            1 exit
+          end
         end
-      drop // token.typ
+  
+        drop // token.value
+      else dup TOKEN_STR = if*
+        here eputs ": TODO: parsing string literals is not implemented\n" eputs
+      else dup TOKEN_CHAR = if*
+        here eputs ": TODO: parsing character literals is not implemented\n" eputs
+      else
+        here eputs ": Unreachable. Unknown token type.\n" eputs
+        1 exit
+      end
+  
+      drop // token.type
     end
     // TODO: parse_file_path does not clean up resources after itself
 end
+
 
 
 proc print_usage 
