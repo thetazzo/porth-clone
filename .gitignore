@@ -37,6 +37,7 @@ examples/read-file-stats
 examples/recursive-fib
 examples/character-structure
 examples/bubble-sort
+examples/quine
 tests/arithmetics
 tests/bitwise-operations
 tests/comments
