@@ -1607,6 +1607,26 @@ def eval_const_value(ctx: ParseContext, rtokens: List[Token]) -> Tuple[int, Data
                     compiler_note_(token.loc, f"  {(DataType.INT, DataType.PTR)}")
                     compiler_note_(token.loc, f"  {(DataType.PTR, DataType.INT)}")
                     exit(1)
+            if token.value == INTRINSIC_NAMES[Intrinsic.MINUS]:
+                if len(stack) < 2:
+                    compiler_error_(token.loc, f"not enough arguments for `{token.value}` intrinsic in eval_const_value()")
+                    exit(1)
+                b, b_typ = stack.pop()
+                a, a_typ = stack.pop()
+
+                if a_typ == DataType.INT and b_typ == DataType.INT: 
+                    stack.append((a-b, DataType.INT))
+                elif a_typ == DataType.PTR and b_typ == DataType.PTR: 
+                    stack.append((a-b, DataType.INT))
+                elif a_typ == DataType.INT and b_typ == DataType.PTR: 
+                    stack.append((a-b, DataType.PTR))
+                else:
+                    compiler_error_(token.loc, f"Invalid argument types for `{token.value}` intrinsic: {(a_typ, b_typ)}")
+                    compiler_note_(token.loc, f"Expected:")
+                    compiler_note_(token.loc, f"  {(DataType.INT, DataType.INT)}")
+                    compiler_note_(token.loc, f"  {(DataType.PTR, DataType.PTR)}")
+                    compiler_note_(token.loc, f"  {(DataType.PTR, DataType.INT)}")
+                    exit(1)
             elif token.value == INTRINSIC_NAMES[Intrinsic.MUL]:
                 if len(stack) < 2:
                     compiler_error_(token.loc, f"not enough arguments for `{INTRINSIC_NAMES[Intrinsic.MUL]}` intrinsic in eval_const_value()")

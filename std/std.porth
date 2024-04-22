@@ -1,3 +1,8 @@
+
+// =====================================================
+//                 PORTH STANDARD LIBRARY
+// =====================================================
+
 const NULL 0 cast(ptr) end
 
 const true  1 cast(bool) end
@@ -339,7 +344,7 @@ const SYS_process_vm_writev 311 end
 const SYS_kcmp 312 end
 const SYS_finit_module 313 end
 
-const AT_FDCWD -100 end
+const AT_FDCWD 0 100 - end
 
 const O_RDONLY 0 end
 const O_WRONLY 1 end
@@ -786,3 +791,5 @@ in
     here eputs ":  ERROR: could not find executable `" eputs file-path @ptr cstr-to-str eputs "`\n" eputs
     1 exit
 end
+
+"Porth Library Version: 0.5.0\n" puts
