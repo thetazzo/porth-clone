@@ -712,37 +712,30 @@ in
     end
 end
 
-const PATH_BUFFER_CAP 1024 end
-memory path-buffer PATH_BUFFER_CAP 1 + end
-memory path-buffer-size sizeof(u64) end
+// 8MB of temporary scratch buffer
+const TMP_CAP 4 1024 * 1024 * end
+memory tmp-start TMP_CAP end
+memory tmp-size sizeof(u64) end
 
-proc path-buffer-clean in
-   PATH_BUFFER_CAP 0 path-buffer memset drop
-   0 path-buffer-size !64
-end
+proc tmp-celan in 0 tmp-size !64 end
+proc tmp-end -- ptr in tmp-start tmp-size @64 + end 
 
-proc path-buffer-str-append
-    int ptr // str
+proc tmp-alloc
+    int
     --
+    ptr // result
 in
-    memory str sizeof(Str) end
-    str !Str
-
-    path-buffer-size @64
-    str @Str.count
-    +
-    PATH_BUFFER_CAP > if
-        here eputs ": buffer capacilty exceeded\n" eputs
+    dup tmp-size @64 + TMP_CAP > if
+        here eputs ": Temporary memory buffer exceeded. Need to call tmp-clean more often\n" eputs
         1 exit
     end
 
-    str @Str
-    path-buffer path-buffer-size @64 +
-    memcpy
-    drop
-
-    path-buffer @64 str @Str.count + path-buffer-size !64
+    dup 0 tmp-end memset 
+    tmp-size @64 rot + tmp-size !64
 end
+
+proc tmp-str-to-cstr int ptr -- ptr in over 1 + tmp-alloc memcpy end
+proc tmp-append int ptr -- ptr in over tmp-alloc memcpy end
 
 proc execvp
     ptr // argv
@@ -774,12 +767,15 @@ in
         while paths @Str.count 0 > do
             ':' path paths str-chop-by-delim
 
-            path-buffer-clean
-            path @Str path-buffer-str-append
-            "/" path-buffer-str-append
-            file-path @ptr cstr-to-str path-buffer-str-append
+            tmp-end
 
-            empty_envp argvp @ptr path-buffer execve drop
+            path @Str tmp-append drop
+            "/" tmp-append drop
+            file-path @ptr cstr-to-str tmp-append drop
+
+            empty_envp swap
+            argvp @ptr swap
+            execve drop
         end
     end
     drop

@@ -1376,35 +1376,6 @@ in
     end
 end
 
-const TMP_CAP 1024 4 * end
-memory tmp-data TMP_CAP end
-memory tmp-size sizeof(u64) end
-
-proc tmp-celan in 0 tmp-size !64 end
-
-proc tmp-alloc
-    int
-    --
-    ptr // result
-in
-    dup tmp-size @64 + TMP_CAP > if
-        here eputs ": Temporary memory buffer exceeded. Need to call tmp-clean more often\n" eputs
-        1 exit
-    end
-
-    // size size 0 ptr
-
-    dup
-    0
-    tmp-data tmp-size @64 +
-    memset
-
-    tmp-size @64
-    rot
-    +
-    tmp-size !64
-end
-
 proc str-to-cstr
     int ptr
     --
