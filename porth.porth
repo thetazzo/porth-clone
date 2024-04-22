@@ -3,25 +3,26 @@
 include "./std/std.porth"
 
 // operation codes
-const OP_PUSH_INT            1 offset end
-const OP_IF                  1 offset end
-const OP_ELSE                1 offset end
-const OP_END                 1 offset end
-const OP_SKIP_PROC           1 offset end
-const OP_PREP_PROC           1 offset end
-const OP_RET                 1 offset end
-const OP_CALL                1 offset end
-const OP_PUSH_LOCAL_MEM      1 offset end
-const OP_WHILE               1 offset end
-const OP_INTRINSIC           1 offset end
-const COUNT_OPZ                 reset end 
+const OP_PUSH_INT             1 offset end
+const OP_IF                   1 offset end
+const OP_ELSE                 1 offset end
+const OP_END                  1 offset end
+const OP_SKIP_PROC            1 offset end
+const OP_PREP_PROC            1 offset end
+const OP_RET                  1 offset end
+const OP_CALL                 1 offset end
+const OP_PUSH_LOCAL_MEM       1 offset end
+const OP_PUSH_GLOBAL_MEM      1 offset end
+const OP_WHILE                1 offset end
+const OP_INTRINSIC            1 offset end
+const COUNT_OPZ                  reset end 
 
 proc op-typ-as-str
     int // op type
     --
     int ptr // str
 in
-    assert "Exhaustive handling of Op.typs in op-type-as-str" COUNT_OPZ 11 = end
+    assert "Exhaustive handling of Op.typs in op-type-as-str" COUNT_OPZ 12 = end
 
          dup OP_PUSH_INT            = if  "OP_PUSH_INT"
     else dup OP_INTRINSIC           = if* "OP_INTRINSIC"
@@ -33,6 +34,7 @@ in
     else dup OP_RET                 = if* "OP_RET"
     else dup OP_CALL                = if* "OP_CALL"
     else dup OP_PUSH_LOCAL_MEM      = if* "OP_PUSH_LOCAL_MEM"
+    else dup OP_PUSH_GLOBAL_MEM     = if* "OP_PUSH_GLOBAL_MEM"
     else dup OP_WHILE               = if* "OP_WHILE"
     else
         here eputs ": unknown op type\n" eputs 1 exit
@@ -263,6 +265,7 @@ const sizeof(Proc)           reset end
 const PROCS_CAP 1024 end
 memory procs       sizeof(Proc) PROCS_CAP * end
 memory procs-count sizeof(u64) end
+memory inside-prok sizeof(bool)  end
 
 proc proc-lookup
     int ptr // proc name
@@ -422,7 +425,7 @@ proc compile-opz in // --
         // ptr type
         dup sizeof(Op) * ops +
 
-        assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 11 = end
+        assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 12 = end
 
         "addr_" out-fd @64 fputs
         over    out-fd @64 fputu
@@ -461,6 +464,11 @@ proc compile-opz in // --
         else dup Op.typ + @64 OP_PUSH_LOCAL_MEM = if*
             here eputs ": TODO: OP_PUSH_LOCAL_MEM is not implemented in compiletion mode\n" eputs
             1 exit
+        else dup Op.typ + @64 OP_PUSH_GLOBAL_MEM = if*
+            ";;  -- push global mem --\n" out-fd @64 fputs
+            "    mov rex, mem\n"          out-fd @64 fputs
+            "    add rex,"                out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n"  out-fd @64 fputs
+            "    push rex\n"              out-fd @64 fputs
         else dup Op.typ + @64 OP_INTRINSIC = if*
             assert
                 "Exhaustive handling of intrinsics in parse-file-path"
@@ -807,7 +815,7 @@ proc simulate-opz in
         memcpy
         drop
 
-        assert "Exhaustive handling of Op.typs in simulate-opz" COUNT_OPZ 11 =  end
+        assert "Exhaustive handling of Op.typs in simulate-opz" COUNT_OPZ 12 =  end
 
         // ptr
         sim-op Op.typ + @64 OP_PUSH_INT = if 
@@ -840,6 +848,9 @@ proc simulate-opz in
             1 exit
         else sim-op Op.typ + @64 OP_PUSH_LOCAL_MEM = if*
             here eputs ": TODO: OP_PUSH_LOCAL_MEM is not implemented in simulation mode\n" eputs
+            1 exit
+        else sim-op Op.typ + @64 OP_PUSH_GLOBAL_MEM = if*
+            here eputs ": TODO: OP_PUSH_GLOBAL_MEM is not implemented in simulation mode\n" eputs
             1 exit
         else sim-op Op.typ + @64 OP_INTRINSIC = if*
             assert
@@ -1502,6 +1513,8 @@ in
     over 1 + tmp-alloc memcpy
 end
 
+proc local-memories-clean in 0 local-memories-count !64 end
+
 proc local-memories-lookup
     int ptr // name
     --
@@ -1611,11 +1624,13 @@ in
         1 exit
     end drop
 
-    name @Str global-memories-lookup dup NULL != if
-        loc eputloc ": ERROR: redefinition of a global memory `" eputs name @Str eputs "`\n" eputs
-        dup Const.loc + eputloc ": NOTE: the original definition is located here\n" eputs
-        1 exit
-    end drop
+    inside-prok @bool if
+        name @Str global-memories-lookup dup NULL != if
+            loc eputloc ": ERROR: redefinition of a global memory `" eputs name @Str eputs "`\n" eputs
+            dup Const.loc + eputloc ": NOTE: the original definition is located here\n" eputs
+            1 exit
+        end drop
+    end
 end
 
 proc datatype-by-name 
@@ -1683,7 +1698,6 @@ in
     memory prok        sizeof(Proc)   end
     memory memori      sizeof(Memory) end
 
-    memory inside-prok sizeof(bool)  end
     false inside-prok !64
   
     while token lexer lexer-next-token do
@@ -1699,7 +1713,7 @@ in
         else dup TOKEN_WORD = if*
             token Token.value + // token.value
   
-            assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 11 = end
+            assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 12 = end
   
             dup @Str intrinsic-by-name if
                 OP_INTRINSIC swap token push-op
@@ -1916,6 +1930,11 @@ in
                     push-op
                 else drop dup @Str local-memories-lookup dup NULL != if*
                     OP_PUSH_LOCAL_MEM
+                    swap Memory.offset + @64
+                    token
+                    push-op
+                else drop dup @Str global-memories-lookup dup NULL != if*
+                    OP_PUSH_GLOBAL_MEM
                     swap Memory.offset + @64
                     token
                     push-op
