@@ -98,7 +98,7 @@ class Intrinsic(Enum):
     SYSCALL4=auto()
     SYSCALL5=auto()
     SYSCALL6=auto()
-    STACK=auto()
+    STOP=auto()
 
 class OpType(Enum):
     PUSH_INT=auto()
@@ -549,7 +549,7 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                     assert False, "not implemented"
                 elif op.operand == Intrinsic.SYSCALL6:
                     assert False, "not implemented"
-                elif op.operand == Intrinsic.STACK:
+                elif op.operand == Intrinsic.STOP:
                     pass
                 else:
                     assert False, "unreachable"
@@ -1008,7 +1008,7 @@ def type_check_program(program: Program, proc_contracs: Dict[OpAddr, Contract]):
                 for i in range(7):
                     ctx.stack.pop()
                 ctx.stack.append((DataType.INT, op.token.loc))
-            elif op.operand == Intrinsic.STACK:
+            elif op.operand == Intrinsic.STOP:
                 compiler_diagnostic(op.token.loc, "DEBUG", "Requested stack content. Stopping the compilation.")
                 for typ, loc in reversed(ctx.stack):
                     compiler_diagnostic(loc, "ITEM", human_typ_name(typ))
@@ -1427,7 +1427,7 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    pop r9\n")
                     out.write("    syscall\n")
                     out.write("    push rax\n")
-                elif op.operand == Intrinsic.STACK:
+                elif op.operand == Intrinsic.STOP:
                     pass
                 else:
                     assert False, "unreachable"
@@ -1516,7 +1516,7 @@ INTRINSIC_BY_NAMES: Dict[str, Intrinsic]= {
     'syscall4': Intrinsic.SYSCALL4,
     'syscall5': Intrinsic.SYSCALL5,
     'syscall6': Intrinsic.SYSCALL6,
-    'stack': Intrinsic.STACK,
+    'stop': Intrinsic.STOP,
 }
 INTRINSIC_NAMES: Dict[Intrinsic, str] = {v: k for k, v in INTRINSIC_BY_NAMES.items()}
     
@@ -1987,11 +1987,11 @@ def parse_program_from_tokens(ctx: ParseContext, tokens: List[Token], include_pa
             elif token.value == Keyword.PROC:
                 if ctx.current_proc is None:
                     ctx.ops.append(Op(typ=OpType.SKIP_PROC, token=token))
-                    proc_addr = ctx.ip
 
                     ctx.stack.append(ctx.ip)
                     ctx.ip += 1
 
+                    proc_addr = ctx.ip
                     ctx.ops.append(Op(typ=OpType.PREP_PROC, token=token))
                     ctx.stack.append(ctx.ip)
                     ctx.ip += 1
@@ -2008,7 +2008,7 @@ def parse_program_from_tokens(ctx: ParseContext, tokens: List[Token], include_pa
                     proc_name = token.value
                     check_name_redefinition(ctx, token.value, token.loc)
                     proc_contract = parse_proc_contract(rtokens)
-                    ctx.procs[proc_name] = Proc(addr=proc_addr + 1, loc=proc_loc, local_memories={}, local_memories_cap=0, contract=proc_contract)
+                    ctx.procs[proc_name] = Proc(addr=proc_addr, loc=proc_loc, local_memories={}, local_memories_cap=0, contract=proc_contract)
                     ctx.current_proc = ctx.procs[proc_name]
                 else:
                     compiler_error_(token.loc, "defining procedures inside procedures is not allowed")
