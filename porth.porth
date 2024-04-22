@@ -3,33 +3,35 @@
 include "./std/std.porth"
 
 // operation codes
-const OP_PUSH_INT  1 offset end
-const OP_IF        1 offset end
-const OP_ELSE      1 offset end
-const OP_END       1 offset end
-const OP_SKIP_PROC 1 offset end
-const OP_PREP_PROC 1 offset end
-const OP_RET       1 offset end
-const OP_CALL      1 offset end
-const OP_INTRINSIC 1 offset end
-const COUNT_OPZ       reset end
+const OP_PUSH_INT            1 offset end
+const OP_IF                  1 offset end
+const OP_ELSE                1 offset end
+const OP_END                 1 offset end
+const OP_SKIP_PROC           1 offset end
+const OP_PREP_PROC           1 offset end
+const OP_RET                 1 offset end
+const OP_CALL                1 offset end
+const OP_PUSH_LOCAL_MEM      1 offset end
+const OP_INTRINSIC           1 offset end
+const COUNT_OPZ                 reset end 
 
 proc op-typ-as-str
     int // op type
     --
     int ptr // str
 in
-    assert "Exhaustive handling of Op.typs in op-type-as-str" COUNT_OPZ 9 = end
+    assert "Exhaustive handling of Op.typs in op-type-as-str" COUNT_OPZ 10 = end
 
-         dup OP_PUSH_INT  = if  "OP_PUSH_INT"
-    else dup OP_INTRINSIC = if* "OP_INTRINSIC"
-    else dup OP_IF        = if* "OP_IF"
-    else dup OP_ELSE      = if* "OP_ELSE"
-    else dup OP_END       = if* "OP_END"
-    else dup OP_SKIP_PROC = if* "OP_SKIP_PROC"
-    else dup OP_PREP_PROC = if* "OP_PREP_PROC"
-    else dup OP_RET       = if* "OP_RET"
-    else dup OP_CALL      = if* "OP_CALL"
+         dup OP_PUSH_INT            = if  "OP_PUSH_INT"
+    else dup OP_INTRINSIC           = if* "OP_INTRINSIC"
+    else dup OP_IF                  = if* "OP_IF"
+    else dup OP_ELSE                = if* "OP_ELSE"
+    else dup OP_END                 = if* "OP_END"
+    else dup OP_SKIP_PROC           = if* "OP_SKIP_PROC"
+    else dup OP_PREP_PROC           = if* "OP_PREP_PROC"
+    else dup OP_RET                 = if* "OP_RET"
+    else dup OP_CALL                = if* "OP_CALL"
+    else dup OP_PUSH_LOCAL_MEM      = if* "OP_PUSH_LOCAL_MEM"
     else
         here eputs ": unknown op type\n" eputs 1 exit
         0 NULL
@@ -418,7 +420,7 @@ proc compile-opz in // --
         // ptr type
         dup sizeof(Op) * ops +
 
-        assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 9 = end
+        assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 10 = end
 
         "addr_" out-fd @64 fputs
         over    out-fd @64 fputu
@@ -450,6 +452,9 @@ proc compile-opz in // --
             1 exit
         else dup Op.typ + @64 OP_CALL = if*
             here eputs ": TODO: OP_CALL is not implemented in compiletion mode\n" eputs
+            1 exit
+        else dup Op.typ + @64 OP_PUSH_LOCAL_MEM = if*
+            here eputs ": TODO: OP_PUSH_LOCAL_MEM is not implemented in compiletion mode\n" eputs
             1 exit
         else dup Op.typ + @64 OP_INTRINSIC = if*
             assert
@@ -797,7 +802,7 @@ proc simulate-opz in
         memcpy
         drop
 
-        assert "Exhaustive handling of Op.typs in simulate-opz" COUNT_OPZ 9 =  end
+        assert "Exhaustive handling of Op.typs in simulate-opz" COUNT_OPZ 10 =  end
 
         // ptr
         sim-op Op.typ + @64 OP_PUSH_INT = if 
@@ -824,6 +829,9 @@ proc simulate-opz in
             1 exit
         else sim-op Op.typ + @64 OP_CALL = if*
             here eputs ": TODO: OP_CALL is not implemented in simulation mode\n" eputs
+            1 exit
+        else sim-op Op.typ + @64 OP_PUSH_LOCAL_MEM = if*
+            here eputs ": TODO: OP_PUSH_LOCAL_MEM is not implemented in simulation mode\n" eputs
             1 exit
         else sim-op Op.typ + @64 OP_INTRINSIC = if*
             assert
@@ -1177,7 +1185,9 @@ in
         -
         token @ptr Token.loc + Loc.col +
         !64
-    true
+
+        word @Str token @ptr Token.text + !Str
+        true
     else
         drop // lexer
         false
@@ -1681,7 +1691,7 @@ in
         else dup TOKEN_WORD = if*
             token Token.value + // token.value
   
-            assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 9 = end
+            assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 10 = end
   
             dup @Str intrinsic-by-name if
                 OP_INTRINSIC swap token push-op
@@ -1893,6 +1903,9 @@ in
                     swap Proc.addr + @64
                     token
                     push-op
+                else drop dup @Str local-memories-lookup dup NULL != if*
+                    drop
+                    // 69 exit
                 else drop
                     token Token.loc + eputloc
                     ": TODO: unknown word `" puts dup @Str puts "`\n" puts
