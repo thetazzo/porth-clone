@@ -1357,8 +1357,12 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
                     out.write("    push rax\n") 
                 elif op.operand == Intrinsic.ENVP:
                     out.write("    mov rax, [args_ptr]\n")
-                    out.write("    add rax, 24\n")
-                    out.write("    push rax\n")
+                    out.write("    mov rax, [rax]\n")
+                    out.write("    add rax, 2\n")
+                    out.write("    shl rax, 3\n")
+                    out.write("    mov rbx, [args_ptr]\n")
+                    out.write("    add rbx, rax\n")
+                    out.write("    push rbx\n")
                 elif op.operand == Intrinsic.HERE:
                     value = ("%s:%d:%d" % op.token.loc).encode("utf-8")
                     n = len(value)
