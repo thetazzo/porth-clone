@@ -8,6 +8,7 @@ const OP_PUSH_LOCAL_MEM       1 offset end
 const OP_PUSH_GLOBAL_MEM      1 offset end
 const OP_PUSH_STR             1 offset end
 const OP_IF                   1 offset end
+const OP_IFSTAR               1 offset end
 const OP_ELSE                 1 offset end
 const OP_END                  1 offset end
 const OP_SKIP_PROC            1 offset end
@@ -24,7 +25,7 @@ proc op-typ-as-str
     --
     int ptr // str
 in
-    assert "Exhaustive handling of Op.typs in op-type-as-str" COUNT_OPZ 14 = end
+    assert "Exhaustive handling of Op.typs in op-type-as-str" COUNT_OPZ 15 = end
 
          dup OP_PUSH_INT            = if  "OP_PUSH_INT"
     else dup OP_PUSH_LOCAL_MEM      = if* "OP_PUSH_LOCAL_MEM"
@@ -32,6 +33,7 @@ in
     else dup OP_PUSH_STR            = if* "OP_PUSH_STR"
     else dup OP_INTRINSIC           = if* "OP_INTRINSIC"
     else dup OP_IF                  = if* "OP_IF"
+    else dup OP_IFSTAR              = if* "OP_IFSTAR"
     else dup OP_ELSE                = if* "OP_ELSE"
     else dup OP_END                 = if* "OP_END"
     else dup OP_SKIP_PROC           = if* "OP_SKIP_PROC"
@@ -515,7 +517,7 @@ proc compile-opz in // --
         // ptr type
         dup sizeof(Op) * ops +
 
-        assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 14 = end
+        assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 15 = end
 
         "addr_" out-fd @64 fputs
         over    out-fd @64 fputu
@@ -541,6 +543,9 @@ proc compile-opz in // --
             "    pop rax\n"              out-fd @64 fputs
             "    test rax, rax\n"        out-fd @64 fputs
             "    jz addr_"               out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
+        else dup Op.typ + @64 OP_IFSTAR = if*
+            here eputs ": TODO: OP_IFSTAR is not implemented in compiletion mode\n" eputs
+            1 exit
         else dup Op.typ + @64 OP_ELSE = if*
             ";;  -- else --\n"           out-fd @64 fputs
             "    jmp addr_"              out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
@@ -914,7 +919,7 @@ proc simulate-opz in
         memcpy
         drop
 
-        assert "Exhaustive handling of Op.typs in simulate-opz" COUNT_OPZ 14 =  end
+        assert "Exhaustive handling of Op.typs in simulate-opz" COUNT_OPZ 15 =  end
 
         // ptr
         sim-op Op.typ + @64 OP_PUSH_INT = if 
@@ -935,6 +940,9 @@ proc simulate-opz in
             else
                 sim-op Op.operand + @64 sim-ip !64
             end
+        else sim-op Op.typ + @64 OP_IFSTAR = if*
+            here eputs ": TODO: OP_IFSTAR is not implemented in simulation mode\n" eputs
+            1 exit
         else sim-op Op.typ + @64 OP_ELSE = if*
             sim-op Op.operand + @64 sim-ip !64
         else sim-op Op.typ + @64 OP_END = if*
@@ -1880,9 +1888,9 @@ in
             push-op-int-operand
         else dup TOKEN_WORD = if*
             token Token.value + // token.value
-  
-            assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 14 = end
-  
+
+            assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 15 = end
+
             dup @Str intrinsic-by-name if
                 OP_INTRINSIC swap token push-op-int-operand
             else
@@ -1890,6 +1898,9 @@ in
                 dup @Str "if" streq if
                     ops-count @64 parse-block-stack-push
                     OP_IF 0 token push-op-int-operand
+                else dup @Str "if*" streq if*
+                    here eputs ": TODO: `if*` not implemented\n" eputs
+                    token Token.loc + eputloc ": NOTE: located here\n" eputs
                 else dup @Str "else" streq if*
                     parse-block-stack-count @64 0 <= if
                         token Token.loc + eputloc
