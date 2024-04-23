@@ -166,6 +166,7 @@ const INTRINSIC_CAST_INT  1 offset end
 const INTRINSIC_CAST_BOOL 1 offset end
 const INTRINSIC_ARGC      1 offset end
 const INTRINSIC_ARGV      1 offset end
+const INTRINSIC_ENVP      1 offset end
 const INTRINSIC_HERE      1 offset end
 const INTRINSIC_SYSCALL0  1 offset end
 const INTRINSIC_SYSCALL1  1 offset end
@@ -181,7 +182,7 @@ proc intrinsic-name
     --
     int ptr // name string
 in
-    assert "Exhaustive handling of Intrinsic in intrinsic-by-name" COUNT_INTRINSICS 42 = end
+    assert "Exhaustive handling of Intrinsic in intrinsic-by-name" COUNT_INTRINSICS 43 = end
          dup INTRINSIC_PLUS      = if  drop "+"
     else dup INTRINSIC_MINUS     = if* drop "-"
     else dup INTRINSIC_MUL       = if* drop "*"
@@ -215,7 +216,7 @@ in
     else dup INTRINSIC_CAST_INT  = if* drop "cast(int)"
     else dup INTRINSIC_CAST_BOOL = if* drop "cast(bool)"
     else dup INTRINSIC_ARGC      = if* drop "argc"
-    else dup INTRINSIC_ARGV      = if* drop "argv"
+    else dup INTRINSIC_ENVP      = if* drop "envp"
     else dup INTRINSIC_HERE      = if* drop "here"
     else dup INTRINSIC_SYSCALL0  = if* drop "syscall0"
     else dup INTRINSIC_SYSCALL1  = if* drop "syscall1"
@@ -240,7 +241,7 @@ in
     memory name sizeof(Str) end
     name !Str
     true
-    assert "Exhaustive handling of Intrinsic in intrinsic-by-name" COUNT_INTRINSICS 42 = end
+    assert "Exhaustive handling of Intrinsic in intrinsic-by-name" COUNT_INTRINSICS 43 = end
          name @Str "+"          streq if  INTRINSIC_PLUS
     else name @Str "-"          streq if* INTRINSIC_MINUS
     else name @Str "*"          streq if* INTRINSIC_MUL
@@ -275,6 +276,7 @@ in
     else name @Str "cast(bool)" streq if* INTRINSIC_CAST_BOOL
     else name @Str "argc"       streq if* INTRINSIC_ARGC
     else name @Str "argv"       streq if* INTRINSIC_ARGV
+    else name @Str "envp"       streq if* INTRINSIC_ENVP
     else name @Str "here"       streq if* INTRINSIC_HERE
     else name @Str "syscall0"   streq if* INTRINSIC_SYSCALL0
     else name @Str "syscall1"   streq if* INTRINSIC_SYSCALL1
@@ -566,10 +568,7 @@ proc compile-opz in // --
             here eputs ": TODO: OP_CALL is not implemented in compiletion mode\n" eputs
             1 exit
         else dup Op.typ + @64 OP_INTRINSIC = if*
-            assert
-                "Exhaustive handling of intrinsics in parse-file-path"
-                COUNT_INTRINSICS 42 =
-            end
+            assert "Exhaustive handling of intrinsics in parse-file-path" COUNT_INTRINSICS 43 = end
             dup Op.operand + @64
             dup INTRINSIC_PLUS = if
                 ";;  -- plus --\n"       out-fd @64 fputs
@@ -773,8 +772,12 @@ proc compile-opz in // --
                 "    mov rax, [args_ptr]\n"      out-fd @64 fputs
                 "    add rax, 8\n"               out-fd @64 fputs
                 "    push rax\n"                 out-fd @64 fputs 
+            else dup INTRINSIC_ENVP = if*
+                    here eputs ": TODO: `envp` is not implemented yet" eputs
+                    1 exit
             else dup INTRINSIC_HERE = if*
                     here eputs ": TODO: `here` is not implemented yet" eputs
+                    1 exit
             else dup INTRINSIC_SYSCALL0 = if*
                 ";;  -- syscall0 --\n"           out-fd @64 fputs
                 "    pop rax\n"                  out-fd @64 fputs
@@ -958,10 +961,7 @@ proc simulate-opz in
             here eputs ": TODO: OP_CALL is not implemented in simulation mode\n" eputs
             1 exit
         else sim-op Op.typ + @64 OP_INTRINSIC = if*
-            assert
-                "Exhaustive handling of intrinsics in simulate-opz"
-                COUNT_INTRINSICS 42 =
-            end
+            assert "Exhaustive handling of intrinsics in simulate-opz" COUNT_INTRINSICS 43 = end
             sim-op Op.operand + @64 INTRINSIC_PLUS = if
                 sim-stack-pop
                 sim-stack-pop
@@ -1087,27 +1087,29 @@ proc simulate-opz in
                 sim-stack-push
                 sim-stack-push
             else sim-op Op.operand + @64 INTRINSIC_LOAD8 = if*
-                here puts ": TODO: @8 is not implemented" eputs
+                here puts ": TODO: `@8` is not implemented" eputs
             else sim-op Op.operand + @64 INTRINSIC_STORE8 = if*
-                here puts ": TODO: !8 is not implemented" eputs
+                here puts ": TODO: `!8` is not implemented" eputs
             else sim-op Op.operand + @64 INTRINSIC_LOAD16 = if*
-                here puts ": TODO: @16 is not implemented" eputs
+                here puts ": TODO: `@16` is not implemented" eputs
             else sim-op Op.operand + @64 INTRINSIC_STORE16 = if*
-                here puts ": TODO: !16 is not implemented" eputs
+                here puts ": TODO: `!16` is not implemented" eputs
             else sim-op Op.operand + @64 INTRINSIC_LOAD32 = if*
-                here puts ": TODO: @32 is not implemented" eputs
+                here puts ": TODO: `@32` is not implemented" eputs
             else sim-op Op.operand + @64 INTRINSIC_STORE32 = if*
-                here puts ": TODO: !32 is not implemented" eputs
+                here puts ": TODO: `!32` is not implemented" eputs
             else sim-op Op.operand + @64 INTRINSIC_LOAD64 = if*
-                here puts ": TODO: @64 is not implemented" eputs
+                here puts ": TODO: `@64` is not implemented" eputs
             else sim-op Op.operand + @64 INTRINSIC_STORE64 = if*
-                here puts ": TODO: !64 is not implemented" eputs
+                here puts ": TODO: `!64` is not implemented" eputs
             else sim-op Op.operand + @64 INTRINSIC_ARGC = if*
-                here puts ": TODO: argc is not implemented" eputs
+                here puts ": TODO: `argc` is not implemented" eputs
             else sim-op Op.operand + @64 INTRINSIC_ARGV = if*
-                here puts ": TODO: argv is not implemented" eputs
+                here puts ": TODO: `argv` is not implemented" eputs
+            else sim-op Op.operand + @64 INTRINSIC_ENVP = if*
+                here puts ": TODO: `envp` is not implemented" eputs
             else sim-op Op.operand + @64 INTRINSIC_HERE = if*
-                here puts ": TODO: here is not implemented" eputs
+                here puts ": TODO: `here` is not implemented" eputs
             else sim-op Op.operand + @64 INTRINSIC_CAST_PTR = if*
             else sim-op Op.operand + @64 INTRINSIC_CAST_INT = if*
             else sim-op Op.operand + @64 INTRINSIC_CAST_BOOL = if*
