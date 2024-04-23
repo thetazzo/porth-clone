@@ -1857,6 +1857,20 @@ in
     ops-count @int do-op @ptr Op.operand + !int
 end
 
+proc chain-else-if*
+    int // ip
+    ptr // token
+    --
+in
+    memory token sizeof(Token) end
+    sizeof(Token) swap token memcpy drop
+
+    here eputs ": TODO: chaining `else-if*` is not implemented\n" eputs
+    token Token.loc + eputloc ": NOTE: located here\n" eputs
+    1 exit
+    drop
+end
+
 proc parse_file_path_cstr_into_opz
     ptr // file-path-cstr
     --
@@ -1904,23 +1918,23 @@ in
                 else dup @Str "else" streq if*
                     parse-block-stack-count @64 0 <= if
                         token Token.loc + eputloc
-                        ": ERROR: `else` can only come after `if`\n" eputs
+                        ": ERROR: `else` can only come after `if` of `if*`\n" eputs
                         1 exit
                     end
   
                     parse-block-stack-pop   // if_ip
                     dup sizeof(Op) * ops +  // if_op
   
-                    dup Op.typ + @64 OP_IF != if
+                    dup Op.typ + @64 OP_IF = if
+                        ops-count @64 1 + over Op.operand + !64
+
+                        ops-count @64 parse-block-stack-push
+                        OP_ELSE 0 token push-op-int-operand
+                    else
                         token Token.loc + eputloc
-                        ": ERROR: `else` can only come after `if`\n" eputs
+                        ": ERROR: `else` can only come after `if` or `if*`\n" eputs
                         1 exit
                     end
-  
-                    ops-count @64 1 + over Op.operand + !64
-  
-                    ops-count @64 parse-block-stack-push
-                    OP_ELSE 0 token push-op-int-operand
   
                     drop // if_op
                     drop // if_ip
