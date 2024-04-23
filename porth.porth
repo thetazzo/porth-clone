@@ -2103,6 +2103,36 @@ in
                         global-memory-capacity @64 + global-memory-capacity !64
                         memori global-memory-define
                     end
+                else dup @Str "assert" streq if*
+                    token lexer lexer-next-token lnot if
+                        token Token.loc + eputloc
+                        ": expected assert message but found nothing\n" eputs
+                        1 exit
+                    end
+
+                    token Token.typ + @64 TOKEN_STR != if
+                        token Token.loc + eputloc
+                        ": expected assert message to be a string but found `" eputs
+                        token Token.typ + @64 HUMAN_SINGULAR human-token-typ eputs
+                        "` instead\n" eputs
+                        1 exit
+                    end
+
+                    lexer eval-const-value
+
+                    swap DATATYPE_BOOL != if
+                        token Token.loc + eputloc ": ERROR: assertion faild: expression is expected to be of type `bool`\n" eputs
+                        1 exit
+                    end
+
+                    cast(bool) lnot if
+                        token Token.loc + eputloc ": ERROR: Static assertion Failed: " eputs token Token.value + @Str eputs "\n" eputs
+                        1 exit
+                    end
+
+                    here eputs ": TODO: asserts are not implemented\n" eputs
+                    token Token.loc + eputloc ": NOTE: located here\n " eputs token Token.value + @Str eputs "\n" eputs
+                    1 exit
                 else dup @Str const-lookup dup NULL != if*
                     OP_PUSH_INT
                     swap Const.value + @64
