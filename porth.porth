@@ -386,7 +386,7 @@ proc cmd_echoed ptr -- in // argv
     "[CMD]" puts
     dup while dup @64 0 != do
         " " puts
-        dup @ptr cstr-to-str puts
+        dup @64 cast(ptr) cstr-to-str puts
         8 +
     end drop
     "\n" puts
@@ -415,7 +415,7 @@ proc print-opz in
         dup sizeof(Op) * ops +
         "Type:    " puts dup Op.typ + @64 op-typ-as-str puts "\n" puts 
         "Operand: " puts 
-        dup Op.type + @64 OP_INTRINSIC = if 
+        dup Op.typ + @64 OP_INTRINSIC = if 
             Op.operand + @64 intrinsic-name puts
         else
             Op.operand + @64 putu
@@ -433,9 +433,9 @@ proc compile-opz in // --
 
     memory out-fd sizeof(u64) end
 
-    420     // mode
+    420                 // mode
     O_CREAT O_WRONLY or // flags
-    "output.asm"c
+    "output.asm"c       // pathname
     AT_FDCWD
     openat
     out-fd !64
@@ -502,19 +502,21 @@ proc compile-opz in // --
             ";;  -- if --\n"             out-fd @64 fputs
             "    pop rax\n"              out-fd @64 fputs
             "    test rax, rax\n"        out-fd @64 fputs
-            "    jz addr_"             out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
+            "    jz addr_"               out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
         else dup Op.typ + @64 OP_ELSE = if*
-            ";;  -- else --\n"             out-fd @64 fputs
-            "    jmp addr_"            out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
+            ";;  -- else --\n"           out-fd @64 fputs
+            "    jmp addr_"              out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
         else dup Op.typ + @64 OP_END = if*
-            ";;  -- end --\n" out-fd @64 fputs
-            "    jmp addr_" out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
+            ";;  -- end --\n"            out-fd @64 fputs
+            "    jmp addr_"              out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
         else dup Op.typ + @64 OP_WHILE = if*
-            here eputs ": TODO: OP_WHILE is not implemented in compiletion mode\n" eputs
-            1 exit
+            ";;  -- while --\n"          out-fd @64 fputs
+            // nothing to generate as `while` is just a label
         else dup Op.typ + @64 OP_DO = if*
-            here eputs ": TODO: OP_DO is not implemented in compiletion mode\n" eputs
-            1 exit
+            ";;  -- do --\n"             out-fd @64 fputs
+            "    pop rax\n"              out-fd @64 fputs
+            "    test rax, rax\n"        out-fd @64 fputs
+            "    jz addr_"               out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
         else dup Op.typ + @64 OP_SKIP_PROC = if*
             here eputs ": TODO: OP_SKIP_PROC is not implemented in compiletion mode\n" eputs
             1 exit
@@ -828,12 +830,12 @@ proc compile-opz in // --
     out-fd @64 close drop
     
     memory nasm-argv  sizeof(ptr) 4 * end
-    "nasm"c          nasm-argv 0 8 * + !64
-    "-felf64"c       nasm-argv 1 8 * + !64
-    "output.asm"c    nasm-argv 2 8 * + !64
-    NULL             nasm-argv 3 8 * + !64
+    "nasm"c           nasm-argv 0 8 * + !64
+    "-felf64"c        nasm-argv 1 8 * + !64
+    "output.asm"c     nasm-argv 2 8 * + !64
+    NULL              nasm-argv 3 8 * + !64
     nasm-argv cmd_echoed
-    
+
     memory ld-argv sizeof(ptr) 5 * end
     "ld"c          ld-argv 0 8 * + !64
     "-o"c          ld-argv 1 8 * + !64
@@ -898,11 +900,14 @@ proc simulate-opz in
         else sim-op Op.typ + @64 OP_END = if*
             sim-op Op.operand + @64 sim-ip !64
         else sim-op Op.typ + @64 OP_WHILE = if*
-            here eputs ": TODO: OP_WHILE is not implemented in simulation mode\n" eputs
-            1 exit
+            sim-ip inc64
+            // nothing to simulate as `while` is a label
         else sim-op Op.typ + @64 OP_DO = if*
-            here eputs ": TODO: OP_DO is not implemented in simulation mode\n" eputs
-            1 exit
+            sim-stack-pop cast(bool) if
+                sim-ip inc64
+            else
+                sim-op Op.operand + @64 sim-ip !64
+            end
         else sim-op Op.typ + @64 OP_SKIP_PROC = if*
             here eputs ": TODO: OP_SKIP_PROC is not implemented in simulation mode\n" eputs
             1 exit
@@ -1750,6 +1755,40 @@ in
     end
 end
 
+proc enclose-while-do
+    int // do-ip
+    ptr // token
+    --
+in
+    memory token sizeof(Token) end
+    sizeof(Token) swap token memcpy drop
+
+    memory do-ip sizeof(int) end
+    do-ip !int
+
+    memory do-op sizeof(ptr) end
+    do-ip @int sizeof(Op) * ops + do-op !ptr
+
+    memory while-ip sizeof(int) end
+    do-op @ptr Op.operand + @int while-ip !int
+
+    while-ip @int ops-count @int >= if
+        here eputs ": Assertion Failed: out of range\n" eputs
+        1 exit
+    end
+
+    memory while-op sizeof(ptr) end
+    while-ip @int sizeof(Op) * ops + while-op !ptr
+
+    while-op @ptr Op.typ + @int OP_WHILE != if
+        here eputs ": Assertion Failed: `do` does not preceed `while`\n" eputs
+        1 exit
+    end
+
+    OP_END while-ip @int token push-op
+    ops-count @int do-op @ptr Op.operand + !int
+end
+
 proc parse_file_path_cstr_into_opz
     ptr // file-path-cstr
     --
@@ -1847,7 +1886,7 @@ in
                         1 exit
                     end
   
-                    parse-block-stack-pop // ip
+                    parse-block-stack-pop   // ip
                     ops over sizeof(Op) * + // op
   
                     dup Op.typ + @64 OP_IF = if
@@ -1857,9 +1896,7 @@ in
                         dup ops-count @64 swap Op.operand + !64
                         OP_END ops-count @64 1 + token push-op
                     else dup Op.typ + @64 OP_DO = if*
-                        here eputs ": TODO: closing `do` block is not implemented yet\n" eputs
-                        dup Op.token + Token.loc + eputloc ": NOTE: located here\n" eputs
-                        1 exit
+                        over token enclose-while-do
                     else dup Op.typ + @64 OP_PREP_PROC = if*
                         inside-prok @bool lnot if
                             here eputs ": Assertion failed: OP_PREP_PROC outside an actual proc\n" eputs
