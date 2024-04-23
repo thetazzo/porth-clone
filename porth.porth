@@ -1228,6 +1228,22 @@ in
     do dup lexer-next-line end
 
     dup Lexer.line + ?str-empty lnot if
+        sizeof(Str)
+        lexer @ptr Lexer.file-path +
+        token @ptr Token.loc + Loc.file-path +
+        memcpy
+        drop
+
+        lexer @ptr Lexer.row + @64
+        token @ptr Token.loc + Loc.row +
+        !64
+
+        lexer @ptr Lexer.line + offsetof(Str.data) + @ptr
+        lexer @ptr Lexer.line-start + @ptr
+        -
+        token @ptr Token.loc + Loc.col +
+        !64
+
         dup Lexer.line + @Str.data @8 '"' = if
             // String literal
 
@@ -1242,7 +1258,12 @@ in
             dup Lexer.line + str-chop-one-left
             39 word rot Lexer.line + str-chop-by-delim
 
-            word @Str token @ptr Token.value + !Str
+            word @Str.count 1 != if
+                token @ptr Token.loc + eputloc ": only a single byte is allowed inside of a charater literal\n" eputs
+                1 exit
+            end
+
+            word @Str.data @8 token @ptr Token.value + !int
             TOKEN_CHAR token @ptr Token.typ + !64
             // TODO: check if character literal was clsoed
         else
@@ -1262,22 +1283,6 @@ in
                 TOKEN_WORD token @ptr Token.typ + !64
             end
         end
-
-        sizeof(Str)
-        lexer @ptr Lexer.file-path +
-        token @ptr Token.loc + Loc.file-path +
-        memcpy
-        drop
-
-        lexer @ptr Lexer.row + @64
-        token @ptr Token.loc + Loc.row +
-        !64
-
-        word offsetof(Str.data) + @ptr
-        lexer @ptr Lexer.line-start + @ptr
-        -
-        token @ptr Token.loc + Loc.col +
-        !64
 
         word @Str token @ptr Token.text + !Str
         true
@@ -1571,13 +1576,13 @@ in
 
         token Token.typ + @64 // token.typ
         dup TOKEN_INT = if
-            "[INTEGER] " puts token Token.value + @64 putu "\n" puts
+            "[INTEGER] " puts token Token.value + @int putu "\n" puts
         else dup TOKEN_WORD = if*
             "[WORD] " puts token Token.value + @Str puts "\n" puts
         else dup TOKEN_STR = if*
             "[STR] \"" puts token Token.value + @Str puts "\"\n" puts
         else dup TOKEN_CHAR = if*
-            "[CHAR] \'" puts token Token.value + @Str puts "\'\n" puts
+            "[CHAR] " puts token Token.value + @int putu "\n" puts
         else
             here eputs ": Unreachable. Unknown token type.\n" eputs
             1 exit
@@ -2090,9 +2095,10 @@ in
             token Token.loc + eputloc ": NOTE: located here\n" eputs
             1 exit
         else dup TOKEN_CHAR = if*
-            here eputs ": TODO: parsing character literals is not implemented\n" eputs
-            token Token.loc + eputloc ": NOTE: located here\n" eputs
-            1 exit
+            OP_PUSH_INT
+            token Token.value + @int
+            token
+            push-op
         else
             here eputs ": Unreachable. Unknown token type.\n" eputs
             1 exit
