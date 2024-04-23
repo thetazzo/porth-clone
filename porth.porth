@@ -1869,7 +1869,7 @@ in
     ifstar-ip !int
 
     memory ifstar-op sizeof(ptr) end
-    ifstar-ip @int sizeof(Op) * ops * ifstar-op !ptr
+    ifstar-ip @int sizeof(Op) * ops + ifstar-op !ptr
 
     ifstar-op @ptr Op.typ + @int OP_IFSTAR != if
         here eputs ": Assertion Failed: expected `if*`\n" eputs
