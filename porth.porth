@@ -1489,6 +1489,13 @@ in
                   swap
                   *
                   DATATYPE_INT swap const-stack-push
+                else dup INTRINSIC_EQ = if*
+                  // TODO: `=` intrinsic ignores the types in compile time evaluation
+                  const-stack-pop swap drop
+                  const-stack-pop swap drop
+                  swap
+                  = cast(int)
+                  DATATYPE_BOOL swap const-stack-push
               else
                   token Token.loc + eputloc ": ERROR: intrinsic `" eputs token Token.value + @Str eputs "` is not supported in compile time evaluation\n" eputs
                   1 exit
@@ -2129,10 +2136,6 @@ in
                         token Token.loc + eputloc ": ERROR: Static assertion Failed: " eputs token Token.value + @Str eputs "\n" eputs
                         1 exit
                     end
-
-                    here eputs ": TODO: asserts are not implemented\n" eputs
-                    token Token.loc + eputloc ": NOTE: located here\n " eputs token Token.value + @Str eputs "\n" eputs
-                    1 exit
                 else dup @Str const-lookup dup NULL != if*
                     OP_PUSH_INT
                     swap Const.value + @64
