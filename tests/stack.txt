@@ -2,7 +2,7 @@
 :b stdin 0
 
 :i returncode 0
-:b stdout 386
+:b stdout 363
 69420
 100
 42
@@ -11,11 +11,6 @@
 ------------------------------
 Hello, World
 Hello, "World"
-
-muli
-freakin
-line
-str
 ------------------------------
 70
 ------------------------------

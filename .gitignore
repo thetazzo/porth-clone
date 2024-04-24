@@ -45,7 +45,7 @@ tests/comparison
 tests/dead-recursive-macro
 tests/memory
 tests/memory-forth-style
-tests/stack-manipulation
+tests/stack
 tests/system
 tests/argv
 tests/macro-with-no-end-error
