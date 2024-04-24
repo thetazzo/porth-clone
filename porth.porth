@@ -1,6 +1,6 @@
 // A self-hosted compiler wanna-be
 
-include "./std/std.porth"
+include "std/std.porth"
 
 // operation codes
 const OP_PUSH_INT             1 offset end
@@ -550,7 +550,7 @@ proc located-here ptr -- in eputloc ": NOTE: located here\n" eputs end
 
 const x86_64_RET_STACK_CAP 8 1024 * end
 
-proc fputhexstr
+proc fputdecstr
     int ptr // str
     int
     --
@@ -567,37 +567,13 @@ in
     true first !bool
 
     while str @Str.count 0 > do
-        str @Str.data @8 
-            dup 15 and
-                dup 0 >= over 9 <= and if
-                    dup '0' +      byte 1 + !8
-                else dup 10 >= over 15 <= and if*
-                    dup 10 - 'a' + byte 1 + !8
-                else
-                    here eputs ": unreachable\n" eputs
-                end
-            drop
-
-            dup 4 shr 15 and
-                dup 0 >= over 9 <= and if
-                    dup '0' +      byte !8
-                else dup 10 >= over 15 <= and if*
-                    dup 10 - 'a' + byte !8
-                else
-                    here eputs ": unreachable\n" eputs
-                end
-            drop
-        drop
-
         first @bool if
             false first !bool
         else 
             "," fd @64 fputs
         end
 
-        "0x"    fd @64 fputs
-        2 byte  fd @64 fputs
-
+        str @Str.data @8 fd @64 fputu
         str str-chop-one-left
     end
 end
@@ -658,6 +634,8 @@ proc generate-nasm-linux-x86_64 in // --
     "global _start\n"                        out-fd @64 fputs
     "_start:\n"                              out-fd @64 fputs
     "    mov [args_ptr], rsp\n"              out-fd @64 fputs
+    "    mov rax, ret_stack_end\n"           out-fd @64 fputs
+    "    mov [ret_stack_rsp], rax\n"         out-fd @64 fputs
 
     0 while dup ops-count @64 < do
         // ptr type
@@ -665,11 +643,6 @@ proc generate-nasm-linux-x86_64 in // --
 
         assert "Exhaustive handling of Op.typs in generate-nasm-linux-x86_64" COUNT_OPZ 16 = end
 
-        "addr_"                                  out-fd @64 fputs
-        over                                     out-fd @64 fputu
-        ":\n"                                    out-fd @64 fputs
-
-        ";;  -- "                                out-fd @64 fputs
         dup Op.token + Token.loc +               out-fd @64 fputloc
         ": "                                     out-fd @64 fputs
         dup Op.typ   + @64 op-typ-as-str         out-fd @64 fputs
@@ -995,7 +968,7 @@ proc generate-nasm-linux-x86_64 in // --
         "str_"                           out-fd @64 fputs
         dup                              out-fd @64 fputu
         ": db "                          out-fd @64 fputs
-        dup sizeof(Str) * strlits + @Str out-fd @64 fputhexstr
+        dup sizeof(Str) * strlits + @Str out-fd @64 fputdecstr
         "\n"                             out-fd @64 fputs
         1 +
     end drop
@@ -1958,7 +1931,10 @@ in
     over 1 + tmp-alloc memcpy
 end
 
-proc local-memories-clean in 0 local-memories-count !64 end
+proc local-memories-clean in
+    0 local-memories-count !64
+    0 local-memory-capacity !64
+end
 
 proc local-memories-lookup
     int ptr // name
