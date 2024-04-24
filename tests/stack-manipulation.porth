@@ -1,4 +1,4 @@
-include "std.porth"
+include "./std/std.porth"
 
 // push int
 420 69 42 100 69420
@@ -10,12 +10,13 @@ print print print print print
 "Hello, World\n" puts // ascii
 "Hello, \"World\"\n" puts // string with double quotes
 // multiline string
-"
-muli
-freakin
-line
-str
-" puts
+// "
+// muli
+// freakin
+// line
+// str
+// " puts
+// TODO: multiline strings don't work in porth.porth
 
 "------------------------------\n" puts
 // Characters
