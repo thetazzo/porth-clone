@@ -2488,6 +2488,15 @@ in
     // TODO: parse_file_path does not clean up resources after itself
 end
 
+proc summary in
+    // TODO: lexer stats: tokens count, lines count, etc. 
+    "Ops Count:                    " puts ops-count              @int putu "\n" puts 
+    "Consts Count:                 " puts consts-count           @int putu "\n" puts
+    "Procs Count:                  " puts procs-count            @int putu "\n" puts
+    "String Literals Size (bytes): " puts strlit-size            @int putu "\n" puts
+    "Global Memory Size (bytes):   " puts global-memory-capacity @int putu "\n" puts
+end
+
 proc print-usage 
     int // fd
     --
@@ -2501,6 +2510,7 @@ in
     "    com <file>     Compile the program\n"                                fd @64 fputs
     "    print <file>   Print ops of the program\n"                           fd @64 fputs
     "    lex <file>     Produce a lexical analysis of the file\n"             fd @64 fputs
+    "    summary <file> Print the summary of the program\n"                   fd @64 fputs
     "    help           Print this help to the stderr ane exit with 0 code\n" fd @64 fputs
 end
 
@@ -2550,6 +2560,16 @@ proc main in
         end
 
         2 nth_argv lex-file
+    else dup "summary"c cstreq if*
+        argc 3 < if
+            stderr print-usage
+            "ERROR: not input file provided for `summary` subcommand\n" eputs
+            1 exit
+        end
+
+        2 nth_argv compile-file-into-opz
+
+        summary
     else dup "help"c cstreq if*
         stdout print-usage
         0 exit
