@@ -171,7 +171,11 @@ def get_cstr_list_from_mem(mem: bytearray, ptr: int) -> List[str]:
 def deref_u64(mem: bytearray, ptr: int) -> int:
     return int.from_bytes(mem[ptr:ptr+8], byteorder="little")
 
-SIM_NULL_POINTER_PADDING = 1 # a bit of padding at the begginig of the memory to make 0 an invalid address
+def mem_alloc(mem: bytearray, size: int) -> int:
+    result = len(mem)
+    mem += bytearray(size)
+    return result
+
 SIM_STR_CAPACITY = 640_000
 SIM_ARGV_CAPACITY = 640_000
 SIM_LOCAL_MEMORY_CAPACITY = 640_000
@@ -184,19 +188,19 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
 
     stack: List[int] = []
     ret_stack: List[OpAddr] = []
-    mem = bytearray(SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY + SIM_LOCAL_MEMORY_CAPACITY + program.memory_capacity)
+    mem = bytearray(1) # 1 is just for padding
 
-    str_buf_ptr  = SIM_NULL_POINTER_PADDING
+    str_buf_ptr  = mem_alloc(mem, SIM_STR_CAPACITY)
     str_ptrs: Dict[int, int] = {}
     str_size = 0
 
-    argv_buf_ptr = SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY
+    argv_buf_ptr = mem_alloc(mem, SIM_ARGV_CAPACITY)
     argc = 0
 
-    local_mem_ptr = SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY 
+    local_mem_ptr = mem_alloc(mem, SIM_LOCAL_MEMORY_CAPACITY)
     local_mem_rsp = local_mem_ptr + SIM_LOCAL_MEMORY_CAPACITY
 
-    mem_buf_ptr  = SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY + SIM_LOCAL_MEMORY_CAPACITY
+    mem_buf_ptr  = mem_alloc(mem, program.memory_capacity)
 
     fds: List[BinaryIO] = [sys.stdin.buffer, sys.stdout.buffer, sys.stderr.buffer]
 
