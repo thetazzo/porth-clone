@@ -583,9 +583,9 @@ proc generate-nasm-linux-x86_64 in // --
 
     memory out-fd sizeof(u64) end
 
-    420                 // mode
-    O_CREAT O_WRONLY or // flags
-    "output.asm"c       // pathname
+    420                            // mode
+    O_CREAT O_WRONLY or O_TRUNC or // flags
+    "output.asm"c                  // pathname
     0 100 -
     openat
     out-fd !64
