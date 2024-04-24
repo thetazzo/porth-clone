@@ -481,6 +481,9 @@ end
 
 const MEM_CAPACITY 640000 end
 
+proc located-here ptr -- in eputloc ": NOTE: located here\n" eputs end
+    
+
 proc compile-opz in // --
     "[INFO] Generating output.asm\n" puts
 
@@ -553,6 +556,7 @@ proc compile-opz in // --
             "    push rax\n"             out-fd @64 fputs
         else dup Op.typ + @64 OP_PUSH_LOCAL_MEM = if*
             here eputs ": TODO: OP_PUSH_LOCAL_MEM is not implemented in compiletion mode\n" eputs
+            dup Op.token + Token.loc + located-here
             1 exit
         else dup Op.typ + @64 OP_PUSH_GLOBAL_MEM = if*
             ";;  -- push global mem --\n" out-fd @64 fputs
@@ -561,9 +565,11 @@ proc compile-opz in // --
             "    push rex\n"              out-fd @64 fputs
         else dup Op.typ + @64 OP_PUSH_STR = if*
             here eputs ": TODO: OP_PUSH_STR is not implemented in compiletion mode\n" eputs
+            dup Op.token + Token.loc + located-here
             1 exit
         else dup Op.typ + @64 OP_PUSH_CSTR = if*
             here eputs ": TODO: OP_PUSH_CSTR is not implemented in compiletion mode\n" eputs
+            dup Op.token + Token.loc + located-here
             1 exit
         else dup Op.typ + @64 OP_IF = if*
             ";;  -- if --\n"             out-fd @64 fputs
@@ -572,6 +578,7 @@ proc compile-opz in // --
             "    jz addr_"               out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
         else dup Op.typ + @64 OP_IFSTAR = if*
             here eputs ": TODO: OP_IFSTAR is not implemented in compiletion mode\n" eputs
+            dup Op.token + Token.loc + located-here
             1 exit
         else dup Op.typ + @64 OP_ELSE = if*
             ";;  -- else --\n"           out-fd @64 fputs
@@ -589,15 +596,19 @@ proc compile-opz in // --
             "    jz addr_"               out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
         else dup Op.typ + @64 OP_SKIP_PROC = if*
             here eputs ": TODO: OP_SKIP_PROC is not implemented in compiletion mode\n" eputs
+            dup Op.token + Token.loc + located-here
             1 exit
         else dup Op.typ + @64 OP_PREP_PROC = if*
             here eputs ": TODO: OP_PREP_PROC is not implemented in compiletion mode\n" eputs
+            dup Op.token + Token.loc + located-here
             1 exit
         else dup Op.typ + @64 OP_RET = if*
             here eputs ": TODO: OP_RET is not implemented in compiletion mode\n" eputs
+            dup Op.token + Token.loc + located-here
             1 exit
         else dup Op.typ + @64 OP_CALL = if*
             here eputs ": TODO: OP_CALL is not implemented in compiletion mode\n" eputs
+            dup Op.token + Token.loc + located-here
             1 exit
         else dup Op.typ + @64 OP_INTRINSIC = if*
             assert "Exhaustive handling of intrinsics in parse-file-path" COUNT_INTRINSICS 44 = end
@@ -622,6 +633,7 @@ proc compile-opz in // --
                 "    push rax\n"         out-fd @64 fputs
             else dup INTRINSIC_MAX = if*
                 here eputs ": TODO: intrinsix `max` is not implemented in compilation mode\n" eputs
+                over Op.token + Token.loc + located-here
                 1 exit
             else dup INTRINSIC_DIVMOD = if*
                 ";;  -- divmod --\n"     out-fd @64 fputs
@@ -808,11 +820,13 @@ proc compile-opz in // --
                 "    add rax, 8\n"               out-fd @64 fputs
                 "    push rax\n"                 out-fd @64 fputs 
             else dup INTRINSIC_ENVP = if*
-                    here eputs ": TODO: `envp` is not implemented yet" eputs
-                    1 exit
+                here eputs ": TODO: `envp` is not implemented yet" eputs
+                over Op.token + Token.loc + located-here
+                1 exit
             else dup INTRINSIC_HERE = if*
-                    here eputs ": TODO: `here` is not implemented yet" eputs
-                    1 exit
+                here eputs ": TODO: `here` is not implemented yet" eputs
+                over Op.token + Token.loc + located-here
+                1 exit
             else dup INTRINSIC_SYSCALL0 = if*
                 ";;  -- syscall0 --\n"           out-fd @64 fputs
                 "    pop rax\n"                  out-fd @64 fputs
@@ -937,7 +951,6 @@ proc sim-stack-pop -- int in
 end
 
 proc simulate-opz in 
-
     memory sim-ip sizeof(u64) end
     memory sim-op sizeof(Op) end
 
@@ -957,15 +970,19 @@ proc simulate-opz in
             sim-ip inc64
         else sim-op Op.typ + @64 OP_PUSH_LOCAL_MEM = if*
             here eputs ": TODO: OP_PUSH_LOCAL_MEM is not implemented in simulation mode\n" eputs
+            sim-op Op.token + Token.loc + located-here 
             1 exit
         else sim-op Op.typ + @64 OP_PUSH_GLOBAL_MEM = if*
             here eputs ": TODO: OP_PUSH_GLOBAL_MEM is not implemented in simulation mode\n" eputs
+            sim-op Op.token + Token.loc + located-here 
             1 exit
         else sim-op Op.typ + @64 OP_PUSH_STR = if*
             here eputs ": TODO: OP_PUSH_STR is not implemented in simulation mode\n" eputs
+            sim-op Op.token + Token.loc + located-here 
             1 exit
         else sim-op Op.typ + @64 OP_PUSH_CSTR = if*
             here eputs ": TODO: OP_PUSH_CSTR is not implemented in simulation mode\n" eputs
+            sim-op Op.token + Token.loc + located-here 
             1 exit
         else sim-op Op.typ + @64 OP_IF = if*
             sim-stack-pop cast(bool) if
@@ -975,6 +992,7 @@ proc simulate-opz in
             end
         else sim-op Op.typ + @64 OP_IFSTAR = if*
             here eputs ": TODO: OP_IFSTAR is not implemented in simulation mode\n" eputs
+            sim-op Op.token + Token.loc + located-here 
             1 exit
         else sim-op Op.typ + @64 OP_ELSE = if*
             sim-op Op.operand + @64 sim-ip !64
@@ -990,16 +1008,18 @@ proc simulate-opz in
                 sim-op Op.operand + @64 sim-ip !64
             end
         else sim-op Op.typ + @64 OP_SKIP_PROC = if*
-            here eputs ": TODO: OP_SKIP_PROC is not implemented in simulation mode\n" eputs
-            1 exit
+            sim-op Op.operand + @64 sim-ip !64
         else sim-op Op.typ + @64 OP_PREP_PROC = if*
             here eputs ": TODO: OP_PREP_PROC is not implemented in simulation mode\n" eputs
+            sim-op Op.token + Token.loc + located-here 
             1 exit
         else sim-op Op.typ + @64 OP_RET = if*
             here eputs ": TODO: OP_RET is not implemented in simulation mode\n" eputs
+            sim-op Op.token + Token.loc + located-here 
             1 exit
         else sim-op Op.typ + @64 OP_CALL = if*
             here eputs ": TODO: OP_CALL is not implemented in simulation mode\n" eputs
+            sim-op Op.token + Token.loc + located-here 
             1 exit
         else sim-op Op.typ + @64 OP_INTRINSIC = if*
             assert "Exhaustive handling of intrinsics in simulate-opz" COUNT_INTRINSICS 44 = end
@@ -1028,6 +1048,7 @@ proc simulate-opz in
                 sim-stack-push
             else sim-op Op.operand + @64 INTRINSIC_MAX = if*
                 here eputs ": TODO: `max` intrinsic is not implemented in simulation mode\n" eputs
+                sim-op Op.token + Token.loc + located-here 
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_EQ = if*
                 sim-stack-pop
@@ -1132,45 +1153,83 @@ proc simulate-opz in
                 sim-stack-push
             else sim-op Op.operand + @64 INTRINSIC_LOAD8 = if*
                 here puts ": TODO: `@8` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_STORE8 = if*
                 here puts ": TODO: `!8` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_LOAD16 = if*
                 here puts ": TODO: `@16` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_STORE16 = if*
                 here puts ": TODO: `!16` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_LOAD32 = if*
                 here puts ": TODO: `@32` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_STORE32 = if*
                 here puts ": TODO: `!32` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_LOAD64 = if*
                 here puts ": TODO: `@64` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_STORE64 = if*
                 here puts ": TODO: `!64` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_ARGC = if*
                 here puts ": TODO: `argc` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_ARGV = if*
                 here puts ": TODO: `argv` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_ENVP = if*
                 here puts ": TODO: `envp` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_HERE = if*
                 here puts ": TODO: `here` is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_CAST_PTR = if*
             else sim-op Op.operand + @64 INTRINSIC_CAST_INT = if*
             else sim-op Op.operand + @64 INTRINSIC_CAST_BOOL = if*
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL0 = if*
-                here puts ": TODO: syscall0 is not implemented" eputs
+                sim-stack-pop
+                syscall0
+                sim-stack-push
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL1 = if*
                 here puts ": TODO: syscall1 is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL2 = if*
                 here puts ": TODO: syscall2 is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL3 = if*
                 here puts ": TODO: syscall3 is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL4 = if*
                 here puts ": TODO: syscall4 is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL5 = if*
                 here puts ": TODO: syscall5 is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL6 = if*
                 here puts ": TODO: syscall6 is not implemented" eputs
+                sim-op Op.token + Token.loc + located-here 
+                1 exit
             else 
                 here eputs ": unreachable\n" eputs 1 exit
                 1 exit
@@ -1319,6 +1378,7 @@ in
     lexer @ptr Lexer.line       + offsetof(Str.data) + @ptr
     lexer @ptr Lexer.line-start +                      @ptr
     -
+    1 +
     loc @ptr Loc.col +
     !int
 end
