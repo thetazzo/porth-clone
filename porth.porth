@@ -466,10 +466,8 @@ end
 
 proc print-opz in 
     0 while dup ops-count @64 < do
-        // ptr
         dup sizeof(Op) * ops +
-        "Type:    " puts dup Op.typ + @64 op-typ-as-str puts "\n" puts 
-        "Operand: " puts 
+        over putu ": " puts dup Op.typ + @64 op-typ-as-str puts " " puts
         dup Op.typ + @64 OP_INTRINSIC = if 
             Op.operand + @64 intrinsic-name puts
         else
@@ -1284,6 +1282,102 @@ proc lexer-next-line ptr in // lexer:ptr --
     lexer @ptr Lexer.row + inc64
 end
 
+proc lexer-loc
+    ptr // loc
+    ptr // lexer
+    --
+in
+    memory lexer sizeof(ptr) end
+    lexer !ptr
+    memory loc   sizeof(ptr) end
+    loc !ptr
+
+    // File Path
+    sizeof(Str)
+    lexer @ptr Lexer.file-path +
+    loc   @ptr Loc.file-path   +
+    memcpy
+    drop
+
+    // Row
+    lexer @ptr Lexer.row + @int
+    loc   @ptr Loc.row   + !int
+
+    // Column
+    lexer @ptr Lexer.line       + offsetof(Str.data) + @ptr
+    lexer @ptr Lexer.line-start +                      @ptr
+    -
+    loc @ptr Loc.col +
+    !int
+end
+
+proc lexer-consume-strlit
+    ptr // lexer
+    --
+    int ptr // string literal
+in
+    memory lexer sizeof(ptr) end
+    lexer !ptr
+
+    memory start sizeof(ptr) end
+    strlit-end start !ptr
+
+    memory count sizeof(int) end
+    0 count !int
+
+    memory loc sizeof(Loc) end
+
+    lexer @ptr Lexer.line +
+    while
+        dup ?str-empty lnot if
+            dup @Str.data @8 '"' = if
+                dup str-chop-one-left
+                false
+            else dup @Str.data @8 '\\' = if*
+                dup str-chop-one-left
+
+                dup ?str-empty if
+                    loc lexer @ptr lexer-loc
+                    loc eputloc ": ERROR: unfinished escape character\n" eputs
+                    1 exit
+                end
+
+                dup @Str.data @8 'n' = if
+                    10 strlit-append-char
+                    dup str-chop-one-left
+                    count inc64
+                    true
+                else dup @Str.data @8 '\\' = if* 
+                    92 strlit-append-char
+                    dup str-chop-one-left
+                    count inc64
+                    true
+                else dup @Str.data @8 '\"' = if* 
+                    34 strlit-append-char
+                    dup str-chop-one-left
+                    count inc64
+                    true
+                else
+                    loc lexer @ptr lexer-loc
+                    loc eputloc ": ERROR: unknown escape charater `" eputs 1 over @Str.data eputs "`\n" eputs
+                    1 exit
+                    false
+                end
+            else
+                dup @Str.data @8 strlit-append-char
+                dup str-chop-one-left
+                count inc64
+                true
+            end
+        else false end
+    do end
+    drop
+
+    count @int start @ptr
+    // TODO: check if the string literal was actually closed
+end
+
+
 proc lexer-next-token
     ptr // token
     ptr // lexer
@@ -1307,28 +1401,15 @@ in
     do dup lexer-next-line end
 
     dup Lexer.line + ?str-empty lnot if
-        sizeof(Str)
-        lexer @ptr Lexer.file-path +
-        token @ptr Token.loc + Loc.file-path +
-        memcpy
-        drop
-
-        lexer @ptr Lexer.row + @64
-        token @ptr Token.loc + Loc.row +
-        !64
-
-        lexer @ptr Lexer.line + offsetof(Str.data) + @ptr
-        lexer @ptr Lexer.line-start + @ptr
-        -
-        token @ptr Token.loc + Loc.col +
-        !64
+        token @ptr Token.loc +
+        lexer @ptr
+        lexer-loc
 
         dup Lexer.line + @Str.data @8 '"' = if
             // String literal
-
             dup Lexer.line + str-chop-one-left
-            '"' word rot Lexer.line + str-chop-by-delim
 
+            lexer-consume-strlit word !Str
             word @Str token @ptr Token.value + !Str
 
             lexer @ptr Lexer.line + ?str-empty lnot if
@@ -1341,8 +1422,6 @@ in
             else
                 TOKEN_STR token @ptr Token.typ + !64
             end
-
-            // TODO: check if string literal was clsoed
         else dup Lexer.line + @Str.data @8 39 = if* // cannot use ' directy for some reason
             // Character literal
             dup Lexer.line + str-chop-one-left
@@ -1350,6 +1429,12 @@ in
 
             word @Str "\\n" streq if
                 10 token @ptr Token.value + !int
+            else word @Str "\\\\" streq if*
+                92 token @ptr Token.value + !int
+            else word @Str "\\\"" streq if*
+                34 token @ptr Token.value + !int
+            else word @Str.count 1 = if*
+                word @Str.data @8 token @ptr Token.value + !int
             else
                 token @ptr Token.loc + eputloc ": only a single byte is allowed inside of a charater literal\n" eputs
                 1 exit
