@@ -577,7 +577,6 @@ in
         str str-chop-one-left
     end
 end
-    
 
 proc generate-nasm-linux-x86_64 in // --
     "[INFO] Generating output.asm\n" puts
@@ -996,11 +995,6 @@ proc generate-nasm-linux-x86_64 in // --
     "output.o"c    ld-argv 3 8 * + !64
     NULL           ld-argv 4 8 * + !64
     ld-argv cmd_echoed
-    
-    memory output-argv sizeof(ptr) 2 * end
-    "./output"c output-argv 0 8 * + !64
-    NULL        output-argv 1 8 * + !64
-    output-argv cmd_echoed
 end
 
 const SIM_STACK_CAP 1024 end
@@ -2551,6 +2545,8 @@ in
     "  SUBCOMMAND:\n"                                                         fd @64 fputs
     "    sim <file>     Simulate the program\n"                               fd @64 fputs
     "    com <file>     Compile the program\n"                                fd @64 fputs
+    "       OPTIONS:\n"                                                       fd @64 fputs
+    "         -r        Run the program after successful compilation\n"       fd @64 fputs
     "    print <file>   Print ops of the program\n"                           fd @64 fputs
     "    lex <file>     Produce a lexical analysis of the file\n"             fd @64 fputs
     "    summary <file> Print the summary of the program\n"                   fd @64 fputs
@@ -2573,9 +2569,22 @@ proc main in
             1 exit
         end
 
-        2 nth_argv compile-file-into-opz
-
+        argc 1 - nth_argv compile-file-into-opz
         generate-nasm-linux-x86_64
+        argc 4 = if
+            memory run-flag sizeof(ptr) end
+            2 nth_argv run-flag !64
+            run-flag @ptr cstr-to-str "-r" streq if
+                memory output-argv sizeof(ptr) 5 * end
+                "output"c      output-argv 0 8 * + !64
+                NULL           output-argv 1 8 * + !64
+                output-argv cmd_echoed
+            else
+                stderr print-usage
+                "ERROR: unknown flag `" eputs run-flag @ptr cstr-to-str eputs "\n" eputs
+                1 exit
+            end
+        end
     else dup "sim"c cstreq if*
         argc 3 < if
             stderr print-usage
