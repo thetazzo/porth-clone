@@ -76,3 +76,4 @@ tests/memset
 tests/envp
 tests/local-memory-overshadowing
 tests/backslash-in-strlit
+tests/memset-bug

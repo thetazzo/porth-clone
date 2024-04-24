@@ -700,7 +700,7 @@ in
     byte !64
     data @ptr swap
     while dup 0 > do
-        byte @64 data @ptr !64
+        byte @64 data @ptr !8
         data inc64
         1 -
     end
