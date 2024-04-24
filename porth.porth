@@ -2177,6 +2177,7 @@ in
 
                         Op.operand + ops-count @64 swap !64
 
+                        local-memories-clean
                         false inside-prok !bool
                     else dup Op.typ + @64 OP_SKIP_PROC = if*
                         here eputs ": unreachable\n" eputs
