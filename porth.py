@@ -1087,7 +1087,6 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
             op = program.ops[ip]
             assert len(OpType) == 18, "Exhaustive ops handling in generate_nasm_linux_x86_64: %d" % len(OpType)
             out.write("addr_%d:\n" % ip)
-            out.write(";;  -- %s:%d:%d: %s (%s) --\n" % (op.token.loc + (repr(op.token.text), op.typ)))
             if op.typ in [OpType.PUSH_INT, OpType.PUSH_BOOL, OpType.PUSH_PTR]:
                 assert isinstance(op.operand, int), "There is a bug in the parsing step (probably)"
                 out.write("    mov rax, %d\n" % op.operand)
@@ -1405,11 +1404,9 @@ def generate_nasm_linux_x86_64(program: Program, out_file_path: str):
         out.write("    mov rax, 60\n")
         out.write("    mov rdi, 0\n")
         out.write("    syscall\n")
-        out.write(";;  -- allocated data --\n")
         out.write("segment .data\n")               # segment for staticaly allocated elements
         for index, s in enumerate(strs):
             out.write("str_%d: db %s\n" % (index, ','.join(map(str, list(bytes(s))))))
-        out.write(";;  -- not yet allocated data --\n")
         out.write("segment .bss\n")                # segment of statically allocated declared variables that have no value assigned to them yet
         out.write("args_ptr: resq 1\n")            # reserve space for arguments(argv)
         out.write("ret_stack_rsp: resq 1\n") 

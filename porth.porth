@@ -868,12 +868,10 @@ proc generate-nasm-linux-x86_64 in // --
             else dup INTRINSIC_CAST_INT = if*
             else dup INTRINSIC_CAST_BOOL = if*
             else dup INTRINSIC_ARGC = if*
-                ";;  -- argc --\n"               out-fd @64 fputs
                 "    mov rax, [args_ptr]\n"      out-fd @64 fputs
                 "    mov rax, [rax]\n"           out-fd @64 fputs
                 "    push rax\n"                 out-fd @64 fputs
             else dup INTRINSIC_ARGV = if*
-                ";;  -- argv --\n"               out-fd @64 fputs
                 "    mov rax, [args_ptr]\n"      out-fd @64 fputs
                 "    add rax, 8\n"               out-fd @64 fputs
                 "    push rax\n"                 out-fd @64 fputs 
@@ -886,25 +884,21 @@ proc generate-nasm-linux-x86_64 in // --
                 "    add rbx, rax\n"             out-fd @64 fputs
                 "    push rbx\n"                 out-fd @64 fputs
             else dup INTRINSIC_SYSCALL0 = if*
-                ";;  -- syscall0 --\n"           out-fd @64 fputs
                 "    pop rax\n"                  out-fd @64 fputs
                 "    syscall\n"                  out-fd @64 fputs
                 "    push rax\n"                 out-fd @64 fputs
             else dup INTRINSIC_SYSCALL1 = if*
-                ";;  -- syscall1 --\n"           out-fd @64 fputs
                 "    pop rax\n"                  out-fd @64 fputs
                 "    pop rdi\n"                  out-fd @64 fputs
                 "    syscall\n"                  out-fd @64 fputs
                 "    push rax\n"                 out-fd @64 fputs
             else dup INTRINSIC_SYSCALL2 = if*
-                ";;  -- syscall2 -- \n"          out-fd @64 fputs
                 "    pop rax\n"                  out-fd @64 fputs
                 "    pop rdi\n"                  out-fd @64 fputs
                 "    pop rsi\n"                  out-fd @64 fputs
                 "    syscall\n"                  out-fd @64 fputs
                 "    push rax\n"                 out-fd @64 fputs
             else dup INTRINSIC_SYSCALL3 = if*
-                ";;  -- syscall3 --\n"           out-fd @64 fputs
                 "    pop rax\n"                  out-fd @64 fputs
                 "    pop rdi\n"                  out-fd @64 fputs
                 "    pop rsi\n"                  out-fd @64 fputs
@@ -912,7 +906,6 @@ proc generate-nasm-linux-x86_64 in // --
                 "    syscall\n"                  out-fd @64 fputs
                 "    push rax\n"                 out-fd @64 fputs
             else dup INTRINSIC_SYSCALL4 = if*
-                ";;  -- syscall4 --\n"           out-fd @64 fputs
                 "    pop rax\n"                  out-fd @64 fputs
                 "    pop rdi\n"                  out-fd @64 fputs
                 "    pop rsi\n"                  out-fd @64 fputs
@@ -921,7 +914,6 @@ proc generate-nasm-linux-x86_64 in // --
                 "    syscall\n"                  out-fd @64 fputs
                 "    push rax\n"                 out-fd @64 fputs
             else dup INTRINSIC_SYSCALL5 = if*
-                ";;  -- syscall5 --\n"           out-fd @64 fputs
                 "    pop rax\n"                  out-fd @64 fputs
                 "    pop rdi\n"                  out-fd @64 fputs
                 "    pop rsi\n"                  out-fd @64 fputs
@@ -931,7 +923,6 @@ proc generate-nasm-linux-x86_64 in // --
                 "    syscall\n"                  out-fd @64 fputs
                 "    push rax\n"                 out-fd @64 fputs
             else dup INTRINSIC_SYSCALL6 = if*
-                ";;  -- syscall6 --\n"           out-fd @64 fputs
                 "    pop rax\n"                  out-fd @64 fputs
                 "    pop rdi\n"                  out-fd @64 fputs
                 "    pop rsi\n"                  out-fd @64 fputs
