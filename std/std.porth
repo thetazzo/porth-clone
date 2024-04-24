@@ -746,7 +746,7 @@ in
             '=' env-name env-value str-chop-by-delim
             env-name @Str name @Str streq lnot
         else false end
-    do 0 + end
+    do 8 + end
 
     NULL != if
         env-value @Str.data
@@ -756,7 +756,7 @@ in
 end
 
 // 8MB of temporary scratch buffer
-const TMP_CAP 4 1024 * 1024 * end
+const TMP_CAP 8 1024 * 1024 * end
 memory tmp-start TMP_CAP end
 memory tmp-size sizeof(u64) end
 

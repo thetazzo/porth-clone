@@ -638,15 +638,13 @@ proc generate-nasm-linux-x86_64 in // --
     "    mov [ret_stack_rsp], rax\n"         out-fd @64 fputs
 
     0 while dup ops-count @64 < do
-        // ptr type
         dup sizeof(Op) * ops +
 
         assert "Exhaustive handling of Op.typs in generate-nasm-linux-x86_64" COUNT_OPZ 16 = end
 
-        dup Op.token + Token.loc +               out-fd @64 fputloc
-        ": "                                     out-fd @64 fputs
-        dup Op.typ   + @64 op-typ-as-str         out-fd @64 fputs
-        " --\n"                                  out-fd @64 fputs
+        "addr_" out-fd @64 fputs
+        over    out-fd @64 fputu
+        ":\n"   out-fd @64 fputs
 
         dup Op.typ + @64 OP_PUSH_INT = if
             "    mov rax, "                      out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
@@ -656,9 +654,9 @@ proc generate-nasm-linux-x86_64 in // --
             "    add rax, "                      out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
             "    push rax\n"                     out-fd @64 fputs
         else dup Op.typ + @64 OP_PUSH_GLOBAL_MEM = if*
-            "    mov rex, mem\n"                 out-fd @64 fputs
-            "    add rex,"                       out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n"  out-fd @64 fputs
-            "    push rex\n"                     out-fd @64 fputs
+            "    mov rax, mem\n"                 out-fd @64 fputs
+            "    add rax, "                       out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n"  out-fd @64 fputs
+            "    push rax\n"                     out-fd @64 fputs
         else dup Op.typ + @64 OP_PUSH_STR = if*
             "    mov rax, "                      out-fd @64 fputs dup Op.operand + @64 sizeof(Str) * strlits + @Str.count out-fd @64 fputu "\n" out-fd @64 fputs
             "    push rax\n"                     out-fd @64 fputs
@@ -702,6 +700,7 @@ proc generate-nasm-linux-x86_64 in // --
             "    mov rsp, rax\n"                 out-fd @64 fputs
         else dup Op.typ + @64 OP_INTRINSIC = if*
             assert "Exhaustive handling of intrinsics in generate-nasm-linux-x86_64" COUNT_INTRINSICS 43 = end
+
             dup Op.operand + @64
             dup INTRINSIC_PLUS = if
                 "    pop rax\n"                  out-fd @64 fputs
@@ -2331,7 +2330,7 @@ in
                     end
   
                     // TODO: introduce include limit
-                    token Token.value + @Str str-to-cstr compile-file-into-opz
+                    token Token.value + @Str tmp-str-to-cstr compile-file-into-opz
                 else dup @Str "const" streq if*
                     token lexer lexer-next-token lnot if
                         token Token.loc + eputloc
