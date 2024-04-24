@@ -484,7 +484,7 @@ const MEM_CAPACITY 640000 end
 proc located-here ptr -- in eputloc ": NOTE: located here\n" eputs end
     
 
-proc compile-opz in // --
+proc generate-nasm-linux-x86_64 in // --
     "[INFO] Generating output.asm\n" puts
 
     memory out-fd sizeof(u64) end
@@ -544,7 +544,7 @@ proc compile-opz in // --
         // ptr type
         dup sizeof(Op) * ops +
 
-        assert "Exhaustive handling of Op.typs in parse-file-path" COUNT_OPZ 16 = end
+        assert "Exhaustive handling of Op.typs in generate-nasm-linux-x86_64" COUNT_OPZ 16 = end
 
         "addr_" out-fd @64 fputs
         over    out-fd @64 fputu
@@ -611,7 +611,7 @@ proc compile-opz in // --
             dup Op.token + Token.loc + located-here
             1 exit
         else dup Op.typ + @64 OP_INTRINSIC = if*
-            assert "Exhaustive handling of intrinsics in parse-file-path" COUNT_INTRINSICS 44 = end
+            assert "Exhaustive handling of intrinsics in generate-nasm-linux-x86_64" COUNT_INTRINSICS 44 = end
             dup Op.operand + @64
             dup INTRINSIC_PLUS = if
                 ";;  -- plus --\n"       out-fd @64 fputs
@@ -2521,7 +2521,7 @@ proc main in
 
         2 nth_argv compile-file-into-opz
 
-        compile-opz
+        generate-nasm-linux-x86_64
     else dup "sim"c cstreq if*
         argc 3 < if
             stderr print_usage
