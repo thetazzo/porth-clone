@@ -2119,7 +2119,7 @@ in
     OP_ELSE 0 token push-op-int-operand
 end
 
-proc parse_file_path_cstr_into_opz
+proc compile-file-into-opz
     ptr // file-path-cstr
     --
 in 
@@ -2293,7 +2293,7 @@ in
                     end
   
                     // TODO: introduce include limit
-                    token Token.value + @Str str-to-cstr parse_file_path_cstr_into_opz
+                    token Token.value + @Str str-to-cstr compile-file-into-opz
                 else dup @Str "const" streq if*
                     token lexer lexer-next-token lnot if
                         token Token.loc + eputloc
@@ -2519,7 +2519,7 @@ proc main in
             1 exit
         end
 
-        2 nth_argv parse_file_path_cstr_into_opz
+        2 nth_argv compile-file-into-opz
 
         compile-opz
     else dup "sim"c cstreq if*
@@ -2528,7 +2528,7 @@ proc main in
             "ERROR: No input file provided for the `sim` subcommand" eputs
             1 exit
         end
-        2 nth_argv parse_file_path_cstr_into_opz
+        2 nth_argv compile-file-into-opz
 
         simulate-opz
     else dup "print"c cstreq if*
@@ -2538,7 +2538,7 @@ proc main in
             1 exit
         end
         
-        2 nth_argv parse_file_path_cstr_into_opz
+        2 nth_argv compile-file-into-opz
 
         print-opz
     else dup "lex"c cstreq if*
