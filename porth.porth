@@ -1658,7 +1658,7 @@ in
                   swap
                   = cast(int)
                   DATATYPE_BOOL swap const-stack-push
-                else dup INTRINSIC_EQ = if*
+                else dup INTRINSIC_MAX = if*
                   // TODO: `max` intrinsic ignores the types in compile time evaluation
                   const-stack-pop swap drop
                   const-stack-pop swap drop
