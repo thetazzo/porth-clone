@@ -274,7 +274,8 @@ if __name__ == '__main__':
         run_test_for_folder("./tests/")
         run_test_for_folder("./examples/")
         run_test_for_folder("./euler/")
-        cmd_run_echoed([sys.executable, "./porth.py", "com", "./porth.porth"])
+        cmd_run_echoed([sys.executable, "./porth.py", "com", "./porth.porth", "com", "./porth.porth"])
+        cmd_run_echoed(["diff", "-u", "./porth.asm", "./output.asm"])
     elif subcommand == 'help':
         usage(exe_name)
     else:

@@ -608,6 +608,37 @@ in // n1 s1 n2 s2
     else false end
 end
 
+proc str-starts-with
+    int ptr // prefix
+    int ptr // input
+    --
+    bool
+in 
+    memory ssw-prefix sizeof(Str) end
+    memory ssw-input  sizeof(Str) end
+    ssw-input !Str
+    ssw-prefix !Str
+
+    ssw-prefix @Str.count
+    ssw-input  @Str.count
+    <= if
+        0 while
+            dup ssw-prefix @Str.count < if
+                dup ssw-input @Str.data + @8
+                over ssw-prefix @Str.data + @8
+                =
+            else false end
+        do 1 + end
+        ssw-prefix @Str.count >=
+    else false end
+end
+
+proc ?str-empty ptr -- bool in
+    offsetof(Str.count) +
+    @64
+    0 =
+end
+
 proc is-digit int -- bool in
     dup '0' >=
     swap '9' <=
