@@ -137,6 +137,30 @@ in
     ops-count inc64
 end
 
+const STRLIT_CAP 1024 end
+memory strlits sizeof(Str) STRLIT_CAP * end
+memory strlits-count sizeof(int) end
+
+proc strlit-define
+    int ptr // string
+in
+    memory strlit sizeof(Str) end
+    strlit !Str
+
+    strlits-count @64 STRLIT_CAP > if
+        here eputs ": ERROR: string literal capacilty exceeded\n" eputs
+        1 exit
+    end
+
+    sizeof(Str)
+    strlit
+    strlits-count @64 sizeof(Str) * strlits +
+    memcpy
+    drop
+
+    strlits-count inc64
+end
+
 const STRBUF_CAP 16 1024 * end
 memory strbuf-start STRBUF_CAP end
 memory strbuf-size sizeof(int) end
@@ -1452,6 +1476,7 @@ in
 
             lexer-consume-strbuf word !Str
             word @Str token @ptr Token.value + !Str
+            word @Str strlit-define
 
             lexer @ptr Lexer.line + ?str-empty lnot if
                 lexer @ptr Lexer.line + @Str.data @8 'c' = if
@@ -2469,6 +2494,7 @@ proc summary in
     "Ops Count:                    " puts ops-count              @int putu "\n" puts 
     "Consts Count:                 " puts consts-count           @int putu "\n" puts
     "Procs Count:                  " puts procs-count            @int putu "\n" puts
+    "String Literals Count         " puts strlits-count          @int putu "\n" puts
     "String Literals Size (bytes): " puts strbuf-size            @int putu "\n" puts
     "Global Memory Size (bytes):   " puts global-memory-capacity @int putu "\n" puts
 end
