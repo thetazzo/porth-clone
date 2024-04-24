@@ -2488,7 +2488,7 @@ in
     // TODO: parse_file_path does not clean up resources after itself
 end
 
-proc print_usage 
+proc print-usage 
     int // fd
     --
 in 
@@ -2500,13 +2500,14 @@ in
     "    sim <file>     Simulate the program\n"                               fd @64 fputs
     "    com <file>     Compile the program\n"                                fd @64 fputs
     "    print <file>   Print ops of the program\n"                           fd @64 fputs
+    "    lex <file>     Produce a lexical analysis of the file\n"             fd @64 fputs
     "    help           Print this help to the stderr ane exit with 0 code\n" fd @64 fputs
 end
 
 // entrypoint of the program
 proc main in
     argc 2 < if
-        stderr print_usage
+        stderr print-usage
         here eputs ": ERROR: subcommands is not provided\n" eputs
         1 exit
     end
@@ -2514,7 +2515,7 @@ proc main in
     1 nth_argv
     dup "com"c cstreq if
         argc 3 < if
-            stderr print_usage
+            stderr print-usage
             "ERROR: No input file provided for the `com` subcommand" eputs
             1 exit
         end
@@ -2524,7 +2525,7 @@ proc main in
         generate-nasm-linux-x86_64
     else dup "sim"c cstreq if*
         argc 3 < if
-            stderr print_usage
+            stderr print-usage
             "ERROR: No input file provided for the `sim` subcommand" eputs
             1 exit
         end
@@ -2533,7 +2534,7 @@ proc main in
         simulate-opz
     else dup "print"c cstreq if*
         argc 3 < if
-            stderr print_usage
+            stderr print-usage
             "ERROR: No input file provided for the `print` subcommand" eputs
             1 exit
         end
@@ -2543,17 +2544,17 @@ proc main in
         print-opz
     else dup "lex"c cstreq if*
         argc 3 < if
-            stderr print_usage
+            stderr print-usage
             "ERROR: not input file provided for `lex` subcommand\n" eputs
             1 exit
         end
 
         2 nth_argv lex-file
     else dup "help"c cstreq if*
-        stdout print_usage
+        stdout print-usage
         0 exit
     else
-        stderr print_usage
+        stderr print-usage
         "ERROR: unknown subcommand `" eputs dup dup cstrlen swap eputs "`\n" eputs
         1 exit
     end
