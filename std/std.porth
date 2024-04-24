@@ -440,9 +440,8 @@ end
 
 // helpers
 
-// TODO: generics are not supported
-//proc 2drop drop drop end
-//proc 2dup over over end
+proc 2dup  "a" "b" -- "a" "b" "a" "b" in over over end
+proc 2drop "a" "b" -- in drop drop end
 
 proc todo -- in "TODO: not implemented" stderr write drop 1 exit end
 

@@ -514,7 +514,7 @@ proc cmd_echoed ptr -- in // argv
         swap
         execvp
     else dup 0 > if*
-        drop drop
+        2drop
         NULL
         0
         wstatus
@@ -522,7 +522,7 @@ proc cmd_echoed ptr -- in // argv
         wait4
         drop
     else
-        drop drop
+        2drop
         "[ERROR] could not fork a child\n" eputs
         1 exit
     end
@@ -1398,17 +1398,12 @@ in
     else false end
 end
 
-memory comment sizeof(Str) end
-".." comment !Str
-
-comment @Str.data     inc8
-comment @Str.data 1 + inc8
-
 proc remove-comment ptr ptr in 
-    memory comment sizeof(Str) end "//" comment !Str
+    memory comment sizeof(Str) end
+    "//" comment !Str
 
     over 0 swap !Str.count
-    over over @Str.data swap !Str.data
+    2dup @Str.data swap !Str.data
     while
         dup @Str.count 0 > if
             dup comment @Str rot @Str str-starts-with lnot
@@ -1417,7 +1412,7 @@ proc remove-comment ptr ptr in
         dup str-chop-one-left
         over Str.count inc64
     end
-    drop drop
+    2drop
 end
 
 // Lexer structure
@@ -1764,7 +1759,7 @@ in
         0 NULL
       end
     else
-      drop drop
+      2drop
       here eputs ": unreachable\n" eputs
       69 exit
       0 NULL
