@@ -628,9 +628,9 @@ proc generate-nasm-linux-x86_64 in // --
             "    add rex,"                       out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n"  out-fd @64 fputs
             "    push rex\n"                     out-fd @64 fputs
         else dup Op.typ + @64 OP_PUSH_STR = if*
-            here eputs ": TODO: OP_PUSH_STR is not implemented in compiletion mode\n" eputs
-            dup Op.token + Token.loc + located-here
-            1 exit
+            "    mov rax, "                      out-fd @64 fputs dup Op.operand + @64 sizeof(Str) * strlits + @Str.count out-fd @64 fputu "\n" out-fd @64 fputs
+            "    push rax\n"                     out-fd @64 fputs
+            "    push str_"                      out-fd @64 fputs dup Op.operand + @64 out-fd @64 fputu "\n" out-fd @64 fputs
         else dup Op.typ + @64 OP_PUSH_CSTR = if*
             here eputs ": TODO: OP_PUSH_CSTR is not implemented in compiletion mode\n" eputs
             dup Op.token + Token.loc + located-here
