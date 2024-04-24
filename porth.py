@@ -210,10 +210,10 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
     str_buf = SimBuffer(start=mem_alloc(mem, SIM_STR_CAPACITY), capacity=SIM_STR_CAPACITY)
     str_ptrs: Dict[int, int] = {}
 
-    argv_buf_ptr = mem_alloc(mem, SIM_ARGV_CAPACITY)
+    argv_buf = SimBuffer(start=mem_alloc(mem, SIM_ARGV_CAPACITY), capacity=SIM_ARGV_CAPACITY)
     argc = 0
 
-    envp_buf_ptr = mem_alloc(mem, SIM_ENVP_CAPACITY)
+    envp_buf = SimBuffer(start=mem_alloc(mem, SIM_ENVP_CAPACITY), capacity=SIM_ENVP_CAPACITY)
 
     local_mem_ptr = mem_alloc(mem, SIM_LOCAL_MEMORY_CAPACITY)
     local_mem_rsp = local_mem_ptr + SIM_LOCAL_MEMORY_CAPACITY
@@ -222,11 +222,13 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
 
     for arg in argv:
         arg_ptr = sim_buffer_append(mem, str_buf, arg.encode('utf-8') +b'\0')
-
-        argv_ptr = argv_buf_ptr+argc*8
-        mem[argv_ptr:argv_ptr+8] = arg_ptr.to_bytes(8, byteorder='little')
+        sim_buffer_append(mem, argv_buf, arg_ptr.to_bytes(8, byteorder="little"))
         argc += 1
-        assert argc*8 <= SIM_ARGV_CAPACITY, "Argv buffer, overflow"
+    sim_buffer_append(mem, argv_buf, (0).to_bytes(8, byteorder="little"))
+
+    for k, v in os.environ.items():
+        env_ptr = sim_buffer_append(mem, envp_buf, (0).to_bytes(8, byteorder="little"))
+    sim_buffer_append(mem, argv_buf, (0).to_bytes(8, byteorder="little"))
 
     fds: List[BinaryIO] = [sys.stdin.buffer, sys.stdout.buffer, sys.stderr.buffer]
 
@@ -456,10 +458,11 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                     stack.append(argc)
                     ip += 1
                 elif op.operand == Intrinsic.ARGV:
-                    stack.append(argv_buf_ptr)
+                    stack.append(argv_buf.start)
                     ip += 1
                 elif op.operand == Intrinsic.ENVP:
-                    assert False, "TODO: `envp` intrinsic is to implemented for simulation mode"
+                    stack.append(envp_buf.start)
+                    ip += 1
                 elif op.operand == Intrinsic.HERE:
                     value = ("%s:%d:%d" % op.token.loc).encode("utf-8")
                     stack.append(len(value))
