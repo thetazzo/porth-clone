@@ -137,19 +137,19 @@ in
     ops-count inc64
 end
 
-const STRLIT_CAP 16 1024 * end
-memory strlit-start STRLIT_CAP end
-memory strlit-size sizeof(int) end
+const STRBUF_CAP 16 1024 * end
+memory strbuf-start STRBUF_CAP end
+memory strbuf-size sizeof(int) end
 
-proc strlit-end -- ptr in strlit-start strlit-size @int + end
-proc strlit-append-char int in
-    strlit-size @int STRLIT_CAP >= if
+proc strbuf-end -- ptr in strbuf-start strbuf-size @int + end
+proc strbuf-append-char int in
+    strbuf-size @int STRBUF_CAP >= if
         here eputs ": Assertion Failed: string litter buffer overflow\n" eputs
         1 exit
     end
 
-    strlit-end !8
-    strlit-size inc64
+    strbuf-end !8
+    strbuf-size inc64
 end
 
 const INTRINSIC_PLUS      1 offset end
@@ -1352,7 +1352,7 @@ in
     !int
 end
 
-proc lexer-consume-strlit
+proc lexer-consume-strbuf
     ptr // lexer
     --
     int ptr // string literal
@@ -1361,7 +1361,7 @@ in
     lexer !ptr
 
     memory start sizeof(ptr) end
-    strlit-end start !ptr
+    strbuf-end start !ptr
 
     memory count sizeof(int) end
     0 count !int
@@ -1384,17 +1384,17 @@ in
                 end
 
                 dup @Str.data @8 'n' = if
-                    10 strlit-append-char
+                    10 strbuf-append-char
                     dup str-chop-one-left
                     count inc64
                     true
                 else dup @Str.data @8 '\\' = if* 
-                    92 strlit-append-char
+                    92 strbuf-append-char
                     dup str-chop-one-left
                     count inc64
                     true
                 else dup @Str.data @8 '\"' = if* 
-                    34 strlit-append-char
+                    34 strbuf-append-char
                     dup str-chop-one-left
                     count inc64
                     true
@@ -1405,7 +1405,7 @@ in
                     false
                 end
             else
-                dup @Str.data @8 strlit-append-char
+                dup @Str.data @8 strbuf-append-char
                 dup str-chop-one-left
                 count inc64
                 true
@@ -1450,7 +1450,7 @@ in
             // String literal
             dup Lexer.line + str-chop-one-left
 
-            lexer-consume-strlit word !Str
+            lexer-consume-strbuf word !Str
             word @Str token @ptr Token.value + !Str
 
             lexer @ptr Lexer.line + ?str-empty lnot if
@@ -2469,7 +2469,7 @@ proc summary in
     "Ops Count:                    " puts ops-count              @int putu "\n" puts 
     "Consts Count:                 " puts consts-count           @int putu "\n" puts
     "Procs Count:                  " puts procs-count            @int putu "\n" puts
-    "String Literals Size (bytes): " puts strlit-size            @int putu "\n" puts
+    "String Literals Size (bytes): " puts strbuf-size            @int putu "\n" puts
     "Global Memory Size (bytes):   " puts global-memory-capacity @int putu "\n" puts
 end
 
