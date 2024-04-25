@@ -1,4 +1,3 @@
-
 // =====================================================
 //                 PORTH STANDARD LIBRARY
 // =====================================================
@@ -761,7 +760,7 @@ const TMP_CAP 8 1024 * 1024 * end
 memory tmp-start TMP_CAP end
 memory tmp-size sizeof(u64) end
 
-proc tmp-celan in 0 tmp-size !64 end
+proc tmp-clean in 0 tmp-size !64 end
 proc tmp-end -- ptr in tmp-start tmp-size @64 + end 
 
 proc tmp-alloc
@@ -814,10 +813,11 @@ in
             ':' path paths str-chop-by-delim
 
             tmp-end
-
-            path @Str tmp-append drop
-            "/" tmp-append drop
+            path @Str                  tmp-append drop
+            "/"                        tmp-append drop
             file-path @ptr cstr-to-str tmp-append drop
+            1                          tmp-alloc  drop  // NULL terminator
+
 
             empty_envp swap
             argvp @ptr swap

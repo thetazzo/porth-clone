@@ -166,7 +166,7 @@ SimPtr=int
 def get_cstr_list_from_mem(mem: bytearray, ptr: SimPtr) -> List[str]:
     result = []
     while deref_u64(mem, ptr) != 0:
-        result.append(get_cstr_list_from_mem(mem, deref_u64(mem, ptr)).decode('utf-8'))
+        result.append(get_cstr_from_mem(mem, deref_u64(mem, ptr)).decode('utf-8'))
         ptr += 8
     return result
 
@@ -520,9 +520,9 @@ def simulate_little_endian_linux(program: Program, argv: List[str]):
                         fds[fd].flush()
                         stack.append(count)
                     elif syscall_number == 59: # SYS_execve
-                        execve_path = get_cstr_list_from_mem(mem, arg1).decode('utf-8')
+                        execve_path = get_cstr_from_mem(mem, arg1).decode('utf-8')
                         execve_argv = get_cstr_list_from_mem(mem, arg2)
-                        execve_envp = { k: v for s in get_cstr_list_from_mem(mem, arg3) for (k, v) in (s.split("="), ) }
+                        execve_envp = { k: v for s in get_cstr_list_from_mem(mem, arg3) for (k, v) in (s.split('='), ) }
                         try:
                             os.execve(execve_path, execve_argv, execve_envp)
                         except FileNotFoundError:
