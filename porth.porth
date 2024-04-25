@@ -51,6 +51,7 @@ in
     rot drop
 end
 
+// Loc Struct
 const Loc.file-path sizeof(Str) offset end
 const Loc.row       sizeof(u64) offset end
 const Loc.col       sizeof(u64) offset end
@@ -76,6 +77,7 @@ const TOKEN_CSTR 1 offset end
 const TOKEN_CHAR 1 offset end
 const COUNT_TOKENS reset  end
 
+// Token Struct 
 const Token.typ sizeof(u64) offset end
 const Token.loc sizeof(Loc) offset end
 const Token.text sizeof(Str) offset end
@@ -86,6 +88,7 @@ const Token.value
 end
 const sizeof(Token) reset end
 
+// Op Struct
 const Op.typ     sizeof(u64)   offset end
 const Op.operand sizeof(u64)   offset end
 const Op.token   sizeof(Token) offset end
@@ -397,6 +400,7 @@ in
     swap
 end
 
+// Const Struct
 const Const.name  sizeof(Str) offset end
 const Const.loc   sizeof(Loc) offset end
 const Const.value sizeof(u64) offset end
@@ -441,10 +445,12 @@ in
     drop
 end
 
+// Proc Struct
 const Proc.name sizeof(Str) offset end
 const Proc.addr sizeof(u64) offset end
 const Proc.loc  sizeof(Loc) offset end
 const sizeof(Proc)           reset end
+
 const PROCS_CAP 1024 end
 memory procs       sizeof(Proc) PROCS_CAP * end
 memory procs-count sizeof(u64) end
@@ -484,6 +490,7 @@ in
     drop
 end
 
+// Memory Struct
 const Memory.name   sizeof(Str) offset end
 const Memory.offset sizeof(u64) offset end
 const Memory.loc    sizeof(Loc) offset end
@@ -1551,6 +1558,7 @@ in
     end
 end
 
+// ConstFrame Struct
 const ConstFrame.typ sizeof(u64) offset end
 const ConstFrame.value sizeof(u64) offset end
 const sizeof(ConstFrame) reset end
