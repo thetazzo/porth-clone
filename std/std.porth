@@ -836,6 +836,35 @@ in
     1 exit
 end
 
+// Appends an item to a fixed sized array
+// returns `true` when succeeds, `false` when overflow
+proc append-item
+    int  // item size
+    ptr  // item
+    int  // array capacity
+    ptr  // array
+    ptr  // array count
+    --
+    int  // index of the appended item
+    bool // true - appended || false - not enough space
+in
+    memory count sizeof(ptr) end
+    count !ptr
+    memory array sizeof(ptr) end
+    array !ptr
 
-// disabled becuase it breaks tests
-// "Porth Library Version: 0.5.0\n" puts
+    count @ptr @int > if
+        over
+        count @ptr @int *
+        array @ptr +
+        memcpy drop
+
+        count @ptr @int
+        count @ptr inc64
+
+        true
+    else
+        2drop
+        0 false
+    end
+end
