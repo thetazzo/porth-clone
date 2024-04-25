@@ -2516,103 +2516,100 @@ proc summary in
     "Global Memory Size (bytes):   " puts global-memory-capacity @int putu "\n" puts
 end
 
-proc print-usage 
+proc print-usage
+    ptr // program name
     int // fd
     --
 in 
     memory fd sizeof(u64) end
     fd !64
-
-    "Usage: porth <SUBCOMMAND>\n"                                             fd @64 fputs
-    "  SUBCOMMAND:\n"                                                         fd @64 fputs
-    "    sim <file>     Simulate the program\n"                               fd @64 fputs
-    "    com <file>     Compile the program\n"                                fd @64 fputs
-    "       OPTIONS:\n"                                                       fd @64 fputs
-    "         -r        Run the program after successful compilation\n"       fd @64 fputs
-    "    print <file>   Print ops of the program\n"                           fd @64 fputs
-    "    lex <file>     Produce a lexical analysis of the file\n"             fd @64 fputs
-    "    summary <file> Print the summary of the program\n"                   fd @64 fputs
-    "    help           Print this help to the stderr ane exit with 0 code\n" fd @64 fputs
+    memory program-name sizeof(ptr) end
+    program-name !ptr
+    "Usage: " fd @64 fputs program-name @ptr cstr-to-str fd @64 fputs " <SUBCOMMAND>\n" fd @64 fputs
+    "  SUBCOMMAND:\n"                                                                  fd @64 fputs
+    "    sim <file>     Simulate the program\n"                                        fd @64 fputs
+    "    com <file>     Compile the program\n"                                         fd @64 fputs
+    "       OPTIONS:\n"                                                                fd @64 fputs
+    "         -r        Run the program after successful compilation\n"                fd @64 fputs
+    "    print <file>   Print ops of the program\n"                                    fd @64 fputs
+    "    lex <file>     Produce a lexical analysis of the file\n"                      fd @64 fputs
+    "    summary <file> Print the summary of the program\n"                            fd @64 fputs
+    "    help           Print this help to the stderr ane exit with 0 code\n"          fd @64 fputs
 end
 
 // entrypoint of the program
 proc main in
-    argc 2 < if
-        stderr print-usage
+    memory args sizeof(ptr) end
+    argv args !ptr
+
+    memory program sizeof(ptr) end
+    args @@ptr program !ptr
+
+    args sizeof(ptr) inc64-by
+    args @@ptr NULL = if
+        program @ptr stderr print-usage
         here eputs ": ERROR: subcommands is not provided\n" eputs
         1 exit
     end
 
-    1 nth_argv
-    dup "com"c cstreq if
-        argc 3 < if
-            stderr print-usage
+    args @@ptr "com"c cstreq if
+        args sizeof(ptr) inc64-by 
+        args @@ptr NULL = if
+            program @ptr stderr print-usage
             "ERROR: No input file provided for the `com` subcommand" eputs
             1 exit
         end
 
-        argc 1 - nth_argv compile-file-into-opz
+        args @@ptr compile-file-into-opz
         generate-nasm-linux-x86_64
-        argc 4 = if
-            memory run-flag sizeof(ptr) end
-            2 nth_argv run-flag !64
-            run-flag @ptr cstr-to-str "-r" streq if
-                memory output-argv sizeof(ptr) 5 * end
-                "output"c      output-argv 0 8 * + !64
-                NULL           output-argv 1 8 * + !64
-                output-argv cmd_echoed
-            else
-                stderr print-usage
-                "ERROR: unknown flag `" eputs run-flag @ptr cstr-to-str eputs "\n" eputs
-                1 exit
-            end
-        end
-    else dup "sim"c cstreq if*
-        argc 3 < if
-            stderr print-usage
+    else args @@ptr "sim"c cstreq if*
+        args sizeof(ptr) inc64-by 
+        args @@ptr NULL = if
+            program @ptr stderr print-usage
             "ERROR: No input file provided for the `sim` subcommand" eputs
             1 exit
         end
-        2 nth_argv compile-file-into-opz
+        args @@ptr compile-file-into-opz
 
         simulate-opz
-    else dup "print"c cstreq if*
-        argc 3 < if
-            stderr print-usage
+    else args @@ptr "print"c cstreq if*
+        args sizeof(ptr) inc64-by 
+        args @@ptr NULL = if
+            program @ptr stderr print-usage
             "ERROR: No input file provided for the `print` subcommand" eputs
             1 exit
         end
         
-        2 nth_argv compile-file-into-opz
+        args @@ptr compile-file-into-opz
 
         print-opz
-    else dup "lex"c cstreq if*
-        argc 3 < if
-            stderr print-usage
+    else args @@ptr "lex"c cstreq if*
+        args sizeof(ptr) inc64-by 
+        args @@ptr NULL = if
+            program @ptr stderr print-usage
             "ERROR: not input file provided for `lex` subcommand\n" eputs
             1 exit
         end
 
-        2 nth_argv lex-file
-    else dup "summary"c cstreq if*
-        argc 3 < if
-            stderr print-usage
+        args @@ptr lex-file
+    else args @@ptr "summary"c cstreq if*
+        args sizeof(ptr) inc64-by 
+        args @@ptr NULL = if
+            program @ptr stderr print-usage
             "ERROR: not input file provided for `summary` subcommand\n" eputs
             1 exit
         end
 
-        2 nth_argv compile-file-into-opz
+        args @@ptr compile-file-into-opz
 
         summary
-    else dup "help"c cstreq if*
-        stdout print-usage
+    else args @@ptr "help"c cstreq if*
+        program @ptr stderr print-usage
         0 exit
     else
-        stderr print-usage
-        "ERROR: unknown subcommand `" eputs dup dup cstrlen swap eputs "`\n" eputs
+        program @ptr stderr print-usage
+        "ERROR: unknown subcommand `" eputs args @@ptr cstr-to-str eputs "`\n" eputs
         1 exit
     end
-    drop
 end
-
 main

@@ -19,6 +19,7 @@ const stdout 1 end
 const stderr 2 end
 
 proc @ptr  ptr -- ptr  in @64 cast(ptr) end
+proc @@ptr  ptr -- ptr  in @ptr @ptr end
 proc @bool ptr -- bool in @64 cast(bool) end
 proc @int  ptr -- int in @64 end
 
@@ -427,6 +428,7 @@ proc dec8  ptr in dup @8  1 - swap !8  end
 proc inc32 ptr in dup @32 1 + swap !32 end
 proc dec32 ptr in dup @32 1 - swap !32 end
 proc inc64 ptr in dup @64 1 + swap !64 end
+proc inc64-by ptr int -- in over @64 + swap !64 end
 proc dec64 ptr in dup @64 1 - swap !64 end
 
 proc swap64 ptr ptr in
