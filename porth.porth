@@ -2574,8 +2574,6 @@ proc main in
         file-path-cstr @ptr compile-file-into-opz
         generate-nasm-linux-x86_64
 
-        tmp-clean
-
         tmp-end
         "nasm"c           tmp-append-ptr
         "-felf64"c        tmp-append-ptr
@@ -2597,8 +2595,6 @@ proc main in
             NULL        tmp-append-ptr
             cmd_echoed
         end
-
-        tmp-clean
     else args @@ptr "sim"c cstreq if*
         args sizeof(ptr) inc64-by 
         args @@ptr NULL = if
