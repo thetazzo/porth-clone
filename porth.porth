@@ -983,21 +983,6 @@ proc generate-nasm-linux-x86_64 in // --
     "\n"                       out-fd @64 fputs
 
     out-fd @64 close drop
-    
-    memory nasm-argv  sizeof(ptr) 4 * end
-    "nasm"c           nasm-argv 0 8 * + !64
-    "-felf64"c        nasm-argv 1 8 * + !64
-    "output.asm"c     nasm-argv 2 8 * + !64
-    NULL              nasm-argv 3 8 * + !64
-    nasm-argv cmd_echoed
-
-    memory ld-argv sizeof(ptr) 5 * end
-    "ld"c          ld-argv 0 8 * + !64
-    "-o"c          ld-argv 1 8 * + !64
-    "output"c      ld-argv 2 8 * + !64
-    "output.o"c    ld-argv 3 8 * + !64
-    NULL           ld-argv 4 8 * + !64
-    ld-argv cmd_echoed
 end
 
 const SIM_STACK_CAP 1024 end
@@ -2552,16 +2537,55 @@ proc main in
         1 exit
     end
 
+    memory file-path-cstr sizeof(ptr) end
+    NULL file-path-cstr !ptr
+    memory run sizeof(bool) end
+    false run !bool
+
     args @@ptr "com"c cstreq if
-        args sizeof(ptr) inc64-by 
-        args @@ptr NULL = if
+        while
+            args sizeof(ptr) inc64-by
+            args @@ptr NULL = if
+                false
+            else args @@ptr "-r"c cstreq if*
+                true run !bool
+                true
+            else
+                args @@ptr file-path-cstr !ptr
+                false
+            end
+        do end
+
+        file-path-cstr @ptr NULL = if
             program @ptr stderr print-usage
-            "ERROR: No input file provided for the `com` subcommand" eputs
+            "[ERROR]: No input file provided for the compilation" eputs
             1 exit
         end
 
-        args @@ptr compile-file-into-opz
+        file-path-cstr @ptr compile-file-into-opz
         generate-nasm-linux-x86_64
+        
+        memory nasm-argv  sizeof(ptr) 4 * end
+        "nasm"c           nasm-argv 0 8 * + !64
+        "-felf64"c        nasm-argv 1 8 * + !64
+        "output.asm"c     nasm-argv 2 8 * + !64
+        NULL              nasm-argv 3 8 * + !64
+        nasm-argv cmd_echoed
+
+        memory ld-argv sizeof(ptr) 5 * end
+        "ld"c          ld-argv 0 8 * + !64
+        "-o"c          ld-argv 1 8 * + !64
+        "output"c      ld-argv 2 8 * + !64
+        "output.o"c    ld-argv 3 8 * + !64
+        NULL           ld-argv 4 8 * + !64
+        ld-argv cmd_echoed
+
+        run @bool if 
+            memory output-argv sizeof(ptr) 2 * end
+            "./output"c output-argv 0 8 * + !64
+            NULL        output-argv 1 8 * + !64
+            output-argv cmd_echoed
+        end
     else args @@ptr "sim"c cstreq if*
         args sizeof(ptr) inc64-by 
         args @@ptr NULL = if
