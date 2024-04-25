@@ -4,7 +4,9 @@
 :i returncode 1
 :b stdout 0
 
-:b stderr 160
-./tests/not-enough-args-for-if.porth:3:1: ERROR: Not enough arguments provided for `Keyword.IF`. Expected:
+:b stderr 245
+./tests/not-enough-args-for-if.porth:3:1: ERROR: Not enough arguments provided for `Keyword.IF`. Expected 1 but got 0.
+./tests/not-enough-args-for-if.porth:3:1: NOTE: Not provided arguments:
 ./tests/not-enough-args-for-if.porth:3:1: NOTE: bool
+
 

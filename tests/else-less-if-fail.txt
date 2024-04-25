@@ -4,6 +4,9 @@
 :i returncode 1
 :b stdout 0
 
-:b stderr 92
-./tests/else-less-if-fail.porth:1:25: ERROR: Not enough arguments for the `print` intrinsic
+:b stderr 240
+./tests/else-less-if-fail.porth:1:25: ERROR: Not enough arguments provided for `print`. Expected 1 but got 0.
+./tests/else-less-if-fail.porth:1:25: NOTE: Not provided arguments:
+./tests/else-less-if-fail.porth:1:25: NOTE: generic type 'a'
+
 

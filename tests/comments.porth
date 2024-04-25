@@ -1,17 +1,10 @@
+
 include "std.porth"
 
-// include "std.porth"
+//comment one
+// comment two
+//////nonsense comment
 
-// Just testing some comments
+// string literal with `//` should be printed
+"Hello, // World\n" puts // this comment should be allowed 
 
-// 45 3 * print
-
-// 0 while dup 10 < do
-//     dup print
-//     1 +
-// end
-
-// Ohh yeah
-
-// "Hello Semen!\n" stdout write
-"Hello, Men // Of// Sea\n" puts // this comment should be allowed
