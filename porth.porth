@@ -593,7 +593,13 @@ in
     end
 end
 
-proc generate-nasm-linux-x86_64 in // --
+proc generate-nasm-linux-x86_64
+    ptr // out-file-path
+    --
+in 
+    memory file-path sizeof(ptr) end
+    file-path !ptr
+
     silent @bool lnot if
         "[INFO] Generating output.asm\n" puts
     end
@@ -602,7 +608,7 @@ proc generate-nasm-linux-x86_64 in // --
 
     420                            // mode
     O_CREAT O_WRONLY or O_TRUNC or // flags
-    "output.asm"c                  // pathname
+    file-path @ptr                 // pathname
     0 100 -
     openat
     out-fd !64
@@ -2630,7 +2636,7 @@ proc main in
         end
 
         file-path-cstr @ptr compile-file-into-opz
-        generate-nasm-linux-x86_64
+        "output.asm"c generate-nasm-linux-x86_64
 
         tmp-end
         "nasm"c           tmp-append-ptr
