@@ -1,6 +1,6 @@
 // A self-hosted compiler wanna-be
 
-include "std/std.porth"
+include "std.porth"
 
 // operation codes
 const OP_PUSH_INT             1 offset end
@@ -2115,6 +2115,50 @@ in
     OP_ELSE 0 token push-op
 end
 
+// NOTE: stands for FilePath
+// This is a memory buffer region where we store file paths for compile-file-into-opz operation
+// This buffer is created to ensure that the file path string lives long enough for
+// compile-file-into-opz to process the files properly
+const FPB_CAP 8 1024 * end
+memory fpb-start FPB_CAP end
+memory fpb-size sizeof(u64) end
+
+proc fpb-end -- ptr in fpb-start fpb-size @64 + end
+proc fpb-rewind ptr in fpb-start - fpb-size !int end
+
+proc fpb-alloc
+    int
+    --
+    ptr // result
+in
+    dup fpb-size @64 + FPB_CAP > if
+        here eputs ": File Path Buffer capacity exceeded\n" eputs
+        1 exit
+    end
+
+    dup 0 fpb-end memset
+    fpb-size @64 rot + fpb-size !64
+end
+
+proc fpb-append int ptr -- ptr in over fpb-alloc memcpy end
+
+proc ?file-exists ptr -- bool in 
+    memory statbuf sizeof(stat) end
+
+    statbuf swap stat
+
+    dup 0 = if
+        drop true
+        // TODO: introduce ENOENT the negative number stuff is fixed
+    else dup 0 2 - = if*
+        drop false
+    else 
+        drop false
+        here eputs ": ERROR: ?file-exists failed\n" eputs
+        1 exit
+    end
+end
+
 proc compile-file-into-opz
     ptr // file-path-cstr
     --
@@ -2296,7 +2340,21 @@ in
                     end
   
                     // TODO: introduce include limit
-                    token Token.value + @Str tmp-str-to-cstr compile-file-into-opz
+                    fpb-end 
+                    "./"                     fpb-append drop
+                    token Token.value + @Str fpb-append drop
+                    1                        fpb-alloc  drop
+
+                    // TODO: customizable include path list
+                    dup ?file-exists lnot if
+                        fpb-rewind
+                        fpb-end
+                        "./std/"                 fpb-append drop
+                        token Token.value + @Str fpb-append drop
+                        1                        fpb-alloc  drop
+                    end
+
+                    compile-file-into-opz
                 else dup @Str "const" streq if*
                     token lexer lexer-next-token lnot if
                         token Token.loc + eputloc
