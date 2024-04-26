@@ -2,8 +2,8 @@
 
 include "std.porth"
 
-// BEGIN: Loc Struct //////////////////////////////
-// Loc is a location whitin the source code: file-path, row, col
+/// BEGIN Loc Struct //////////////////////////////
+/// Loc is a location whitin the source code: file-path, row, col
 const Loc.file-path sizeof(Str) offset end
 const Loc.row       sizeof(u64) offset end
 const Loc.col       sizeof(u64) offset end
@@ -21,11 +21,11 @@ proc fputloc ptr int -- in
 end
 proc putloc ptr in stdout fputloc end
 proc eputloc ptr in stderr fputloc end
-// END:   Loc Struct //////////////////////////////
+/// END  Loc Struct ///////////////////////////////
 
-// BEGIN: Token Struct ///////////////////////////
-// A Token is a group of characters in the source code that is
-// recognised as a certain class: int, word, strings, etc.
+/// BEGIN Token Struct ////////////////////////////
+/// A Token is a group of characters in the source code that is
+/// recognised as a certain class: int, word, strings, etc.
 const TOKEN_INT  1 offset end
 const TOKEN_WORD 1 offset end
 const TOKEN_STR  1 offset end
@@ -42,109 +42,11 @@ const Token.value
    offset
 end
 const sizeof(Token) reset end
-// END:   Token Struct ///////////////////////////
+/// END   Token Struct ////////////////////////////
 
-// BEGIN: Op           ///////////////////////////
-
-// operation codes
-const OP_PUSH_INT             1 offset end
-const OP_PUSH_LOCAL_MEM       1 offset end
-const OP_PUSH_GLOBAL_MEM      1 offset end
-const OP_PUSH_STR             1 offset end
-const OP_PUSH_CSTR            1 offset end
-const OP_IF                   1 offset end
-const OP_IFSTAR               1 offset end
-const OP_ELSE                 1 offset end
-const OP_END                  1 offset end
-const OP_SKIP_PROC            1 offset end
-const OP_PREP_PROC            1 offset end
-const OP_RET                  1 offset end
-const OP_CALL                 1 offset end
-const OP_WHILE                1 offset end
-const OP_DO                   1 offset end
-const OP_INTRINSIC            1 offset end
-const COUNT_OPZ                  reset end 
-
-proc op-typ-as-str
-    int // op type
-    --
-    int ptr // str
-in
-    assert "Exhaustive handling of Op.typs in op-type-as-str" COUNT_OPZ 16 = end
-
-         dup OP_PUSH_INT            = if  "OP_PUSH_INT"
-    else dup OP_PUSH_LOCAL_MEM      = if* "OP_PUSH_LOCAL_MEM"
-    else dup OP_PUSH_GLOBAL_MEM     = if* "OP_PUSH_GLOBAL_MEM"
-    else dup OP_PUSH_STR            = if* "OP_PUSH_STR"
-    else dup OP_PUSH_CSTR           = if* "OP_PUSH_CSTR"
-    else dup OP_INTRINSIC           = if* "OP_INTRINSIC"
-    else dup OP_IF                  = if* "OP_IF"
-    else dup OP_IFSTAR              = if* "OP_IFSTAR"
-    else dup OP_ELSE                = if* "OP_ELSE"
-    else dup OP_END                 = if* "OP_END"
-    else dup OP_SKIP_PROC           = if* "OP_SKIP_PROC"
-    else dup OP_PREP_PROC           = if* "OP_PREP_PROC"
-    else dup OP_RET                 = if* "OP_RET"
-    else dup OP_CALL                = if* "OP_CALL"
-    else dup OP_WHILE               = if* "OP_WHILE"
-    else dup OP_DO                  = if* "OP_DO"
-    else
-        here eputs ": unknown op type\n" eputs 1 exit
-        0 NULL
-    end
-    rot drop
-end
-
-// Op Struct
-const Op.typ     sizeof(u64)   offset end
-const Op.operand sizeof(u64)   offset end
-const Op.token   sizeof(Token) offset end
-const sizeof(Op)                reset end
-
-const OPS_CAP 16 1024 * end
-memory ops-count sizeof(u64)           end
-memory ops       sizeof(Op)  OPS_CAP * end
-
-proc push-op
-    int // type
-    int // operand
-    ptr // token
-    --
-in 
-    memory op sizeof(Op) end
-    sizeof(Token) swap op Op.token + memcpy drop
-    op Op.operand + !int
-    op Op.typ + !int
-
-    sizeof(Op) op OPS_CAP ops ops-count append-item lnot if
-        here eputs ": ERROR: ops overflow\n" eputs 
-        1 exit
-    end
-    drop
-end
-// END: Op             ///////////////////////////
-
-const STRLITS_CAP 1024 end
-memory strlits sizeof(Str) STRLITS_CAP * end
-memory strlits-count sizeof(int) end
-
-proc strlit-define
-    int ptr // string
-    --
-    int
-in
-    memory strlit sizeof(Str) end
-    strlit !Str
-
-    sizeof(Str) strlit
-    STRLITS_CAP strlits
-    strlits-count
-    append-item lnot if
-        here eputs ": ERROR: string literal capacilty exceeded\n" eputs
-        1 exit
-    end
-end
-
+/// BEGIN Strbuf //////////////////////////////////
+/// The buffer that holds the data of the string literals of
+/// the compiled program. (See StrrLit)
 const STRBUF_CAP 16 1024 * end
 memory strbuf-start STRBUF_CAP end
 memory strbuf-size sizeof(int) end
@@ -173,33 +75,6 @@ in
     end
 end
 
-proc tmp-utos
-    int
-    --
-    int ptr
-in
-    memory buffer sizeof(ptr) end
-    PUTU_BUFFER_CAP tmp-alloc buffer !ptr
-
-    dup 0 = if
-        drop
-        buffer @ptr PUTU_BUFFER_CAP + 1 -
-        '0' over !64
-        1 swap
-    else
-        buffer @ptr PUTU_BUFFER_CAP +
-        while over 0 > do
-            1 - dup rot
-            10 divmod
-            rot swap '0' + swap !8 swap
-        end
-
-        swap drop
-
-        dup buffer @ptr PUTU_BUFFER_CAP + swap - swap
-    end
-end
-
 proc strbuf-loc
     ptr // loc
     --
@@ -217,7 +92,228 @@ in
     strbuf-end start @ptr -
     start @ptr
 end
+/// END Strbuf ////////////////////////////////////
 
+/// BEGIN Lexer ///////////////////////////////////
+/// Lexer is an entity that turns a string into a sequence of Tokens
+const Lexer.content    sizeof(Str) offset end
+const Lexer.line       sizeof(Str) offset end
+const Lexer.line-start sizeof(ptr) offset end
+const Lexer.file-path  sizeof(Str) offset end
+const Lexer.row        sizeof(u64) offset end
+const sizeof(Lexer)                 reset end
+
+proc lexer-next-line ptr in // lexer:ptr --
+    memory lexer sizeof(ptr) end
+    lexer !64
+
+    '\n'
+    lexer @ptr Lexer.line +
+    lexer @ptr Lexer.content +
+    str-chop-by-delim
+
+    lexer @ptr Lexer.line + offsetof(Str.data) + @ptr
+    lexer @ptr Lexer.line-start +
+    !64
+
+    lexer @ptr Lexer.row + inc64
+end
+
+proc lexer-loc
+    ptr // loc
+    ptr // lexer
+    --
+in
+    memory lexer sizeof(ptr) end
+    lexer !ptr
+    memory loc   sizeof(ptr) end
+    loc !ptr
+
+    // File Path
+    sizeof(Str)
+    lexer @ptr Lexer.file-path +
+    loc   @ptr Loc.file-path   +
+    memcpy
+    drop
+
+    // Row
+    lexer @ptr Lexer.row + @int
+    loc   @ptr Loc.row   + !int
+
+    // Column
+    lexer @ptr Lexer.line       + offsetof(Str.data) + @ptr
+    lexer @ptr Lexer.line-start +                      @ptr
+    -
+    1 +
+    loc @ptr Loc.col +
+    !int
+end
+
+proc lexer-consume-strlit
+    ptr // lexer
+    --
+    int ptr // string literal
+in
+    memory lexer sizeof(ptr) end
+    lexer !ptr
+
+    memory start sizeof(ptr) end
+    strbuf-end start !ptr
+
+    memory count sizeof(int) end
+    0 count !int
+
+    memory loc sizeof(Loc) end
+
+    lexer @ptr Lexer.line +
+    while
+        dup ?str-empty lnot if
+            dup @Str.data @8 '"' = if
+                dup str-chop-one-left
+                false
+            else dup @Str.data @8 '\\' = if*
+                dup str-chop-one-left
+
+                dup ?str-empty if
+                    loc lexer @ptr lexer-loc
+                    loc eputloc ": ERROR: unfinished escape character\n" eputs
+                    1 exit
+                end
+
+                dup @Str.data @8 'n' = if
+                    10 strbuf-append-char
+                    dup str-chop-one-left
+                    count inc64
+                    true
+                else dup @Str.data @8 '\\' = if* 
+                    92 strbuf-append-char
+                    dup str-chop-one-left
+                    count inc64
+                    true
+                else dup @Str.data @8 '\"' = if* 
+                    34 strbuf-append-char
+                    dup str-chop-one-left
+                    count inc64
+                    true
+                else
+                    loc lexer @ptr lexer-loc
+                    loc eputloc ": ERROR: unknown escape charater `" eputs 1 over @Str.data eputs "`\n" eputs
+                    1 exit
+                    false
+                end
+            else
+                dup @Str.data @8 strbuf-append-char
+                dup str-chop-one-left
+                count inc64
+                true
+            end
+        else false end
+    do end
+    drop
+
+    count @int start @ptr
+    // TODO: check if the string literal was actually closed
+end
+
+proc lexer-next-token
+    ptr // token
+    ptr // lexer
+    -- 
+    bool
+in 
+    memory lexer sizeof(ptr) end
+    lexer !64
+    memory token sizeof(ptr) end
+    token !64
+
+    memory word sizeof(Str) end
+
+    lexer @ptr
+    while 
+        dup Lexer.line + str-trim-left
+
+        dup Lexer.line + ?str-empty if
+            dup Lexer.content + ?str-empty lnot
+        else
+            dup Lexer.line +
+            "//" rot @Str str-starts-with
+        end
+    do dup lexer-next-line end
+
+    dup Lexer.line + ?str-empty lnot if
+        token @ptr Token.loc +
+        lexer @ptr
+        lexer-loc
+
+        dup Lexer.line + @Str.data @8 '"' = if
+            // String literal
+            dup Lexer.line + str-chop-one-left
+
+            lexer-consume-strlit word !Str
+            word @Str token @ptr Token.value + !Str
+
+            lexer @ptr Lexer.line + ?str-empty lnot if
+                lexer @ptr Lexer.line + @Str.data @8 'c' = if
+                    lexer @ptr Lexer.line + str-chop-one-left
+                    0 strbuf-append-char
+                    token @ptr Token.value + offsetof(Str.count) + inc64
+                    TOKEN_CSTR token @ptr Token.typ + !64
+                else
+                    TOKEN_STR token @ptr Token.typ + !64
+                end
+            else
+                TOKEN_STR token @ptr Token.typ + !64
+            end
+        else dup Lexer.line + @Str.data @8 39 = if* // cannot use ' directy for some reason
+            // Character literal
+            dup Lexer.line + str-chop-one-left
+            39 word rot Lexer.line + str-chop-by-delim
+
+            word @Str "\\n" streq if
+                10 token @ptr Token.value + !int
+            else word @Str "\\\\" streq if*
+                92 token @ptr Token.value + !int
+            else word @Str "\\\"" streq if*
+                34 token @ptr Token.value + !int
+            else word @Str.count 1 = if*
+                word @Str.data @8 token @ptr Token.value + !int
+            else
+                token @ptr Token.loc + eputloc ": only a single byte is allowed inside of a charater literal\n" eputs
+                1 exit
+            end
+
+            TOKEN_CHAR token @ptr Token.typ + !64
+
+            // TODO: check if character literal was clsoed
+        else
+            // Word or integer
+
+            ' '              // delim
+            word             // word
+            rot Lexer.line + // line
+            str-chop-by-delim
+
+            word @Str try-parse-int if
+                token @ptr Token.value + !64
+                TOKEN_INT token @ptr Token.typ + !64
+            else
+                drop // number from try-parse-int
+                word @Str token @ptr Token.value + !Str
+                TOKEN_WORD token @ptr Token.typ + !64
+            end
+        end
+
+        word @Str token @ptr Token.text + !Str
+        true
+    else
+        drop // lexer
+        false
+    end
+end
+/// END Lexer /////////////////////////////////////
+
+/// BEGIN Intrinsic ///////////////////////////////
+/// Intrinsics are built-in functions of the language whith the hardcoded implementation
 const INTRINSIC_PLUS      1 offset end
 const INTRINSIC_MINUS     1 offset end
 const INTRINSIC_MUL       1 offset end
@@ -367,8 +463,6 @@ in
     else name @Str "syscall0"   streq if* INTRINSIC_SYSCALL0
     else name @Str "syscall1"   streq if* INTRINSIC_SYSCALL1
     else name @Str "syscall2"   streq if* INTRINSIC_SYSCALL2
-    else name @Str "syscall3"   streq if* INTRINSIC_SYSCALL3
-    else name @Str "syscall4"   streq if* INTRINSIC_SYSCALL4
     else name @Str "syscall5"   streq if* INTRINSIC_SYSCALL5
     else name @Str "syscall6"   streq if* INTRINSIC_SYSCALL6
     else
@@ -376,8 +470,116 @@ in
     end
     swap
 end
+/// END Intrinsic /////////////////////////////////
 
-// Const Struct
+/// BEGIN Op //////////////////////////////////////
+/// "Op" is an operation whitin the Porth's Intermediate Representaton (IR)
+const OP_PUSH_INT             1 offset end
+const OP_PUSH_LOCAL_MEM       1 offset end
+const OP_PUSH_GLOBAL_MEM      1 offset end
+const OP_PUSH_STR             1 offset end
+const OP_PUSH_CSTR            1 offset end
+const OP_IF                   1 offset end
+const OP_IFSTAR               1 offset end
+const OP_ELSE                 1 offset end
+const OP_END                  1 offset end
+const OP_SKIP_PROC            1 offset end
+const OP_PREP_PROC            1 offset end
+const OP_RET                  1 offset end
+const OP_CALL                 1 offset end
+const OP_WHILE                1 offset end
+const OP_DO                   1 offset end
+const OP_INTRINSIC            1 offset end
+const COUNT_OPZ                  reset end 
+
+proc op-typ-as-str
+    int // op type
+    --
+    int ptr // str
+in
+    assert "Exhaustive handling of Op.typs in op-type-as-str" COUNT_OPZ 16 = end
+
+         dup OP_PUSH_INT            = if  "OP_PUSH_INT"
+    else dup OP_PUSH_LOCAL_MEM      = if* "OP_PUSH_LOCAL_MEM"
+    else dup OP_PUSH_GLOBAL_MEM     = if* "OP_PUSH_GLOBAL_MEM"
+    else dup OP_PUSH_STR            = if* "OP_PUSH_STR"
+    else dup OP_PUSH_CSTR           = if* "OP_PUSH_CSTR"
+    else dup OP_INTRINSIC           = if* "OP_INTRINSIC"
+    else dup OP_IF                  = if* "OP_IF"
+    else dup OP_IFSTAR              = if* "OP_IFSTAR"
+    else dup OP_ELSE                = if* "OP_ELSE"
+    else dup OP_END                 = if* "OP_END"
+    else dup OP_SKIP_PROC           = if* "OP_SKIP_PROC"
+    else dup OP_PREP_PROC           = if* "OP_PREP_PROC"
+    else dup OP_RET                 = if* "OP_RET"
+    else dup OP_CALL                = if* "OP_CALL"
+    else dup OP_WHILE               = if* "OP_WHILE"
+    else dup OP_DO                  = if* "OP_DO"
+    else
+        here eputs ": unknown op type\n" eputs 1 exit
+        0 NULL
+    end
+    rot drop
+end
+
+// Op Struct
+const Op.typ     sizeof(u64)   offset end
+const Op.operand sizeof(u64)   offset end
+const Op.token   sizeof(Token) offset end
+const sizeof(Op)                reset end
+
+const OPS_CAP 16 1024 * end
+memory ops-count sizeof(u64)           end
+memory ops       sizeof(Op)  OPS_CAP * end
+
+proc push-op
+    int // type
+    int // operand
+    ptr // token
+    --
+in 
+    memory op sizeof(Op) end
+    sizeof(Token) swap op Op.token + memcpy drop
+    op Op.operand + !int
+    op Op.typ + !int
+
+    sizeof(Op) op OPS_CAP ops ops-count append-item lnot if
+        here eputs ": ERROR: ops overflow\n" eputs 
+        1 exit
+    end
+    drop
+end
+/// END Op /////////////////////////////////////////
+
+/// BEGIN Strlit ///////////////////////////////////
+/// Array of string literals of the coimpiled program
+/// The operand of OP_PUSH_STR and OP_PUSH_CSTR is the 
+/// index whitin this array
+const STRLITS_CAP 1024 end
+memory strlits sizeof(Str) STRLITS_CAP * end
+memory strlits-count sizeof(int) end
+
+proc strlit-define
+    int ptr // string
+    --
+    int
+in
+    memory strlit sizeof(Str) end
+    strlit !Str
+
+    sizeof(Str) strlit
+    STRLITS_CAP strlits
+    strlits-count
+    append-item lnot if
+        here eputs ": ERROR: string literal capacilty exceeded\n" eputs
+        1 exit
+    end
+end
+
+/// END Strlit /////////////////////////////////////
+
+/// BEGIN Const ////////////////////////////////////
+/// Array of constants of the compiled program 
 const Const.name  sizeof(Str) offset end
 const Const.loc   sizeof(Loc) offset end
 const Const.value sizeof(u64) offset end
@@ -421,8 +623,10 @@ in
     end
     drop
 end
+/// END Const //////////////////////////////////////
 
-// Proc Struct
+/// BEGIN Proc /////////////////////////////////////
+/// Array of procedures of the compiled program
 const Proc.name sizeof(Str) offset end
 const Proc.addr sizeof(u64) offset end
 const Proc.loc  sizeof(Loc) offset end
@@ -466,8 +670,10 @@ in
     end
     drop
 end
+// END Proc ///////////////////////////////////////
 
-// Memory Struct
+/// BEGIN Memory //////////////////////////////////
+/// 
 const Memory.name   sizeof(Str) offset end
 const Memory.offset sizeof(u64) offset end
 const Memory.loc    sizeof(Loc) offset end
@@ -482,6 +688,7 @@ const LOCAL_MEMORIES_CAP 1024 end
 memory local-memories       sizeof(Memory) LOCAL_MEMORIES_CAP * end
 memory local-memories-count sizeof(u64) end
 memory local-memory-capacity sizeof(u64) end
+/// END Memory ////////////////////////////////////
 
 memory silent sizeof(bool) end
 
@@ -1312,222 +1519,6 @@ in
     else
         parse-block-stack parse-block-stack-count @64 1 - sizeof(u64) * + @64
         true
-    end
-end
-
-// Lexer structure
-const Lexer.content    sizeof(Str) offset end
-const Lexer.line       sizeof(Str) offset end
-const Lexer.line-start sizeof(ptr) offset end
-const Lexer.file-path  sizeof(Str) offset end
-const Lexer.row        sizeof(u64) offset end
-const sizeof(Lexer)                 reset end
-
-proc lexer-next-line ptr in // lexer:ptr --
-    memory lexer sizeof(ptr) end
-    lexer !64
-
-    '\n'
-    lexer @ptr Lexer.line +
-    lexer @ptr Lexer.content +
-    str-chop-by-delim
-
-    lexer @ptr Lexer.line + offsetof(Str.data) + @ptr
-    lexer @ptr Lexer.line-start +
-    !64
-
-    lexer @ptr Lexer.row + inc64
-end
-
-proc lexer-loc
-    ptr // loc
-    ptr // lexer
-    --
-in
-    memory lexer sizeof(ptr) end
-    lexer !ptr
-    memory loc   sizeof(ptr) end
-    loc !ptr
-
-    // File Path
-    sizeof(Str)
-    lexer @ptr Lexer.file-path +
-    loc   @ptr Loc.file-path   +
-    memcpy
-    drop
-
-    // Row
-    lexer @ptr Lexer.row + @int
-    loc   @ptr Loc.row   + !int
-
-    // Column
-    lexer @ptr Lexer.line       + offsetof(Str.data) + @ptr
-    lexer @ptr Lexer.line-start +                      @ptr
-    -
-    1 +
-    loc @ptr Loc.col +
-    !int
-end
-
-proc lexer-consume-strbuf
-    ptr // lexer
-    --
-    int ptr // string literal
-in
-    memory lexer sizeof(ptr) end
-    lexer !ptr
-
-    memory start sizeof(ptr) end
-    strbuf-end start !ptr
-
-    memory count sizeof(int) end
-    0 count !int
-
-    memory loc sizeof(Loc) end
-
-    lexer @ptr Lexer.line +
-    while
-        dup ?str-empty lnot if
-            dup @Str.data @8 '"' = if
-                dup str-chop-one-left
-                false
-            else dup @Str.data @8 '\\' = if*
-                dup str-chop-one-left
-
-                dup ?str-empty if
-                    loc lexer @ptr lexer-loc
-                    loc eputloc ": ERROR: unfinished escape character\n" eputs
-                    1 exit
-                end
-
-                dup @Str.data @8 'n' = if
-                    10 strbuf-append-char
-                    dup str-chop-one-left
-                    count inc64
-                    true
-                else dup @Str.data @8 '\\' = if* 
-                    92 strbuf-append-char
-                    dup str-chop-one-left
-                    count inc64
-                    true
-                else dup @Str.data @8 '\"' = if* 
-                    34 strbuf-append-char
-                    dup str-chop-one-left
-                    count inc64
-                    true
-                else
-                    loc lexer @ptr lexer-loc
-                    loc eputloc ": ERROR: unknown escape charater `" eputs 1 over @Str.data eputs "`\n" eputs
-                    1 exit
-                    false
-                end
-            else
-                dup @Str.data @8 strbuf-append-char
-                dup str-chop-one-left
-                count inc64
-                true
-            end
-        else false end
-    do end
-    drop
-
-    count @int start @ptr
-    // TODO: check if the string literal was actually closed
-end
-
-proc lexer-next-token
-    ptr // token
-    ptr // lexer
-    -- 
-    bool
-in 
-    memory lexer sizeof(ptr) end
-    lexer !64
-    memory token sizeof(ptr) end
-    token !64
-
-    memory word sizeof(Str) end
-
-    lexer @ptr
-    while 
-        dup Lexer.line + str-trim-left
-
-        dup Lexer.line + ?str-empty if
-            dup Lexer.content + ?str-empty lnot
-        else
-            dup Lexer.line +
-            "//" rot @Str str-starts-with
-        end
-    do dup lexer-next-line end
-
-    dup Lexer.line + ?str-empty lnot if
-        token @ptr Token.loc +
-        lexer @ptr
-        lexer-loc
-
-        dup Lexer.line + @Str.data @8 '"' = if
-            // String literal
-            dup Lexer.line + str-chop-one-left
-
-            lexer-consume-strbuf word !Str
-            word @Str token @ptr Token.value + !Str
-
-            lexer @ptr Lexer.line + ?str-empty lnot if
-                lexer @ptr Lexer.line + @Str.data @8 'c' = if
-                    lexer @ptr Lexer.line + str-chop-one-left
-                    0 strbuf-append-char
-                    token @ptr Token.value + offsetof(Str.count) + inc64
-                    TOKEN_CSTR token @ptr Token.typ + !64
-                else
-                    TOKEN_STR token @ptr Token.typ + !64
-                end
-            else
-                TOKEN_STR token @ptr Token.typ + !64
-            end
-        else dup Lexer.line + @Str.data @8 39 = if* // cannot use ' directy for some reason
-            // Character literal
-            dup Lexer.line + str-chop-one-left
-            39 word rot Lexer.line + str-chop-by-delim
-
-            word @Str "\\n" streq if
-                10 token @ptr Token.value + !int
-            else word @Str "\\\\" streq if*
-                92 token @ptr Token.value + !int
-            else word @Str "\\\"" streq if*
-                34 token @ptr Token.value + !int
-            else word @Str.count 1 = if*
-                word @Str.data @8 token @ptr Token.value + !int
-            else
-                token @ptr Token.loc + eputloc ": only a single byte is allowed inside of a charater literal\n" eputs
-                1 exit
-            end
-
-            TOKEN_CHAR token @ptr Token.typ + !64
-
-            // TODO: check if character literal was clsoed
-        else
-            // Word or integer
-
-            ' '              // delim
-            word             // word
-            rot Lexer.line + // line
-            str-chop-by-delim
-
-            word @Str try-parse-int if
-                token @ptr Token.value + !64
-                TOKEN_INT token @ptr Token.typ + !64
-            else
-                drop // number from try-parse-int
-                word @Str token @ptr Token.value + !Str
-                TOKEN_WORD token @ptr Token.typ + !64
-            end
-        end
-
-        word @Str token @ptr Token.text + !Str
-        true
-    else
-        drop // lexer
-        false
     end
 end
 
