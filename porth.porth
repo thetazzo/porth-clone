@@ -1339,10 +1339,10 @@ memory sim-ret-stack sizeof(u64) SIM_RET_STACK_CAP * end
 memory sim-ret-stack-count sizeof(u64) end
 
 proc sim-ret-stack-push int -- in 
-    sim-ret-stack-count @64 SIM_STACK_CAP >= if 
+    sim-ret-stack-count @64 SIM_RET_STACK_CAP >= if 
         here eputs ": ERROR: return stack overflow in simulation mode\n" eputs 1 exit 
     end
-    sim-stack sim-ret-stack-count @64 8 * + !64
+    sim-ret-stack sim-ret-stack-count @64 8 * + !64
     sim-ret-stack-count inc64
 end
 
@@ -1351,20 +1351,46 @@ proc sim-ret-stack-pop -- int in
         here eputs ": ERROR: return stack underflow in simulation mode\n" eputs 1 exit
     end
     sim-ret-stack-count dec64
-    sim-stack sim-ret-stack-count @64 8 * + @64
+    sim-ret-stack sim-ret-stack-count @64 8 * + @64
 end
 
 const SIM_LOCAL_MEMORY_CAP 640000 end
 memory sim-local_memory SIM_RET_STACK_CAP end
-memory sim-local_memory-rsp sizeof(u64) end
+memory sim-local_memory-rsp sizeof(ptr) end
+
+memory sim-global_memory sizeof(ptr) end
 
 proc simulate-opz in 
     memory sim-ip sizeof(u64) end
     memory sim-op sizeof(Op) end
-
-    sim-local_memory SIM_LOCAL_MEMORY_CAP + 
+  
+    0                            // off_t offset
+    0 1 -                        // int fd,
+    MAP_PRIVATE MAP_ANONYMOUS or // int flags,
+    PROT_READ PROT_WRITE or      // int prot,
+    global_memory-capacity @64   // size_t length,
+    NULL                         // void *addr,
+    mmap
+    sim-global_memory
+    !int
+  
+    sim-global_memory @ptr NULL < if
+      here eputs
+      ": ERROR: could not allocate " eputs
+      global_memory-capacity @64 eputu
+      " bytes of global memory for the simulation\n" eputs
+      1 exit
+    end
+  
+    global_memory-capacity @64
+    0
+    sim-global_memory @ptr
+    memset
+    drop
+  
+    sim-local_memory SIM_LOCAL_MEMORY_CAP +
     sim-local_memory-rsp !ptr
-
+  
     0 sim-ip !64
     while sim-ip @64 ops-count @64 < do
         sizeof(Op)
@@ -1372,21 +1398,22 @@ proc simulate-opz in
         sim-op
         memcpy
         drop
-
-        assert "Exhaustive handling of Op.typs in simulate-opz" COUNT_OPZ 16 =  end
-
-        // ptr
-        sim-op Op.typ + @64 OP_PUSH_INT = if 
+  
+        assert "Exhaustive handling of Op.typs in simulate-ops" COUNT_OPZ 16 = end
+        sim-op Op.typ + @64 OP_PUSH_INT = if
             sim-op Op.operand + @64 sim-stack-push
             sim-ip inc64
         else sim-op Op.typ + @64 OP_PUSH_LOCAL_MEM = if*
-            here eputs ": TODO: OP_PUSH_LOCAL_MEM is not implemented in simulation mode\n" eputs
-            sim-op Op.token + Token.loc + located-here 
+            here eputs ": TODO: OP_PUSH_LOCAL_MEM is not implemented yet in simulation mode\n" eputs
+            sim-op Op.token + Token.loc + located-here
             1 exit
         else sim-op Op.typ + @64 OP_PUSH_GLOBAL_MEM = if*
-            here eputs ": TODO: OP_PUSH_GLOBAL_MEM is not implemented in simulation mode\n" eputs
-            sim-op Op.token + Token.loc + located-here 
-            1 exit
+            sim-global_memory @ptr
+            sim-op Op.operand + @int
+            +
+            cast(int)
+            sim-stack-push
+            sim-ip inc64
         else sim-op Op.typ + @64 OP_PUSH_STR = if*
             sim-op Op.operand + @64
             sizeof(Str) *
@@ -1397,18 +1424,18 @@ proc simulate-opz in
             cast(int) sim-stack-push
             sim-ip inc64
         else sim-op Op.typ + @64 OP_PUSH_CSTR = if*
-            here eputs ": TODO: OP_PUSH_CSTR is not implemented in simulation mode\n" eputs
-            sim-op Op.token + Token.loc + located-here 
+            here eputs ": TODO: OP_PUSH_CSTR is not implemented yet in simulation mode\n" eputs
+            sim-op Op.token + Token.loc + located-here
             1 exit
         else sim-op Op.typ + @64 OP_IF = if*
             sim-stack-pop cast(bool) if
-                sim-ip inc64
+               sim-ip inc64
             else
-                sim-op Op.operand + @64 sim-ip !64
+               sim-op Op.operand + @64 sim-ip !64
             end
         else sim-op Op.typ + @64 OP_IFSTAR = if*
-            here eputs ": TODO: OP_IFSTAR is not implemented in simulation mode\n" eputs
-            sim-op Op.token + Token.loc + located-here 
+            here eputs ": TODO: OP_IFSTAR is not implemented yet in simulation mode\n" eputs
+            sim-op Op.token + Token.loc + located-here
             1 exit
         else sim-op Op.typ + @64 OP_ELSE = if*
             sim-op Op.operand + @64 sim-ip !64
@@ -1416,12 +1443,12 @@ proc simulate-opz in
             sim-op Op.operand + @64 sim-ip !64
         else sim-op Op.typ + @64 OP_WHILE = if*
             sim-ip inc64
-            // nothing to simulate as `while` is a label
+            // NOTE: nothing to simulate. `while` is basically a label
         else sim-op Op.typ + @64 OP_DO = if*
             sim-stack-pop cast(bool) if
-                sim-ip inc64
+              sim-ip inc64
             else
-                sim-op Op.operand + @64 sim-ip !64
+              sim-op Op.operand + @64 sim-ip !64
             end
         else sim-op Op.typ + @64 OP_SKIP_PROC = if*
             sim-op Op.operand + @64 sim-ip !64
@@ -1431,26 +1458,28 @@ proc simulate-opz in
             -
             sim-local_memory-rsp
             !64
-
+      
             sim-local_memory-rsp @ptr sim-local_memory < if
                 here eputs ": ERROR: local memory capacity exceeded in the simulation mode\n" eputs
-                sim-op Op.token + Token.loc + eputloc ": NOTE: error has happend here\n" eputs
+                sim-op Op.token + Token.loc + eputloc ": NOTE: the error has happened here\n" eputs
                 1 exit
             end
+      
             sim-ip inc64
         else sim-op Op.typ + @64 OP_RET = if*
-            sim-local_memory-rsp @64 
+            sim-local_memory-rsp @64
             sim-op Op.operand + @64
             +
-            sim-local_memory-rsp
-            !64 
-            
+            sim-local_memory-rsp !64
             sim-ret-stack-pop sim-ip !64
         else sim-op Op.typ + @64 OP_CALL = if*
             sim-ip @64 1 + sim-ret-stack-push
-            sim-op Op.operand + @64 sim-ip !64 
+            sim-op Op.operand + @64 sim-ip !64
         else sim-op Op.typ + @64 OP_INTRINSIC = if*
-            assert "Exhaustive handling of intrinsics in simulate-opz" COUNT_INTRINSICS 43 = end
+            assert "Exhaustive handling of Intrinsics in generate-nasm-linux-x86_64"
+                COUNT_INTRINSICS 43 =
+            end
+  
             sim-op Op.operand + @64 INTRINSIC_PLUS = if
                 sim-stack-pop
                 sim-stack-pop
@@ -1472,12 +1501,42 @@ proc simulate-opz in
                 sim-stack-pop
                 swap
                 divmod
+                swap
                 sim-stack-push
                 sim-stack-push
             else sim-op Op.operand + @64 INTRINSIC_MAX = if*
-                here eputs ": TODO: `max` intrinsic is not implemented in simulation mode\n" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: intrinsic `max` is not implemented in simulation mode\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
+            else sim-op Op.operand + @64 INTRINSIC_SHR = if*
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                shr
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_SHL = if*
+                sim-stack-pop
+                sim-stack-pop
+                swap
+                shl
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_OR = if*
+                sim-stack-pop
+                sim-stack-pop
+                or
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_AND = if*
+                sim-stack-pop
+                sim-stack-pop
+                and
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_NOT = if*
+                sim-stack-pop
+                not
+                sim-stack-push
+            else sim-op Op.operand + @64 INTRINSIC_PRINT = if*
+                sim-stack-pop
+                print
             else sim-op Op.operand + @64 INTRINSIC_EQ = if*
                 sim-stack-pop
                 sim-stack-pop
@@ -1518,44 +1577,14 @@ proc simulate-opz in
                 !=
                 cast(int)
                 sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_SHR = if*
-                sim-stack-pop
-                sim-stack-pop
-                swap
-                shr
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_SHL = if*
-                sim-stack-pop
-                sim-stack-pop
-                swap
-                shl
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_OR = if*
-                sim-stack-pop
-                sim-stack-pop
-                or
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_AND = if*
-                sim-stack-pop
-                sim-stack-pop
-                and
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_NOT = if*
-                sim-stack-pop
-                not
-                sim-stack-push
-            else sim-op Op.operand + @64 INTRINSIC_PRINT = if*
-                sim-stack-pop
-                print
             else sim-op Op.operand + @64 INTRINSIC_DUP = if*
                 sim-stack-pop
-                sim-op
-                cast(int)
+                dup
                 sim-stack-push
                 sim-stack-push
             else sim-op Op.operand + @64 INTRINSIC_SWAP = if*
                 sim-stack-pop
-                sim-stack-pop 
+                sim-stack-pop
                 swap
                 sim-stack-push
                 sim-stack-push
@@ -1580,48 +1609,46 @@ proc simulate-opz in
                 sim-stack-push
                 sim-stack-push
             else sim-op Op.operand + @64 INTRINSIC_LOAD8 = if*
-                here puts ": TODO: `@8` is not implemented" eputs
-                sim-op Op.token + Token.loc + located-here 
-                1 exit
+                sim-stack-pop cast(ptr) @8 sim-stack-push
             else sim-op Op.operand + @64 INTRINSIC_STORE8 = if*
-                here puts ": TODO: `!8` is not implemented" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `!8` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_LOAD16 = if*
-                here puts ": TODO: `@16` is not implemented" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `@16` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_STORE16 = if*
-                here puts ": TODO: `!16` is not implemented" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `!16` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_LOAD32 = if*
-                here puts ": TODO: `@32` is not implemented" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `@32` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_STORE32 = if*
-                here puts ": TODO: `!32` is not implemented\n" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `!32` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_LOAD64 = if*
-                here puts ": TODO: `@64` is not implemented\n" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `@64` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_STORE64 = if*
-                here puts ": TODO: `!64` is not implemented\n" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `!64` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_ARGC = if*
-                here puts ": TODO: `argc` is not implemented\n" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `argc` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_ARGV = if*
-                here puts ": TODO: `argv` is not implemented\n" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `argv` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_ENVP = if*
-                here puts ": TODO: `envp` is not implemented" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `envp` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_CAST_PTR = if*
             else sim-op Op.operand + @64 INTRINSIC_CAST_INT = if*
@@ -1631,19 +1658,19 @@ proc simulate-opz in
                 syscall0
                 sim-stack-push
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL1 = if*
-                here puts ": TODO: syscall1 is not implemented\n" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `syscall1` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL2 = if*
-                here puts ": TODO: syscall2 is not implemented\n" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `syscall2` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL3 = if*
                 sim-stack-count @64 4 < if
-                    here eputs ": ERROR: data stack underflow in simulation mode\n" eputs
-                    1 exit
+                  here eputs ": ERROR: data stack underflow in simulation mode\n" eputs
+                  1 exit
                 end
-                
+  
                 sim-stack-count @64 4 - sizeof(u64) * sim-stack + @64
                 sim-stack-count @64 3 - sizeof(u64) * sim-stack + @64
                 sim-stack-count @64 2 - sizeof(u64) * sim-stack + @64
@@ -1654,29 +1681,28 @@ proc simulate-opz in
                 sim-stack-pop drop
                 sim-stack-pop drop
                 sim-stack-push
-                //sim-ip inc64
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL4 = if*
-                here puts ": TODO: syscall4 is not implemented\n" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `syscall4` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL5 = if*
-                here puts ": TODO: syscall5 is not implemented\n" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `syscall5` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL6 = if*
-                here puts ": TODO: syscall6 is not implemented\n" eputs
-                sim-op Op.token + Token.loc + located-here 
+                here eputs ": TODO: `syscall6` is not implemented yet\n" eputs
+                sim-op Op.token + Token.loc + located-here
                 1 exit
-            else 
-                here eputs ": unreachable\n" eputs 1 exit
+            else
+                here eputs ": unreachable.\n" eputs
                 1 exit
-            end 
+            end
+  
             sim-ip inc64
-        else 
+        else
             here eputs ": unreachable\n" eputs 1 exit
-            1 exit
-        end 
-    end 
+        end
+    end
 end
 /// END Interpreter ///////////////////////////////
 
