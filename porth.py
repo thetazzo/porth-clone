@@ -2021,11 +2021,11 @@ def unescape_string(s: str) -> str:
     # to do this weird round trip
     return s.encode('utf-8').decode('unicode_escape').encode('latin-1').decode('utf-8')
 
-def find_string_literal_end(line: str, start: int) -> int:
+def find_string_literal_end(line: str, start: int, quote: str = '"') -> int:
     while start < len(line):
         if line[start] == '\\': 
             start += 2
-        elif line[start] == '"':
+        elif line[start] == quote:
             break
         else:
             start += 1
@@ -2070,10 +2070,11 @@ def lex_lines(file_path: str, lines: List[str]) -> Generator[Token, None, None]:
                     yield Token(TokenType.STR, text_of_token, loc, unescape_string(text_of_token))
                 col = find_col(line, col_end+1, lambda x: not x.isspace())
             elif line[col] == "'":
-                col_end = find_col(line, col+1, lambda x: x == "'")
+                col_end = find_string_literal_end(line, col+1, quote="'")
                 if col_end >= len(line) or line[col_end] != "'":
                     compiler_error_(loc, "unclosed character literal") 
                     exit(1)
+                text_of_token=line[col+1:col_end]
                 char_bytes = unescape_string(line[col+1:col_end]).encode('utf-8')
                 if len(char_bytes) != 1:
                     compiler_error_(loc, "only a single byte is allowed inside of a character literal")
