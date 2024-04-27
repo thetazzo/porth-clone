@@ -739,16 +739,16 @@ const sizeof(Memory)           reset end
 const GLOBAL_MEMORIES_CAP 1024 end
 memory global-memories        sizeof(Memory) GLOBAL_MEMORIES_CAP * end
 memory global-memories-count  sizeof(u64) end
-memory global-memory-capacity sizeof(u64) end
+memory global_memory-capacity sizeof(u64) end
 
 const LOCAL_MEMORIES_CAP 1024 end
 memory local-memories       sizeof(Memory) LOCAL_MEMORIES_CAP * end
 memory local-memories-count sizeof(u64) end
-memory local-memory-capacity sizeof(u64) end
+memory local_memory-capacity sizeof(u64) end
 
 proc local-memories-clean in
     0 local-memories-count !64
-    0 local-memory-capacity !64
+    0 local_memory-capacity !64
 end
 
 proc local-memories-lookup
@@ -775,7 +775,7 @@ in
     end
 end
 
-proc local-memory-define
+proc local_memory-define
     ptr // ptr to local-memories struct
 in
     sizeof(Memory) swap LOCAL_MEMORIES_CAP local-memories local-memories-count append-item lnot if
@@ -809,7 +809,7 @@ in
     end
 end
 
-proc global-memory-define
+proc global_memory-define
     ptr // ptr to global-memories struct
 in
     sizeof(Memory) swap GLOBAL_MEMORIES_CAP global-memories global-memories-count append-item lnot if
@@ -1305,7 +1305,7 @@ in
     "ret_stack: resb "         out-fd @64 fputs x86_64_RET_STACK_CAP out-fd @64 fputu "\n" out-fd @64 fputs
     "ret_stack_end:\n"         out-fd @64 fputs
     "mem: resb "               out-fd @64 fputs
-    global-memory-capacity @64 out-fd @64 fputu
+    global_memory-capacity @64 out-fd @64 fputu
     "\n"                       out-fd @64 fputs
 
     out-fd @64 close drop
@@ -1313,13 +1313,14 @@ end
 /// END Code generator ////////////////////////////
 
 /// BEGIN Interpreter /////////////////////////////
-const SIM_STACK_CAP 1024 end
-memory sim-stack-count sizeof(u64)                 end 
+const SIM_STACK_CAP     1024 end
+
 memory sim-stack       sizeof(u64) SIM_STACK_CAP * end
+memory sim-stack-count sizeof(u64)                 end 
 
 proc sim-stack-push int -- in 
     sim-stack-count @64 SIM_STACK_CAP >= if 
-        here eputs ": ERROR: sim stack overflow in simulation mode\n" eputs 1 exit 
+        here eputs ": ERROR: data stack overflow in simulation mode\n" eputs 1 exit 
     end
     sim-stack sim-stack-count @64 8 * + !64
     sim-stack-count inc64
@@ -1327,15 +1328,42 @@ end
 
 proc sim-stack-pop -- int in 
     sim-stack-count @64 0 = if  
-        here eputs ": ERROR: sim stack underflow in simulation mode\n" eputs 1 exit
+        here eputs ": ERROR: data stack underflow in simulation mode\n" eputs 1 exit
     end
     sim-stack-count dec64
     sim-stack sim-stack-count @64 8 * + @64
 end
 
+const SIM_RET_STACK_CAP 1024 end
+memory sim-ret-stack sizeof(u64) SIM_RET_STACK_CAP * end
+memory sim-ret-stack-count sizeof(u64) end
+
+proc sim-ret-stack-push int -- in 
+    sim-ret-stack-count @64 SIM_STACK_CAP >= if 
+        here eputs ": ERROR: return stack overflow in simulation mode\n" eputs 1 exit 
+    end
+    sim-stack sim-ret-stack-count @64 8 * + !64
+    sim-ret-stack-count inc64
+end
+
+proc sim-ret-stack-pop -- int in 
+    sim-ret-stack-count @64 0 = if  
+        here eputs ": ERROR: return stack underflow in simulation mode\n" eputs 1 exit
+    end
+    sim-ret-stack-count dec64
+    sim-stack sim-ret-stack-count @64 8 * + @64
+end
+
+const SIM_LOCAL_MEMORY_CAP 640000 end
+memory sim-local_memory SIM_RET_STACK_CAP end
+memory sim-local_memory-rsp sizeof(u64) end
+
 proc simulate-opz in 
     memory sim-ip sizeof(u64) end
     memory sim-op sizeof(Op) end
+
+    sim-local_memory SIM_LOCAL_MEMORY_CAP + 
+    sim-local_memory-rsp !ptr
 
     0 sim-ip !64
     while sim-ip @64 ops-count @64 < do
@@ -1360,9 +1388,14 @@ proc simulate-opz in
             sim-op Op.token + Token.loc + located-here 
             1 exit
         else sim-op Op.typ + @64 OP_PUSH_STR = if*
-            here eputs ": TODO: OP_PUSH_STR is not implemented in simulation mode\n" eputs
-            sim-op Op.token + Token.loc + located-here 
-            1 exit
+            sim-op Op.operand + @64
+            sizeof(Str) *
+            strlits +
+            @Str
+            swap
+            sim-stack-push
+            cast(int) sim-stack-push
+            sim-ip inc64
         else sim-op Op.typ + @64 OP_PUSH_CSTR = if*
             here eputs ": TODO: OP_PUSH_CSTR is not implemented in simulation mode\n" eputs
             sim-op Op.token + Token.loc + located-here 
@@ -1393,17 +1426,29 @@ proc simulate-opz in
         else sim-op Op.typ + @64 OP_SKIP_PROC = if*
             sim-op Op.operand + @64 sim-ip !64
         else sim-op Op.typ + @64 OP_PREP_PROC = if*
-            here eputs ": TODO: OP_PREP_PROC is not implemented in simulation mode\n" eputs
-            sim-op Op.token + Token.loc + located-here 
-            1 exit
+            sim-local_memory-rsp @64
+            sim-op Op.operand + @64
+            -
+            sim-local_memory-rsp
+            !64
+
+            sim-local_memory-rsp @ptr sim-local_memory < if
+                here eputs ": ERROR: local memory capacity exceeded in the simulation mode\n" eputs
+                sim-op Op.token + Token.loc + eputloc ": NOTE: error has happend here\n" eputs
+                1 exit
+            end
+            sim-ip inc64
         else sim-op Op.typ + @64 OP_RET = if*
-            here eputs ": TODO: OP_RET is not implemented in simulation mode\n" eputs
-            sim-op Op.token + Token.loc + located-here 
-            1 exit
+            sim-local_memory-rsp @64 
+            sim-op Op.operand + @64
+            +
+            sim-local_memory-rsp
+            !64 
+            
+            sim-ret-stack-pop sim-ip !64
         else sim-op Op.typ + @64 OP_CALL = if*
-            here eputs ": TODO: OP_CALL is not implemented in simulation mode\n" eputs
-            sim-op Op.token + Token.loc + located-here 
-            1 exit
+            sim-ip @64 1 + sim-ret-stack-push
+            sim-op Op.operand + @64 sim-ip !64 
         else sim-op Op.typ + @64 OP_INTRINSIC = if*
             assert "Exhaustive handling of intrinsics in simulate-opz" COUNT_INTRINSICS 43 = end
             sim-op Op.operand + @64 INTRINSIC_PLUS = if
@@ -1555,23 +1600,23 @@ proc simulate-opz in
                 sim-op Op.token + Token.loc + located-here 
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_STORE32 = if*
-                here puts ": TODO: `!32` is not implemented" eputs
+                here puts ": TODO: `!32` is not implemented\n" eputs
                 sim-op Op.token + Token.loc + located-here 
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_LOAD64 = if*
-                here puts ": TODO: `@64` is not implemented" eputs
+                here puts ": TODO: `@64` is not implemented\n" eputs
                 sim-op Op.token + Token.loc + located-here 
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_STORE64 = if*
-                here puts ": TODO: `!64` is not implemented" eputs
+                here puts ": TODO: `!64` is not implemented\n" eputs
                 sim-op Op.token + Token.loc + located-here 
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_ARGC = if*
-                here puts ": TODO: `argc` is not implemented" eputs
+                here puts ": TODO: `argc` is not implemented\n" eputs
                 sim-op Op.token + Token.loc + located-here 
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_ARGV = if*
-                here puts ": TODO: `argv` is not implemented" eputs
+                here puts ": TODO: `argv` is not implemented\n" eputs
                 sim-op Op.token + Token.loc + located-here 
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_ENVP = if*
@@ -1586,27 +1631,40 @@ proc simulate-opz in
                 syscall0
                 sim-stack-push
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL1 = if*
-                here puts ": TODO: syscall1 is not implemented" eputs
+                here puts ": TODO: syscall1 is not implemented\n" eputs
                 sim-op Op.token + Token.loc + located-here 
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL2 = if*
-                here puts ": TODO: syscall2 is not implemented" eputs
+                here puts ": TODO: syscall2 is not implemented\n" eputs
                 sim-op Op.token + Token.loc + located-here 
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL3 = if*
-                here puts ": TODO: syscall3 is not implemented" eputs
-                sim-op Op.token + Token.loc + located-here 
-                1 exit
+                sim-stack-count @64 4 < if
+                    here eputs ": ERROR: data stack underflow in simulation mode\n" eputs
+                    1 exit
+                end
+                
+                sim-stack-count @64 4 - sizeof(u64) * sim-stack + @64
+                sim-stack-count @64 3 - sizeof(u64) * sim-stack + @64
+                sim-stack-count @64 2 - sizeof(u64) * sim-stack + @64
+                sim-stack-count @64 1 - sizeof(u64) * sim-stack + @64
+                syscall3
+                sim-stack-pop drop
+                sim-stack-pop drop
+                sim-stack-pop drop
+                sim-stack-pop drop
+                sim-stack-push
+                //sim-ip inc64
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL4 = if*
-                here puts ": TODO: syscall4 is not implemented" eputs
+                here puts ": TODO: syscall4 is not implemented\n" eputs
                 sim-op Op.token + Token.loc + located-here 
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL5 = if*
-                here puts ": TODO: syscall5 is not implemented" eputs
+                here puts ": TODO: syscall5 is not implemented\n" eputs
                 sim-op Op.token + Token.loc + located-here 
                 1 exit
             else sim-op Op.operand + @64 INTRINSIC_SYSCALL6 = if*
-                here puts ": TODO: syscall6 is not implemented" eputs
+                here puts ": TODO: syscall6 is not implemented\n" eputs
                 sim-op Op.token + Token.loc + located-here 
                 1 exit
             else 
@@ -2209,7 +2267,7 @@ in
                     else dup Op.typ + @64 OP_DO = if*
                         over token enclose-while-do
                     else dup Op.typ + @64 OP_PREP_PROC = if*
-                        local-memory-capacity @64
+                        local_memory-capacity @64
                         over Op.operand +
                         !64
 
@@ -2228,7 +2286,7 @@ in
                         end
 
                         OP_RET
-                        local-memory-capacity @64
+                        local_memory-capacity @64
                         token
                         push-op
 
@@ -2375,13 +2433,13 @@ in
                     end
 
                     inside-prok @bool if
-                        local-memory-capacity @64 memori Memory.offset + !64
-                        local-memory-capacity @64 + local-memory-capacity !64
-                        memori local-memory-define
+                        local_memory-capacity @64 memori Memory.offset + !64
+                        local_memory-capacity @64 + local_memory-capacity !64
+                        memori local_memory-define
                     else
-                        global-memory-capacity @64 memori Memory.offset + !64
-                        global-memory-capacity @64 + global-memory-capacity !64
-                        memori global-memory-define
+                        global_memory-capacity @64 memori Memory.offset + !64
+                        global_memory-capacity @64 + global_memory-capacity !64
+                        memori global_memory-define
                     end
                 else dup @Str "assert" streq if*
                     token lexer lexer-next-token lnot if
@@ -2485,7 +2543,7 @@ proc summary in
     "Procs Count:                  " puts procs-count            @int putu "\n" puts
     "String Literals Count         " puts strlits-count          @int putu "\n" puts
     "String Literals Size (bytes): " puts strbuf-size            @int putu "\n" puts
-    "Global Memory Size (bytes):   " puts global-memory-capacity @int putu "\n" puts
+    "Global Memory Size (bytes):   " puts global_memory-capacity @int putu "\n" puts
 end
 
 proc print-usage

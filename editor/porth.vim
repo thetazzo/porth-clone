@@ -1,3 +1,8 @@
+
+if exists("b:current_syntax")
+    finish
+endif
+
 highlight Yellow      guifg=#ffee71 guibg=None
 highlight Orange      guifg=#EEBB00 guibg=None
 highlight OrangeBold  guifg=#A8CC99 gui=bold
@@ -8,25 +13,32 @@ highlight Green       guifg=#03C04A guibg=None
 
 highlight link P_INCLUDE OrangeBold
 
-syntax keyword P_TODO TODO XXX FIXME NOTE
+syntax keyword porthTodo TODO XXX FIXME NOTE
 
 " Keywords
-syntax keyword P_KEYWORD end while do if else proc const assert in
-syntax keyword Cyan      memory
-syntax keyword LightBlue offset
-syntax keyword Pink      reset
-syntax keyword P_INCLUDE include
+syntax keyword porthKeyword end while do if else proc const assert in 
+syntax keyword porthMemory  memory
+syntax keyword porthOffset  offset
+syntax keyword porthReset   reset
+syntax keyword porthInclude include
 
 " Comments
-syntax region P_COMMENT_LINE start="//" end="$" contains=P_TODO 
+syntax region porthComment start="//" end="$" contains=porthTodo 
 
 " Strings
-syntax region P_STRING start=/\v"/ skip=/\v\\./ end=/\v"/
-syntax region P_STRING start=/\v'/ skip=/\v\\./ end=/\v'/
+syntax region porthString start=/\v"/ skip=/\v\\./ end=/\v"/
+syntax region porthString start=/\v'/ skip=/\v\\./ end=/\v'/
 
 " Set highlights
-highlight default link P_TODO Todo
-" highlight default link P_KEYWORD Keyword
-highlight link P_KEYWORD Yellow
-highlight default link P_COMMENT_LINE Comment
-highlight default link P_STRING String
+highlight default link porthTodo Todo
+
+highlight default link porthKeyword Keyword
+highlight default link porthMemory  Cyan
+highlight default link porthOffset  LightBlue
+highlight default link porthReset   Pink
+highlight default link porthInclude OrangeBold
+
+highlight default link porthComment Comment
+highlight default link porthString String
+
+let b:current_syntax = "porth"

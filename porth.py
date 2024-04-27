@@ -1471,7 +1471,7 @@ INTRINSIC_BY_NAMES: Dict[str, Intrinsic]= {
     'syscall4': Intrinsic.SYSCALL4,
     'syscall5': Intrinsic.SYSCALL5,
     'syscall6': Intrinsic.SYSCALL6,
-    'stop': Intrinsic.STOP,
+    '???': Intrinsic.STOP,
 }
 INTRINSIC_NAMES: Dict[Intrinsic, str] = {v: k for k, v in INTRINSIC_BY_NAMES.items()}
     
