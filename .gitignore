@@ -39,6 +39,7 @@ examples/recursive-fib
 examples/character-structure
 examples/bubble-sort
 examples/quine
+examples/white-noise-image
 tests/arithmetics
 tests/bitwise-operations
 tests/comments
