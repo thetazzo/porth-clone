@@ -726,7 +726,7 @@ const RAND_C 1442695040888963407 end
 // supported by the simulation mode at the moment
 proc rand -- int in
     rand-state @64
-    RAND_A +
+    RAND_A *
     RAND_C +
     dup
     rand-state !64

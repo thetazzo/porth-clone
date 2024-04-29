@@ -1,0 +1,92 @@
+include "std.porth"
+
+const WIDTH  1920 end
+const HEIGHT 1080 end
+const PIXEL_SIZE  40 end
+const PIXEL_COLS WIDTH PIXEL_SIZE divmod drop end
+const PIXEL_ROWS HEIGHT PIXEL_SIZE divmod drop end
+
+memory pixels PIXEL_COLS PIXEL_ROWS * end
+
+proc sum-bytes int -- int in
+    memory result sizeof(int) end
+    0 result !int
+    // int index
+    0 while dup 8 < do
+        over 255 and 
+        result @int + 
+        result !int
+
+        swap 8 shr swap
+        1 +
+    end 2drop
+    result @int
+end
+
+proc generate_pixels in
+    69 srand
+    0 while dup PIXEL_COLS PIXEL_ROWS * < do
+        rand sum-bytes 255 and
+
+        over pixels + !8
+        1 +
+    end drop
+end
+
+memory file-path sizeof(ptr) end
+"wn-image.ppm"c file-path !ptr
+
+proc main in
+
+    generate_pixels
+
+    memory fd sizeof(u64) end
+    
+    420                             // mode_t basically 0o644 permision
+    O_CREAT O_WRONLY or O_TRUNC or  // int
+    file-path @ptr                  // ptr
+    AT_FDCWD                        // fd
+    openat
+    fd !64
+    
+    fd @64 0 < if
+        "ERROR: Could not load `" eputs file-path @ptr cstr-to-str eputs "`\n" eputs
+        1 exit
+    end
+    
+    "P6\n"   fd @64 fputs
+    WIDTH    fd @64 fputu
+    " "      fd @64 fputs
+    HEIGHT   fd @64 fputu
+    " 255\n" fd @64 fputs
+    
+    memory bytes 3 end
+    255 bytes 1 + !8
+    200 bytes 2 + !8
+
+    0 while dup HEIGHT < do
+        0 while dup WIDTH < do
+        // row col pixels[index]
+        2dup 
+        PIXEL_SIZE / 
+        swap PIXEL_SIZE /
+        PIXEL_COLS *
+        +
+        
+        pixels + @8
+        dup
+        dup
+        bytes !8
+        bytes 1 + !8
+        bytes 2 + !8
+
+        3 bytes fd @64 fputs
+
+        1 +
+        end drop
+        1 +
+    end drop
+     
+    fd @64 close drop
+end
+main 
