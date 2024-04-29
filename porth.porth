@@ -2736,10 +2736,14 @@ proc main in
     cmd-echoed
 
     run @bool if
-      tmp-end
-      "./output"c tmp-append-ptr
-      NULL        tmp-append-ptr
-      cmd-echoed
+        tmp-end
+        "./output"c tmp-append-ptr
+        while args @@ptr NULL != do
+            args @@ptr tmp-append-ptr
+            args sizeof(ptr) inc64-by
+        end
+        NULL        tmp-append-ptr
+        cmd-echoed
     end
   else args @@ptr "help"c cstreq if*
     program @ptr stdout usage
