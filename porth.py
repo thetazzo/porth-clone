@@ -2187,6 +2187,7 @@ def print_usage(compiler_name: str):
     print("    --unsafe               Disable type checking")
     print("    -I <path>             Add the path to the include search list")
     print("  SUBCOMMAND:")
+    print("    check <file>          Just compile to IR and type-check without compiling of simulating")
     print("    sim <file>            Simulate the program")
     print("    com [OPTIONS] <file>  Compile the program")
     print("      OPTIONS:")
@@ -2248,6 +2249,19 @@ if __name__ == '__main__' and '__file__' in globals():
         else:
             print("[INFO] Simulating in UNSAFE mode")
         simulate_little_endian_linux(program, [program_path]+argv)
+    elif subcommand == "check":
+        if len(argv) < 1:
+            print_usage(compiler_name)
+            print("[ERROR] no input file is provided for the simulation", file=sys.stderr)
+            exit(1)
+        program_path, *argv = argv
+        include_paths.append(path.dirname(program_path))
+        parse_ctx = ParseContext()
+        parse_program_from_file(parse_ctx, program_path, include_paths);
+        program = Program(ops=parse_ctx.ops, memory_capacity=parse_ctx.memory_capacity)
+        proc_contracs = {proc.addr: proc.contract for proc in parse_ctx.procs.values()}
+        if not unsafe:
+            type_check_program(program, proc_contracs)
     elif subcommand == "com":
         silent = False
         control_flow = False
