@@ -1,0 +1,6 @@
+include "std.porth"
+
+"hello"            shell-escape puts "\n" puts
+"hello && semen"   shell-escape puts "\n" puts
+"hello '&&' semen" shell-escape puts "\n" puts
+

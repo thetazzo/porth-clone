@@ -503,6 +503,49 @@ end
 proc putu int in stdout fputu end
 proc eputu int in stderr fputu end
 
+proc memcpy
+    int // size
+    ptr // src
+    ptr // dst
+    --
+    ptr // dst
+in 
+    memory src sizeof(ptr) end
+    memory dst sizeof(ptr) end
+    memory result sizeof(ptr) end
+    dst !64
+    src !64
+    dst @ptr swap
+    while dup 0 > do
+        src @ptr @8
+        dst @ptr !8
+        src inc64
+        dst inc64
+        1 -
+    end drop
+end
+
+proc memset 
+    int // size
+    int // byte
+    ptr // data
+    --
+    ptr // data
+in
+    memory data sizeof(ptr) end
+    data !64
+    memory byte sizeof(u64) end
+    byte !64
+    data @ptr swap
+    while dup 0 > do
+        byte @64 data @ptr !8
+        data inc64
+        1 -
+    end
+    drop
+end
+
+
 // =========================================
 //           STRING MANIPULATION
 // =========================================
@@ -643,10 +686,75 @@ proc ?str-empty ptr -- bool in
     0 =
 end
 
-proc is-digit int -- bool in
-    dup '0' >=
-    swap '9' <=
+// 8MB of temporary scratch buffer
+const TMP_CAP 8 1024 * 1024 * end
+memory tmp-start TMP_CAP end
+memory tmp-size sizeof(u64) end
+
+proc tmp-clean in 0 tmp-size !64 end
+proc tmp-end -- ptr in tmp-start tmp-size @64 + end 
+proc tmp-rewind ptr in tmp-start - tmp-size !int end
+
+proc tmp-alloc
+    int
+    --
+    ptr // result
+in
+    dup tmp-size @64 + TMP_CAP > if
+        here eputs ": Temporary memory buffer exceeded. Need to call tmp-clean more often\n" eputs
+        1 exit
+    end
+
+    dup 0 tmp-end memset 
+    tmp-size @64 rot + tmp-size !64
+end
+
+proc tmp-str-to-cstr int ptr -- ptr in over 1 + tmp-alloc memcpy end
+proc tmp-append int ptr -- ptr in over tmp-alloc memcpy end
+proc tmp-append-ptr ptr -- in
+    sizeof(ptr) tmp-alloc !ptr
+end
+
+proc isdigit int -- bool in
+    dup
+        '0' >=
+    swap
+        '9' <=
     and
+end
+
+// TODO: rename isalpha to ?alpha
+proc isalpha
+    int
+    --
+    bool
+in
+    dup
+        dup
+            'a' >=
+        swap
+            'z' <=
+        and
+    swap
+        dup
+            'A' >=
+        swap
+            'Z' <=
+        and
+    or
+end
+
+// TODO: rename isalnum to ?alnum
+proc isalnum 
+    int
+    --
+    bool
+in
+    dup
+        isdigit
+    swap
+        isalpha
+    or
 end
 
 proc try-parse-int
@@ -659,7 +767,7 @@ in // int ptr -- int err
 
     0 while 
         input @Str.count 0 > if
-            input @Str.data @8 is-digit
+            input @Str.data @8 isdigit
         else false end
     do 
         10 * input @Str.data @8 '0' - +
@@ -668,46 +776,70 @@ in // int ptr -- int err
     input @Str.count 0 <=
 end
 
-proc memcpy
-    int // size
-    ptr // src
-    ptr // dst
+proc ?shell-safe-char
+    int
     --
-    ptr // dst
-in 
-    memory src sizeof(ptr) end
-    memory dst sizeof(ptr) end
-    memory result sizeof(ptr) end
-    dst !64
-    src !64
-    dst @ptr swap
-    while dup 0 > do
-        src @ptr @8
-        dst @ptr !8
-        src inc64
-        dst inc64
-        1 -
-    end drop
+    bool
+in
+    memory ch sizeof(int) end
+    ch !int
+    "@%+=:,./-_"
+    while
+        over 0 > if
+            dup @8 ch @int !=
+        else false end
+    do
+        swap 1 -
+        swap 1 +
+    end
+    drop 0 >
+    ch @int isalnum
+    or
 end
 
-proc memset 
-    int // size
-    int // byte
-    ptr // data
+proc ?shell-safe-str
+    int ptr
     --
-    ptr // data
+    bool
 in
-    memory data sizeof(ptr) end
-    data !64
-    memory byte sizeof(u64) end
-    byte !64
-    data @ptr swap
-    while dup 0 > do
-        byte @64 data @ptr !8
-        data inc64
-        1 -
+    while 
+        over 0 > if
+            dup @8 ?shell-safe-char
+        else false end
+    do
+        swap 1 -
+        swap 1 +
     end
-    drop
+    drop 0 =
+end
+
+proc shell-escape
+    int ptr
+    --
+    int ptr
+in
+    memory result sizeof(ptr) end
+    2dup ?shell-safe-str lnot if
+        tmp-end result !ptr
+        "'" tmp-append drop
+        while over 0 > do
+            dup @8
+
+            dup '\'' = if
+                drop
+                "'\"'\"'" tmp-append drop
+            else
+                1 tmp-alloc !8
+            end
+
+            swap 1 -
+            swap 1 +
+        end 2drop
+        "'" tmp-append drop
+
+        tmp-end result @ptr -
+        result @ptr
+    end
 end
 
 memory rand-state sizeof(u64) end
@@ -757,35 +889,6 @@ in
     else
         NULL
     end
-end
-
-// 8MB of temporary scratch buffer
-const TMP_CAP 8 1024 * 1024 * end
-memory tmp-start TMP_CAP end
-memory tmp-size sizeof(u64) end
-
-proc tmp-clean in 0 tmp-size !64 end
-proc tmp-end -- ptr in tmp-start tmp-size @64 + end 
-proc tmp-rewind ptr in tmp-start - tmp-size !int end
-
-proc tmp-alloc
-    int
-    --
-    ptr // result
-in
-    dup tmp-size @64 + TMP_CAP > if
-        here eputs ": Temporary memory buffer exceeded. Need to call tmp-clean more often\n" eputs
-        1 exit
-    end
-
-    dup 0 tmp-end memset 
-    tmp-size @64 rot + tmp-size !64
-end
-
-proc tmp-str-to-cstr int ptr -- ptr in over 1 + tmp-alloc memcpy end
-proc tmp-append int ptr -- ptr in over tmp-alloc memcpy end
-proc tmp-append-ptr ptr -- in
-    sizeof(ptr) tmp-alloc !ptr
 end
 
 proc execvp

@@ -831,8 +831,7 @@ proc cmd-echoed ptr in
         "[CMD]" puts
         dup while dup @64 0 != do
             " " puts
-            // TODO: properly escape the logged CMD
-            dup @64 cast(ptr) cstr-to-str puts
+            dup @64 cast(ptr) cstr-to-str shell-escape puts
             8 +
         end drop
         "\n" puts
