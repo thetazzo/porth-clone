@@ -2718,6 +2718,8 @@ in
     else drop end
 end
 
+// TODO: work on [porth.porth] implement type checking of OP_PUSH_INT commit
+
 proc summary in
   // TODO: lexer stats: tokens count, lines count, etc
   "Ops count:                    " puts ops-count              @int putu "\n" puts
