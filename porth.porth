@@ -2640,7 +2640,7 @@ proc summary in
   "Global memory size (bytes):   " puts global_memory-capacity @int putu "\n" puts
 end
 
-proc usage
+proc print-usage
   ptr // program name
   int // fd
 in
@@ -2651,6 +2651,8 @@ in
   name !ptr
 
   "Usage: " eputs name @ptr cstr-to-str puts " <SUBCOMMAND>\n"                               fd @64 fputs
+  "  OPTIONS:\n"                                                                             fd @64 fputs
+  "    -check                Type check the program"                                         fd @64 fputs
   "  SUBCOMMANDS:\n"                                                                         fd @64 fputs
   "    sim <file>            Simulate the program.\n"                                        fd @64 fputs
   "    com [OPTIONS] <file>  Compile the program\n"                                          fd @64 fputs
@@ -2663,128 +2665,149 @@ in
   "    help                  Print this help to stdout and exit with 0 code\n"               fd @64 fputs
 end
 
-proc main in
-  memory program sizeof(ptr) end
-  args @@ptr program !ptr
-
-  args sizeof(ptr) inc64-by
-  args @@ptr NULL = if
-    program @ptr stderr usage
-    "ERROR: subcommand is not provided\n" eputs
+proc type-check-program in
+    here eputs ": TODO: type checking is not implemented\n" eputs
     1 exit
-  end
+end
 
-  memory file-path-cstr sizeof(ptr) end
-  NULL file-path-cstr !ptr
-  memory run sizeof(bool) end
-  false run !bool
+proc main in
+    memory program sizeof(ptr) end
+    args @@ptr program !ptr
+  
+    memory check sizeof(bool) end
+    false check !bool
 
-  // TODO: porth.porth does not type check compiled program
-
-  args @@ptr "sim"c cstreq if
-    args sizeof(ptr) inc64-by
-    args @@ptr NULL = if
-      program @ptr stderr usage
-      "ERROR: no input file is provided for the `sim` subcommand\n" eputs
-      1 exit
-    end
-
-    args @@ptr compile-file-into-ops
-
-    simulate-ops
-  else args @@ptr "com"c cstreq if*
     while
         args sizeof(ptr) inc64-by
         args @@ptr NULL = if
             false // break
-        else args @@ptr "-r"c cstreq if*
-            true run !bool
-            true  // continue
-        else args @@ptr "-s"c cstreq if*
-            true silent !bool
-            true  // continue
-        else
-            args @@ptr file-path-cstr !ptr
-            args sizeof(ptr) inc64-by
+        else args @@ptr "-check"c cstreq if*
+            true check !bool
+            true // continue
+        else 
             false // break
         end
     do end
-
-    file-path-cstr @ptr NULL = if
-       program @ptr stderr usage
-       "[ERROR] no input file is provided for the compilation\n" eputs
-       1 exit
+  
+    args @@ptr NULL = if
+      program @ptr stderr print-usage
+      "ERROR: subcommand is not provided\n" eputs
+      1 exit
     end
+  
+    memory file-path-cstr sizeof(ptr) end
+    NULL file-path-cstr !ptr
+    memory run sizeof(bool) end
+    false run !bool
 
-    file-path-cstr @ptr compile-file-into-ops
-
-    // TODO: the output file path should be based on the input file path
-    "output.asm"c generate-nasm-linux-x86_64
-
-    tmp-end
-    "nasm"c       tmp-append-ptr
-    "-felf64"c    tmp-append-ptr
-    "output.asm"c tmp-append-ptr
-    NULL          tmp-append-ptr
-    cmd-echoed
-
-    tmp-end
-    "ld"c         tmp-append-ptr
-    "-o"c         tmp-append-ptr
-    "output"c     tmp-append-ptr
-    "output.o"c   tmp-append-ptr
-    NULL          tmp-append-ptr
-    cmd-echoed
-
-    run @bool if
-        tmp-end
-        "./output"c tmp-append-ptr
-        while args @@ptr NULL != do
-            args @@ptr tmp-append-ptr
-            args sizeof(ptr) inc64-by
+    args @@ptr "sim"c cstreq if
+        args sizeof(ptr) inc64-by
+        args @@ptr NULL = if
+          program @ptr stderr print-usage
+          "ERROR: no input file is provided for the `sim` subcommand\n" eputs
+          1 exit
         end
-        NULL        tmp-append-ptr
+  
+        args @@ptr compile-file-into-ops
+        check @bool if type-check-program end
+  
+        simulate-ops
+    else args @@ptr "com"c cstreq if*
+        while
+            args sizeof(ptr) inc64-by
+            args @@ptr NULL = if
+                false // break
+            else args @@ptr "-r"c cstreq if*
+                true run !bool
+                true  // continue
+            else args @@ptr "-s"c cstreq if*
+                true silent !bool
+                true  // continue
+            else
+                args @@ptr file-path-cstr !ptr
+                args sizeof(ptr) inc64-by
+                false // break
+            end
+        do end
+  
+        file-path-cstr @ptr NULL = if
+           program @ptr stderr print-usage
+           "[ERROR] no input file is provided for the compilation\n" eputs
+           1 exit
+        end
+  
+        file-path-cstr @ptr compile-file-into-ops
+        check @bool if type-check-program end
+  
+        // TODO: the output file path should be based on the input file path
+        "output.asm"c generate-nasm-linux-x86_64
+  
+        tmp-end
+        "nasm"c       tmp-append-ptr
+        "-felf64"c    tmp-append-ptr
+        "output.asm"c tmp-append-ptr
+        NULL          tmp-append-ptr
         cmd-echoed
-    end
-  else args @@ptr "help"c cstreq if*
-    program @ptr stdout usage
-    0 exit
-  else args @@ptr "dump"c cstreq if*
-    args sizeof(ptr) inc64-by
-    args @@ptr NULL = if
-      program @ptr stderr usage
-      "ERROR: no input file is provided for the `dump` subcommand\n" eputs
+  
+        tmp-end
+        "ld"c         tmp-append-ptr
+        "-o"c         tmp-append-ptr
+        "output"c     tmp-append-ptr
+        "output.o"c   tmp-append-ptr
+        NULL          tmp-append-ptr
+        cmd-echoed
+  
+        run @bool if
+            tmp-end
+            "./output"c tmp-append-ptr
+            while args @@ptr NULL != do
+                args @@ptr tmp-append-ptr
+                args sizeof(ptr) inc64-by
+            end
+            NULL        tmp-append-ptr
+            cmd-echoed
+        end
+    else args @@ptr "help"c cstreq if*
+        program @ptr stdout print-usage
+        0 exit
+    else args @@ptr "dump"c cstreq if*
+        args sizeof(ptr) inc64-by
+        args @@ptr NULL = if
+          program @ptr stderr print-usage
+          "ERROR: no input file is provided for the `dump` subcommand\n" eputs
+          1 exit
+        end
+
+        args @@ptr compile-file-into-ops
+        check @bool if type-check-program end
+
+        dump-ops
+    else args @@ptr "lex"c cstreq if*
+        args sizeof(ptr) inc64-by
+        args @@ptr NULL = if
+          program @ptr stderr print-usage
+          "ERROR: no input file is provided for the `lex` subcommand\n" eputs
+          1 exit
+        end
+  
+        args @@ptr lex-file
+    else args @@ptr "summary"c cstreq if*
+        args sizeof(ptr) inc64-by
+        args @@ptr NULL = if
+          program @ptr stderr print-usage
+          "ERROR: no input file is provided for the `dump` subcommand\n" eputs
+          1 exit
+        end
+
+        args @@ptr compile-file-into-ops
+        check @bool if type-check-program end
+
+        summary
+    else
+      program @ptr stderr print-usage
+      "ERROR: unknown subcommand `" eputs args @@ptr cstr-to-str eputs "`\n" eputs
       1 exit
     end
-
-    args @@ptr compile-file-into-ops
-
-    dump-ops
-  else args @@ptr "lex"c cstreq if*
-    args sizeof(ptr) inc64-by
-    args @@ptr NULL = if
-      program @ptr stderr usage
-      "ERROR: no input file is provided for the `lex` subcommand\n" eputs
-      1 exit
-    end
-
-    args @@ptr lex-file
-  else args @@ptr "summary"c cstreq if*
-    args sizeof(ptr) inc64-by
-    args @@ptr NULL = if
-      program @ptr stderr usage
-      "ERROR: no input file is provided for the `dump` subcommand\n" eputs
-      1 exit
-    end
-
-    args @@ptr compile-file-into-ops
-
-    summary
-  else
-    program @ptr stderr usage
-    "ERROR: unknown subcommand `" eputs args @@ptr cstr-to-str eputs "`\n" eputs
-    1 exit
-  end
 end
 
 main
