@@ -827,41 +827,42 @@ end
 memory silent sizeof(bool) end
 
 proc cmd-echoed ptr in
-  silent @bool lnot if
-    "[CMD]" puts
-    dup while dup @64 0 != do
-      " " puts
-      // TODO: properly escape the logged CMD
-      dup @64 cast(ptr) cstr-to-str puts
-      8 +
-    end drop
-    "\n" puts
-  end
+    silent @bool lnot if
+        "[CMD]" puts
+        dup while dup @64 0 != do
+            " " puts
+            // TODO: properly escape the logged CMD
+            dup @64 cast(ptr) cstr-to-str puts
+            8 +
+        end drop
+        "\n" puts
+    end
 
-  memory wstatus sizeof(u64) end
+    memory wstatus sizeof(u64) end
 
-  fork
+    fork
 
-  dup 0 = if
-    // argv[0] argv
-    drop
-    dup @ptr
-    swap
-    execvp
-  else dup 0 > if*
-    2drop
-    // TODO: handle the result of wait4
-    NULL
-    0
-    wstatus
-    0 1 - //-1
-    wait4
-    drop
-  else
-    2drop
-    "[ERROR] could not fork a child\n" eputs
-    1 exit
-  end
+    dup 0 = if
+        // argv[0] argv
+        drop
+        dup @ptr
+        swap
+        execvp
+    else dup 0 > if*
+        2drop
+        NULL
+        0
+        wstatus
+        0 1 - // TODO: replace this with -1 when we support negative numbers
+        wait4 0 < if
+            "[ERROR]: could not wait until the child process has finished executing\n" eputs
+            1 exit
+        end
+    else
+        2drop
+        "[ERROR] could not fork a child\n" eputs
+        1 exit
+    end
 end
 
 proc located-here ptr in eputloc ": NOTE: located here\n" eputs end
