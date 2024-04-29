@@ -2694,25 +2694,26 @@ proc main in
     simulate-ops
   else args @@ptr "com"c cstreq if*
     while
-      args sizeof(ptr) inc64-by
-      args @@ptr NULL = if
-        false // break
-      else args @@ptr "-r"c cstreq if*
-        true run !bool
-        true  // continue
-      else args @@ptr "-s"c cstreq if*
-        true silent !bool
-        true  // continue
-      else
-        args @@ptr file-path-cstr !ptr
-        false // break
-      end
+        args sizeof(ptr) inc64-by
+        args @@ptr NULL = if
+            false // break
+        else args @@ptr "-r"c cstreq if*
+            true run !bool
+            true  // continue
+        else args @@ptr "-s"c cstreq if*
+            true silent !bool
+            true  // continue
+        else
+            args @@ptr file-path-cstr !ptr
+            args sizeof(ptr) inc64-by
+            false // break
+        end
     do end
 
     file-path-cstr @ptr NULL = if
-      program @ptr stderr usage
-      "[ERROR] no input file is provided for the compilation\n" eputs
-      1 exit
+       program @ptr stderr usage
+       "[ERROR] no input file is provided for the compilation\n" eputs
+       1 exit
     end
 
     file-path-cstr @ptr compile-file-into-ops
